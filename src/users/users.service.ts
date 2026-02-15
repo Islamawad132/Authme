@@ -2,9 +2,13 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
+import { VerificationService } from '../verification/verification.service.js';
+import { EmailService } from '../email/email.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import type { Realm } from '@prisma/client';
@@ -24,9 +28,14 @@ const USER_SELECT = {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly verificationService: VerificationService,
+    private readonly emailService: EmailService,
+    private readonly config: ConfigService,
   ) {}
 
   async create(realm: Realm, dto: CreateUserDto) {
@@ -42,7 +51,7 @@ export class UsersService {
       passwordHash = await this.crypto.hashPassword(dto.password);
     }
 
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         realmId: realm.id,
         username: dto.username,
@@ -54,6 +63,34 @@ export class UsersService {
       },
       select: USER_SELECT,
     });
+
+    // Send verification email if user has email and SMTP is configured
+    if (user.email) {
+      this.sendVerificationEmail(realm.name, user.id, user.email).catch((err) => {
+        this.logger.warn(`Failed to send verification email: ${err.message}`);
+      });
+    }
+
+    return user;
+  }
+
+  async sendVerificationEmail(realmName: string, userId: string, email: string) {
+    const configured = await this.emailService.isConfigured(realmName);
+    if (!configured) return;
+
+    const rawToken = await this.verificationService.createToken(userId, 'email_verification', 86400);
+    const baseUrl = this.config.get<string>('BASE_URL', 'http://localhost:3000');
+    const verifyUrl = `${baseUrl}/realms/${realmName}/verify-email?token=${rawToken}`;
+
+    await this.emailService.sendEmail(
+      realmName,
+      email,
+      'Verify Your Email — AuthMe',
+      `<h2>Verify Your Email</h2>
+      <p>Click the link below to verify your email address. This link expires in 24 hours.</p>
+      <p><a href="${verifyUrl}" style="display:inline-block;padding:10px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">Verify Email</a></p>
+      <p style="color:#6b7280;font-size:0.875rem;">If you didn't create an account, you can safely ignore this email.</p>`,
+    );
   }
 
   async findAll(realm: Realm, skip: number, take: number) {

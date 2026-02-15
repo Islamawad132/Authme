@@ -5,6 +5,12 @@ export interface Realm {
   enabled: boolean;
   accessTokenLifespan: number;
   refreshTokenLifespan: number;
+  smtpHost: string | null;
+  smtpPort: number | null;
+  smtpUser: string | null;
+  smtpPassword: string | null;
+  smtpFrom: string | null;
+  smtpSecure: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -13,6 +13,9 @@ describe('UsersService', () => {
   let service: UsersService;
   let prisma: MockPrismaService;
   let cryptoService: { hashPassword: jest.Mock; verifyPassword: jest.Mock; generateSecret: jest.Mock; sha256: jest.Mock };
+  let verificationService: { createToken: jest.Mock; validateToken: jest.Mock };
+  let emailService: { isConfigured: jest.Mock; sendEmail: jest.Mock };
+  let configService: { get: jest.Mock };
 
   const mockRealm: Realm = {
     id: 'realm-1',
@@ -46,7 +49,24 @@ describe('UsersService', () => {
       generateSecret: jest.fn(),
       sha256: jest.fn(),
     };
-    service = new UsersService(prisma as any, cryptoService as any);
+    verificationService = {
+      createToken: jest.fn().mockResolvedValue('raw-token'),
+      validateToken: jest.fn(),
+    };
+    emailService = {
+      isConfigured: jest.fn().mockResolvedValue(false),
+      sendEmail: jest.fn().mockResolvedValue(undefined),
+    };
+    configService = {
+      get: jest.fn().mockReturnValue('http://localhost:3000'),
+    };
+    service = new UsersService(
+      prisma as any,
+      cryptoService as any,
+      verificationService as any,
+      emailService as any,
+      configService as any,
+    );
   });
 
   describe('create', () => {

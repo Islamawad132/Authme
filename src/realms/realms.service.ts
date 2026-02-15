@@ -15,6 +15,13 @@ export class RealmsService {
     private readonly jwkService: JwkService,
   ) {}
 
+  private redactSmtpPassword(realm: any) {
+    if (realm && realm.smtpPassword) {
+      return { ...realm, smtpPassword: '••••••' };
+    }
+    return realm;
+  }
+
   async create(dto: CreateRealmDto) {
     const existing = await this.prisma.realm.findUnique({
       where: { name: dto.name },
@@ -25,13 +32,19 @@ export class RealmsService {
 
     const keyPair = await this.jwkService.generateRsaKeyPair();
 
-    return this.prisma.realm.create({
+    const realm = await this.prisma.realm.create({
       data: {
         name: dto.name,
         displayName: dto.displayName,
         enabled: dto.enabled,
         accessTokenLifespan: dto.accessTokenLifespan,
         refreshTokenLifespan: dto.refreshTokenLifespan,
+        smtpHost: dto.smtpHost,
+        smtpPort: dto.smtpPort,
+        smtpUser: dto.smtpUser,
+        smtpPassword: dto.smtpPassword,
+        smtpFrom: dto.smtpFrom,
+        smtpSecure: dto.smtpSecure,
         signingKeys: {
           create: {
             kid: keyPair.kid,
@@ -42,15 +55,27 @@ export class RealmsService {
         },
       },
     });
+    return this.redactSmtpPassword(realm);
   }
 
   async findAll() {
-    return this.prisma.realm.findMany({
+    const realms = await this.prisma.realm.findMany({
       orderBy: { createdAt: 'asc' },
     });
+    return realms.map((r) => this.redactSmtpPassword(r));
   }
 
   async findByName(name: string) {
+    const realm = await this.prisma.realm.findUnique({
+      where: { name },
+    });
+    if (!realm) {
+      throw new NotFoundException(`Realm '${name}' not found`);
+    }
+    return this.redactSmtpPassword(realm);
+  }
+
+  async findByNameRaw(name: string) {
     const realm = await this.prisma.realm.findUnique({
       where: { name },
     });
@@ -61,20 +86,34 @@ export class RealmsService {
   }
 
   async update(name: string, dto: UpdateRealmDto) {
-    await this.findByName(name);
-    return this.prisma.realm.update({
+    await this.findByNameRaw(name);
+
+    const data: any = {
+      displayName: dto.displayName,
+      enabled: dto.enabled,
+      accessTokenLifespan: dto.accessTokenLifespan,
+      refreshTokenLifespan: dto.refreshTokenLifespan,
+      smtpHost: dto.smtpHost,
+      smtpPort: dto.smtpPort,
+      smtpUser: dto.smtpUser,
+      smtpFrom: dto.smtpFrom,
+      smtpSecure: dto.smtpSecure,
+    };
+
+    // Only update password if a real value is provided (not the redacted placeholder)
+    if (dto.smtpPassword && dto.smtpPassword !== '••••••') {
+      data.smtpPassword = dto.smtpPassword;
+    }
+
+    const realm = await this.prisma.realm.update({
       where: { name },
-      data: {
-        displayName: dto.displayName,
-        enabled: dto.enabled,
-        accessTokenLifespan: dto.accessTokenLifespan,
-        refreshTokenLifespan: dto.refreshTokenLifespan,
-      },
+      data,
     });
+    return this.redactSmtpPassword(realm);
   }
 
   async remove(name: string) {
-    await this.findByName(name);
+    await this.findByNameRaw(name);
     return this.prisma.realm.delete({ where: { name } });
   }
 }

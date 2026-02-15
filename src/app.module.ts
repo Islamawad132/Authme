@@ -21,6 +21,9 @@ import { BrokerModule } from './broker/broker.module.js';
 import { ConsentModule } from './consent/consent.module.js';
 import { GroupsModule } from './groups/groups.module.js';
 import { SessionsModule } from './sessions/sessions.module.js';
+import { EmailModule } from './email/email.module.js';
+import { VerificationModule } from './verification/verification.module.js';
+import { AccountModule } from './account/account.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
 
 @Module({
@@ -40,6 +43,8 @@ import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
     }),
     PrismaModule,
     CryptoModule,
+    EmailModule,
+    VerificationModule,
     RealmsModule,
     UsersModule,
     ClientsModule,
@@ -55,6 +60,7 @@ import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
     SessionsModule,
     IdentityProvidersModule,
     BrokerModule,
+    AccountModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

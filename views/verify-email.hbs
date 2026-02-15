@@ -1,0 +1,15 @@
+{{#if success}}
+<div class="auth-success">
+  Your email has been verified successfully!
+</div>
+<p style="text-align: center; margin-top: 1rem;">
+  <a href="/realms/{{realmName}}/login" class="btn-primary" style="display: inline-block; text-decoration: none;">Sign In</a>
+</p>
+{{else}}
+<div class="auth-error">
+  {{#if error}}{{error}}{{else}}This verification link is invalid or has expired.{{/if}}
+</div>
+<p style="text-align: center; margin-top: 1rem;">
+  <a href="/realms/{{realmName}}/login" style="color: #4f46e5; text-decoration: none;">Back to Sign In</a>
+</p>
+{{/if}}
