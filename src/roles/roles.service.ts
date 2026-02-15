@@ -13,10 +13,8 @@ export class RolesService {
   // ─── Realm Roles ────────────────────────────────────────
 
   async createRealmRole(realm: Realm, name: string, description?: string) {
-    const existing = await this.prisma.role.findUnique({
-      where: {
-        realmId_clientId_name: { realmId: realm.id, clientId: null as any, name },
-      },
+    const existing = await this.prisma.role.findFirst({
+      where: { realmId: realm.id, clientId: null, name },
     });
     if (existing) {
       throw new ConflictException(`Role '${name}' already exists`);
