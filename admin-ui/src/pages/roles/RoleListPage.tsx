@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getRealmRoles, createRealmRole, deleteRealmRole } from '../../api/roles';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import { getErrorMessage } from '../../utils/getErrorMessage';
 
 export default function RoleListPage() {
   const { name } = useParams<{ name: string }>();
@@ -110,7 +111,7 @@ export default function RoleListPage() {
 
           {createMutation.isError && (
             <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-              {(createMutation.error as Error).message || 'Failed to create role.'}
+              {getErrorMessage(createMutation.error, 'Failed to create role.')}
             </div>
           )}
 

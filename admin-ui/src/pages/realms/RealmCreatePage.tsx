@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createRealm } from '../../api/realms';
+import { getErrorMessage } from '../../utils/getErrorMessage';
 
 export default function RealmCreatePage() {
   const navigate = useNavigate();
@@ -114,7 +115,7 @@ export default function RealmCreatePage() {
 
         {mutation.isError && (
           <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-            {(mutation.error as Error).message || 'Failed to create realm.'}
+            {getErrorMessage(mutation.error, 'Failed to create realm.')}
           </div>
         )}
 

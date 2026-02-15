@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createUser } from '../../api/users';
+import { getErrorMessage } from '../../utils/getErrorMessage';
 
 export default function UserCreatePage() {
   const { name } = useParams<{ name: string }>();
@@ -119,7 +120,7 @@ export default function UserCreatePage() {
 
         {mutation.isError && (
           <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-            {(mutation.error as Error).message || 'Failed to create user.'}
+            {getErrorMessage(mutation.error, 'Failed to create user.')}
           </div>
         )}
 
