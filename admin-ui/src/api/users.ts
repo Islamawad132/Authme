@@ -39,7 +39,7 @@ export async function updateUser(
   id: string,
   user: Partial<User>,
 ): Promise<User> {
-  const { data } = await apiClient.patch<User>(
+  const { data } = await apiClient.put<User>(
     `/realms/${realmName}/users/${id}`,
     user,
   );
