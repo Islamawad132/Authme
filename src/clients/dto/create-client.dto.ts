@@ -51,4 +51,9 @@ export class CreateClientDto {
   @IsArray()
   @IsString({ each: true })
   grantTypes?: string[];
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  requireConsent?: boolean;
 }

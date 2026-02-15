@@ -20,6 +20,7 @@ const CLIENT_SELECT = {
   redirectUris: true,
   webOrigins: true,
   grantTypes: true,
+  requireConsent: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -64,6 +65,7 @@ export class ClientsService {
         redirectUris: dto.redirectUris ?? [],
         webOrigins: dto.webOrigins ?? [],
         grantTypes: dto.grantTypes ?? ['authorization_code'],
+        requireConsent: dto.requireConsent ?? false,
       },
       select: CLIENT_SELECT,
     });
@@ -111,6 +113,7 @@ export class ClientsService {
         redirectUris: dto.redirectUris,
         webOrigins: dto.webOrigins,
         grantTypes: dto.grantTypes,
+        requireConsent: dto.requireConsent,
       },
       select: CLIENT_SELECT,
     });
