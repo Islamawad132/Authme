@@ -32,7 +32,7 @@ import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
       serveRoot: '/console',
       serveStaticOptions: {
         index: ['index.html'],
-        fallthrough: true,
+        fallthrough: false,
       },
     }),
     PrismaModule,
