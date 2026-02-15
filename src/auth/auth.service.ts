@@ -335,24 +335,35 @@ export class AuthService {
     const allowedClaims = this.scopesService.getClaimsForScopes(effectiveScopes);
     const userClaims = resolveUserClaims(user, allowedClaims);
 
-    // Build role claims
+    // Build role claims (direct user roles + group-inherited roles)
     const userRoles = await this.prisma.userRole.findMany({
       where: { userId: user.id },
       include: { role: { include: { client: true } } },
     });
 
-    const realmRoles = userRoles
-      .filter((ur) => !ur.role.clientId)
-      .map((ur) => ur.role.name);
+    const groupRoles = await this.resolveGroupRoles(user.id);
+
+    // Merge and deduplicate
+    const allRoles = [...userRoles.map((ur) => ur.role), ...groupRoles];
+    const seenRoleIds = new Set<string>();
+    const dedupedRoles = allRoles.filter((r) => {
+      if (seenRoleIds.has(r.id)) return false;
+      seenRoleIds.add(r.id);
+      return true;
+    });
+
+    const realmRoles = dedupedRoles
+      .filter((r) => !r.clientId)
+      .map((r) => r.name);
 
     const resourceAccess: Record<string, { roles: string[] }> = {};
-    for (const ur of userRoles) {
-      if (ur.role.client) {
-        const cId = ur.role.client.clientId;
+    for (const role of dedupedRoles) {
+      if (role.client) {
+        const cId = role.client.clientId;
         if (!resourceAccess[cId]) {
           resourceAccess[cId] = { roles: [] };
         }
-        resourceAccess[cId].roles.push(ur.role.name);
+        resourceAccess[cId].roles.push(role.name);
       }
     }
 
@@ -476,5 +487,49 @@ export class AuthService {
   private getIssuer(realm: Realm): string {
     const baseUrl = process.env['BASE_URL'] ?? 'http://localhost:3000';
     return `${baseUrl}/realms/${realm.name}`;
+  }
+
+  /**
+   * Resolve all roles a user inherits via group memberships,
+   * walking up the parent group hierarchy.
+   */
+  private async resolveGroupRoles(userId: string) {
+    const memberships = await this.prisma.userGroup.findMany({
+      where: { userId },
+      select: { groupId: true },
+    });
+
+    if (memberships.length === 0) return [];
+
+    type RoleWithClient = { id: string; name: string; clientId: string | null; client: { clientId: string } | null };
+    const allRoles: RoleWithClient[] = [];
+    const visited = new Set<string>();
+
+    const walkGroup = async (groupId: string) => {
+      if (visited.has(groupId)) return;
+      visited.add(groupId);
+
+      const group = await this.prisma.group.findUnique({
+        where: { id: groupId },
+        include: {
+          groupRoles: { include: { role: { include: { client: true } } } },
+        },
+      });
+      if (!group) return;
+
+      for (const gr of group.groupRoles) {
+        allRoles.push(gr.role);
+      }
+
+      if (group.parentId) {
+        await walkGroup(group.parentId);
+      }
+    };
+
+    for (const m of memberships) {
+      await walkGroup(m.groupId);
+    }
+
+    return allRoles;
   }
 }

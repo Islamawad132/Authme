@@ -26,6 +26,7 @@ model Realm {
   signingKeys        RealmSigningKey[]
   loginSessions      LoginSession[]
   identityProviders  IdentityProvider[]
+  groups             Group[]
 
   @@map("realms")
 }
@@ -52,6 +53,7 @@ model User {
   loginSessions       LoginSession[]
   consents            UserConsent[]
   federatedIdentities FederatedIdentity[]
+  userGroups          UserGroup[]
 
   @@unique([realmId, username])
   @@unique([realmId, email])
@@ -104,9 +106,10 @@ model Role {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  realm     Realm      @relation(fields: [realmId], references: [id], onDelete: Cascade)
-  client    Client?    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  userRoles UserRole[]
+  realm      Realm       @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  client     Client?     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userRoles  UserRole[]
+  groupRoles GroupRole[]
 
   @@unique([realmId, clientId, name])
   @@map("roles")
@@ -235,6 +238,56 @@ model UserConsent {
 
   @@unique([userId, clientId])
   @@map("user_consents")
+}
+
+// ─── GROUPS ─────────────────────────────────────────────
+
+model Group {
+  id          String  @id @default(uuid())
+  realmId     String  @map("realm_id")
+  name        String
+  description String?
+  parentId    String? @map("parent_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  realm      Realm       @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  parent     Group?      @relation("GroupHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children   Group[]     @relation("GroupHierarchy")
+  userGroups UserGroup[]
+  groupRoles GroupRole[]
+
+  @@unique([realmId, name])
+  @@map("groups")
+}
+
+model UserGroup {
+  id      String @id @default(uuid())
+  userId  String @map("user_id")
+  groupId String @map("group_id")
+
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@map("user_groups")
+}
+
+model GroupRole {
+  id      String @id @default(uuid())
+  groupId String @map("group_id")
+  roleId  String @map("role_id")
+
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  role  Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, roleId])
+  @@map("group_roles")
 }
 
 // ─── IDENTITY PROVIDERS (Social Login) ───────────────────

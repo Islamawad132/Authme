@@ -8,6 +8,7 @@ import {
   assignUserRealmRoles,
   removeUserRealmRoles,
 } from '../../api/roles';
+import { getUserGroups, getGroups, addUserToGroup, removeUserFromGroup } from '../../api/groups';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
 export default function UserDetailPage() {
@@ -18,6 +19,7 @@ export default function UserDetailPage() {
   const [newPassword, setNewPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState('');
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['user', name, id],
@@ -99,6 +101,32 @@ export default function UserDetailPage() {
     },
   });
 
+  // Groups
+  const { data: userGroups, refetch: refetchUserGroups } = useQuery({
+    queryKey: ['userGroups', name, id],
+    queryFn: () => getUserGroups(name!, id!),
+    enabled: !!name && !!id,
+  });
+
+  const { data: allGroups } = useQuery({
+    queryKey: ['groups', name],
+    queryFn: () => getGroups(name!),
+    enabled: !!name,
+  });
+
+  const addGroupMutation = useMutation({
+    mutationFn: (groupId: string) => addUserToGroup(name!, id!, groupId),
+    onSuccess: () => {
+      refetchUserGroups();
+      setSelectedGroup('');
+    },
+  });
+
+  const removeGroupMutation = useMutation({
+    mutationFn: (groupId: string) => removeUserFromGroup(name!, id!, groupId),
+    onSuccess: () => refetchUserGroups(),
+  });
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     updateMutation.mutate();
@@ -128,6 +156,8 @@ export default function UserDetailPage() {
 
   const assignedRoleNames = new Set(userRoles?.map((r) => r.name) ?? []);
   const availableRoles = allRoles?.filter((r) => !assignedRoleNames.has(r.name)) ?? [];
+  const assignedGroupIds = new Set(userGroups?.map((g) => g.id) ?? []);
+  const availableGroups = allGroups?.filter((g) => !assignedGroupIds.has(g.id)) ?? [];
 
   return (
     <div className="space-y-8">
@@ -337,6 +367,70 @@ export default function UserDetailPage() {
               className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
             >
               Assign
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Groups */}
+      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900">Groups</h2>
+
+        {/* Assigned groups */}
+        <div>
+          <h3 className="mb-2 text-sm font-medium text-gray-700">Member of</h3>
+          {userGroups && userGroups.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {userGroups.map((group) => (
+                <span
+                  key={group.id}
+                  className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-700"
+                >
+                  {group.name}
+                  <button
+                    type="button"
+                    onClick={() => removeGroupMutation.mutate(group.id)}
+                    className="ml-1 text-emerald-400 hover:text-emerald-600"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">Not a member of any group.</p>
+          )}
+        </div>
+
+        {/* Add to group */}
+        {availableGroups.length > 0 && (
+          <div className="flex items-end gap-3 border-t border-gray-200 pt-4">
+            <div className="flex-1">
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Add to Group
+              </label>
+              <select
+                value={selectedGroup}
+                onChange={(e) => setSelectedGroup(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              >
+                <option value="">Select a group...</option>
+                {availableGroups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => selectedGroup && addGroupMutation.mutate(selectedGroup)}
+              disabled={!selectedGroup || addGroupMutation.isPending}
+              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              Add
             </button>
           </div>
         )}
