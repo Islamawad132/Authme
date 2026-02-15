@@ -9,6 +9,8 @@ import {
   removeUserRealmRoles,
 } from '../../api/roles';
 import { getUserGroups, getGroups, addUserToGroup, removeUserFromGroup } from '../../api/groups';
+import { getUserSessions, revokeSession, revokeAllUserSessions } from '../../api/sessions';
+import type { SessionInfo } from '../../api/sessions';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
 export default function UserDetailPage() {
@@ -125,6 +127,23 @@ export default function UserDetailPage() {
   const removeGroupMutation = useMutation({
     mutationFn: (groupId: string) => removeUserFromGroup(name!, id!, groupId),
     onSuccess: () => refetchUserGroups(),
+  });
+
+  // Sessions
+  const { data: userSessions, refetch: refetchSessions } = useQuery({
+    queryKey: ['userSessions', name, id],
+    queryFn: () => getUserSessions(name!, id!),
+    enabled: !!name && !!id,
+  });
+
+  const revokeSessionMutation = useMutation({
+    mutationFn: (session: SessionInfo) => revokeSession(name!, session.id, session.type),
+    onSuccess: () => refetchSessions(),
+  });
+
+  const revokeAllMutation = useMutation({
+    mutationFn: () => revokeAllUserSessions(name!, id!),
+    onSuccess: () => refetchSessions(),
   });
 
   function handleSubmit(e: FormEvent) {
@@ -433,6 +452,70 @@ export default function UserDetailPage() {
               Add
             </button>
           </div>
+        )}
+      </div>
+
+      {/* Sessions */}
+      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Active Sessions</h2>
+          {userSessions && userSessions.length > 0 && (
+            <button
+              onClick={() => revokeAllMutation.mutate()}
+              disabled={revokeAllMutation.isPending}
+              className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              Revoke All
+            </button>
+          )}
+        </div>
+
+        {userSessions && userSessions.length > 0 ? (
+          <div className="overflow-hidden rounded-md border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">IP Address</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Started</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {userSessions.map((session) => (
+                  <tr key={`${session.type}-${session.id}`} className="hover:bg-gray-50">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm">
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                          session.type === 'sso'
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'bg-blue-100 text-blue-700'
+                        }`}
+                      >
+                        {session.type === 'sso' ? 'SSO' : 'OAuth'}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                      {session.ipAddress || '-'}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                      {new Date(session.createdAt).toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      <button
+                        onClick={() => revokeSessionMutation.mutate(session)}
+                        className="text-sm text-red-600 hover:text-red-800"
+                      >
+                        Revoke
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">No active sessions.</p>
         )}
       </div>
 

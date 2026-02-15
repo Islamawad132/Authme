@@ -20,6 +20,7 @@ import { IdentityProvidersModule } from './identity-providers/identity-providers
 import { BrokerModule } from './broker/broker.module.js';
 import { ConsentModule } from './consent/consent.module.js';
 import { GroupsModule } from './groups/groups.module.js';
+import { SessionsModule } from './sessions/sessions.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
 
 @Module({
@@ -51,6 +52,7 @@ import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
     LoginModule,
     ConsentModule,
     GroupsModule,
+    SessionsModule,
     IdentityProvidersModule,
     BrokerModule,
   ],
