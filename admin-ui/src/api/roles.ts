@@ -31,7 +31,7 @@ export async function getUserRealmRoles(
   userId: string,
 ): Promise<Role[]> {
   const { data } = await apiClient.get<Role[]>(
-    `/realms/${realmName}/users/${userId}/roles`,
+    `/realms/${realmName}/users/${userId}/role-mappings/realm`,
   );
   return data;
 }
@@ -42,8 +42,8 @@ export async function assignUserRealmRoles(
   roleNames: string[],
 ): Promise<void> {
   await apiClient.post(
-    `/realms/${realmName}/users/${userId}/roles`,
-    { roles: roleNames },
+    `/realms/${realmName}/users/${userId}/role-mappings/realm`,
+    { roleNames },
   );
 }
 
@@ -53,7 +53,7 @@ export async function removeUserRealmRoles(
   roleNames: string[],
 ): Promise<void> {
   await apiClient.delete(
-    `/realms/${realmName}/users/${userId}/roles`,
-    { data: { roles: roleNames } },
+    `/realms/${realmName}/users/${userId}/role-mappings/realm`,
+    { data: { roleNames } },
   );
 }
