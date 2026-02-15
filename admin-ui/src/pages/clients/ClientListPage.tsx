@@ -71,7 +71,7 @@ export default function ClientListPage() {
               clients.map((client) => (
                 <tr
                   key={client.id}
-                  onClick={() => navigate(`/console/realms/${name}/clients/${client.id}`)}
+                  onClick={() => navigate(`/console/realms/${name}/clients/${client.clientId}`)}
                   className="cursor-pointer hover:bg-gray-50"
                 >
                   <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-indigo-600">
