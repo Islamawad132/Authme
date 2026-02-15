@@ -71,7 +71,7 @@ export class ClientsService {
     return {
       ...client,
       ...(rawSecret
-        ? { secret: rawSecret, secretWarning: 'Store this secret securely. It will not be shown again.' }
+        ? { clientSecret: rawSecret, secretWarning: 'Store this secret securely. It will not be shown again.' }
         : {}),
     };
   }
