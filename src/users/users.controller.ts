@@ -72,4 +72,18 @@ export class UsersController {
   ) {
     return this.usersService.setPassword(realm, userId, dto.password);
   }
+
+  @Post(':userId/send-verification-email')
+  @ApiOperation({ summary: 'Send or resend verification email to a user' })
+  async sendVerificationEmail(
+    @CurrentRealm() realm: Realm,
+    @Param('userId') userId: string,
+  ) {
+    const user = await this.usersService.findById(realm, userId);
+    if (!user.email) {
+      return { message: 'User has no email address' };
+    }
+    await this.usersService.sendVerificationEmail(realm.name, user.id, user.email);
+    return { message: 'Verification email sent' };
+  }
 }

@@ -30,4 +30,34 @@ export class CreateRealmDto {
   @IsInt()
   @Min(60)
   refreshTokenLifespan?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  smtpHost?: string;
+
+  @ApiPropertyOptional({ default: 587 })
+  @IsOptional()
+  @IsInt()
+  smtpPort?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  smtpUser?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  smtpPassword?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  smtpFrom?: string;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  smtpSecure?: boolean;
 }

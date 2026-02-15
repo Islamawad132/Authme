@@ -29,3 +29,11 @@ export async function updateRealm(
 export async function deleteRealm(name: string): Promise<void> {
   await apiClient.delete(`/realms/${name}`);
 }
+
+export async function sendTestEmail(
+  name: string,
+  to: string,
+): Promise<{ message: string }> {
+  const { data } = await apiClient.post(`/realms/${name}/email/test`, { to });
+  return data;
+}
