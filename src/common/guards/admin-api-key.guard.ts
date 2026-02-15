@@ -24,10 +24,22 @@ export class AdminApiKeyGuard implements CanActivate {
     if (isPublic) return true;
 
     const request = context.switchToHttp().getRequest<Request>();
-    const apiKey = request.headers['x-admin-api-key'];
+
+    // Only enforce API key on admin routes
+    if (!request.path.startsWith('/admin/') && !request.path.startsWith('/admin')) {
+      return true;
+    }
+
     const expectedKey = this.configService.get<string>('ADMIN_API_KEY');
 
-    if (!expectedKey || apiKey === expectedKey) return true;
+    if (!expectedKey) {
+      throw new UnauthorizedException('ADMIN_API_KEY is not configured');
+    }
+
+    const apiKey = request.headers['x-admin-api-key'];
+    if (typeof apiKey === 'string' && apiKey === expectedKey) {
+      return true;
+    }
 
     throw new UnauthorizedException('Invalid or missing admin API key');
   }
