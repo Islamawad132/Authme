@@ -48,10 +48,10 @@ export default function UserDetailPage() {
   useEffect(() => {
     if (user) {
       setForm({
-        email: user.email,
+        email: user.email ?? '',
         emailVerified: user.emailVerified,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        firstName: user.firstName ?? '',
+        lastName: user.lastName ?? '',
         enabled: user.enabled,
       });
     }

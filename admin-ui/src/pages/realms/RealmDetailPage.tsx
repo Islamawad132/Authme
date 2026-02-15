@@ -47,7 +47,7 @@ export default function RealmDetailPage() {
   useEffect(() => {
     if (realm) {
       setForm({
-        displayName: realm.displayName,
+        displayName: realm.displayName ?? '',
         enabled: realm.enabled,
         accessTokenLifespan: realm.accessTokenLifespan,
         refreshTokenLifespan: realm.refreshTokenLifespan,

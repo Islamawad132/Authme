@@ -1,7 +1,7 @@
 export interface Realm {
   id: string;
   name: string;
-  displayName: string;
+  displayName: string | null;
   enabled: boolean;
   accessTokenLifespan: number;
   refreshTokenLifespan: number;
@@ -13,10 +13,10 @@ export interface User {
   id: string;
   realmId: string;
   username: string;
-  email: string;
+  email: string | null;
   emailVerified: boolean;
-  firstName: string;
-  lastName: string;
+  firstName: string | null;
+  lastName: string | null;
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -28,8 +28,8 @@ export interface Client {
   clientId: string;
   clientType: 'CONFIDENTIAL' | 'PUBLIC';
   clientSecret?: string;
-  name: string;
-  description: string;
+  name: string | null;
+  description: string | null;
   enabled: boolean;
   redirectUris: string[];
   webOrigins: string[];
@@ -44,7 +44,7 @@ export interface Role {
   realmId: string;
   clientId: string | null;
   name: string;
-  description: string;
+  description: string | null;
   createdAt: string;
   updatedAt: string;
 }
