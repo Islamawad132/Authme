@@ -143,7 +143,7 @@ export class ClientsService {
 
     return {
       clientId,
-      secret: rawSecret,
+      clientSecret: rawSecret,
       secretWarning: 'Store this secret securely. It will not be shown again.',
     };
   }
