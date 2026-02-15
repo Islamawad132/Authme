@@ -15,6 +15,7 @@ import RoleListPage from './pages/roles/RoleListPage';
 import GroupListPage from './pages/groups/GroupListPage';
 import GroupCreatePage from './pages/groups/GroupCreatePage';
 import GroupDetailPage from './pages/groups/GroupDetailPage';
+import SessionListPage from './pages/sessions/SessionListPage';
 
 function ProtectedRoute() {
   const apiKey = sessionStorage.getItem('adminApiKey');
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/console/realms/:name/groups" element={<GroupListPage />} />
           <Route path="/console/realms/:name/groups/create" element={<GroupCreatePage />} />
           <Route path="/console/realms/:name/groups/:groupId" element={<GroupDetailPage />} />
+          <Route path="/console/realms/:name/sessions" element={<SessionListPage />} />
         </Route>
       </Route>
 
