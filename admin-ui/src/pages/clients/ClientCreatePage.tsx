@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '../../api/clients';
+import { getErrorMessage } from '../../utils/getErrorMessage';
 
 export default function ClientCreatePage() {
   const { name } = useParams<{ name: string }>();
@@ -231,7 +232,7 @@ export default function ClientCreatePage() {
 
         {mutation.isError && (
           <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
-            {(mutation.error as Error).message || 'Failed to create client.'}
+            {getErrorMessage(mutation.error, 'Failed to create client.')}
           </div>
         )}
 
