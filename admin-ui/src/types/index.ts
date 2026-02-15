@@ -49,6 +49,28 @@ export interface Role {
   updatedAt: string;
 }
 
+export interface IdentityProvider {
+  id: string;
+  realmId: string;
+  alias: string;
+  displayName: string | null;
+  enabled: boolean;
+  providerType: string;
+  clientId: string;
+  clientSecret: string;
+  authorizationUrl: string;
+  tokenUrl: string;
+  userinfoUrl: string | null;
+  jwksUrl: string | null;
+  issuer: string | null;
+  defaultScopes: string;
+  trustEmail: boolean;
+  linkOnly: boolean;
+  syncUserProfile: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Group {
   id: string;
   realmId: string;
