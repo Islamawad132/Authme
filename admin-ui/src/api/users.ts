@@ -3,14 +3,14 @@ import type { User } from '../types';
 
 export async function getUsers(
   realmName: string,
-  skip = 0,
+  page = 1,
   limit = 50,
 ): Promise<User[]> {
-  const { data } = await apiClient.get<User[]>(
+  const { data } = await apiClient.get<{ users: User[]; total: number }>(
     `/realms/${realmName}/users`,
-    { params: { skip, limit } },
+    { params: { page, limit } },
   );
-  return data;
+  return data.users;
 }
 
 export async function getUserById(
