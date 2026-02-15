@@ -1,14 +1,11 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllRealms } from '../api/realms';
 
 export function useAuth() {
   const navigate = useNavigate();
 
-  const isAuthenticated = useMemo(
-    () => !!sessionStorage.getItem('adminApiKey'),
-    [],
-  );
+  const isAuthenticated = !!sessionStorage.getItem('adminApiKey');
 
   const login = useCallback(
     async (apiKey: string): Promise<boolean> => {
