@@ -33,6 +33,7 @@ export default function Layout() {
         { to: `/console/realms/${currentRealm}/users`, label: 'Users' },
         { to: `/console/realms/${currentRealm}/clients`, label: 'Clients' },
         { to: `/console/realms/${currentRealm}/roles`, label: 'Roles' },
+        { to: `/console/realms/${currentRealm}/groups`, label: 'Groups' },
       ]
     : [];
 

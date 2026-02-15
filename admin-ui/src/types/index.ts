@@ -48,3 +48,15 @@ export interface Role {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface Group {
+  id: string;
+  realmId: string;
+  name: string;
+  description: string | null;
+  parentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  children?: Group[];
+  _count?: { userGroups: number; groupRoles: number };
+}
