@@ -1,0 +1,61 @@
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
+import { join } from 'path';
+import { AppModule } from './app.module.js';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter.js';
+
+async function bootstrap() {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'blob:'],
+          connectSrc: ["'self'"],
+        },
+      },
+    }),
+  );
+  app.enableCors();
+  app.use(cookieParser());
+
+  // Handlebars template engine for login/consent pages
+  app.setBaseViewsDir(join(__dirname, '..', 'views'));
+  app.setViewEngine('hbs');
+  app.useStaticAssets(join(__dirname, '..', 'public'));
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  app.useGlobalFilters(new GlobalExceptionFilter());
+
+  const config = new DocumentBuilder()
+    .setTitle('AuthMe')
+    .setDescription('Open-source Identity and Access Management Server')
+    .setVersion('0.1.0')
+    .addApiKey({ type: 'apiKey', name: 'x-admin-api-key', in: 'header' }, 'admin-api-key')
+    .addBearerAuth()
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
+  const port = process.env['PORT'] ?? 3000;
+  await app.listen(port);
+  console.log(`AuthMe is running on http://localhost:${port}`);
+  console.log(`Swagger UI: http://localhost:${port}/api`);
+}
+bootstrap();

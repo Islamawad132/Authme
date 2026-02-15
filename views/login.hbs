@@ -1,0 +1,32 @@
+{{#if error}}
+<div class="auth-error">{{error}}</div>
+{{/if}}
+
+<form method="POST" action="/realms/{{realmName}}/login" class="auth-form">
+  <div class="form-group">
+    <label for="username">Username</label>
+    <input type="text" id="username" name="username" required autocomplete="username" autofocus>
+  </div>
+
+  <div class="form-group">
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" required autocomplete="current-password">
+  </div>
+
+  <div class="form-group form-checkbox">
+    <input type="checkbox" id="rememberMe" name="rememberMe" value="true">
+    <label for="rememberMe">Remember me</label>
+  </div>
+
+  <!-- Carry OAuth params through the form -->
+  <input type="hidden" name="client_id" value="{{client_id}}">
+  <input type="hidden" name="redirect_uri" value="{{redirect_uri}}">
+  <input type="hidden" name="response_type" value="{{response_type}}">
+  <input type="hidden" name="scope" value="{{scope}}">
+  <input type="hidden" name="state" value="{{state}}">
+  <input type="hidden" name="nonce" value="{{nonce}}">
+  <input type="hidden" name="code_challenge" value="{{code_challenge}}">
+  <input type="hidden" name="code_challenge_method" value="{{code_challenge_method}}">
+
+  <button type="submit" class="btn-primary">Sign In</button>
+</form>

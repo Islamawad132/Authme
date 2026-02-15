@@ -1,0 +1,1358 @@
+import { UnauthorizedException, BadRequestException } from '@nestjs/common';
+
+// Mock modules that transitively import jose (ESM-only) to avoid parse errors
+jest.mock('../crypto/jwk.service.js', () => ({
+  JwkService: jest.fn(),
+}));
+
+import { AuthService } from './auth.service.js';
+import {
+  createMockPrismaService,
+  type MockPrismaService,
+} from '../prisma/prisma.mock.js';
+import type { Realm } from '@prisma/client';
+
+// ---------------------------------------------------------------------------
+// Helpers & fixtures
+// ---------------------------------------------------------------------------
+
+const FAKE_ACCESS_TOKEN = 'eyJhbGciOiJSUzI1NiJ9.fake-access-token';
+const FAKE_ID_TOKEN = 'eyJhbGciOiJSUzI1NiJ9.fake-id-token';
+const FAKE_REFRESH_TOKEN_RAW = 'aabbccdd00112233';
+const FAKE_REFRESH_TOKEN_HASH = 'hashed-refresh-token';
+const FAKE_AT_HASH = 'at-hash-value';
+
+const realm = {
+  id: 'realm-1',
+  name: 'test-realm',
+  displayName: 'Test Realm',
+  enabled: true,
+  accessTokenLifespan: 300,
+  refreshTokenLifespan: 1800,
+  createdAt: new Date('2025-01-01'),
+  updatedAt: new Date('2025-01-01'),
+} as Realm;
+
+const signingKey = {
+  id: 'key-1',
+  realmId: realm.id,
+  kid: 'kid-1',
+  algorithm: 'RS256',
+  publicKey: '-----BEGIN PUBLIC KEY-----\nfake\n-----END PUBLIC KEY-----',
+  privateKey: '-----BEGIN PRIVATE KEY-----\nfake\n-----END PRIVATE KEY-----',
+  active: true,
+  createdAt: new Date('2025-01-01'),
+};
+
+const dbUser = {
+  id: 'user-1',
+  realmId: realm.id,
+  username: 'testuser',
+  email: 'test@example.com',
+  emailVerified: true,
+  firstName: 'Test',
+  lastName: 'User',
+  enabled: true,
+  passwordHash: '$argon2id$hashed',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+const dbClient = {
+  id: 'client-db-id',
+  realmId: realm.id,
+  clientId: 'my-client',
+  clientSecret: '$argon2id$hashed-secret',
+  clientType: 'CONFIDENTIAL',
+  enabled: true,
+  grantTypes: [
+    'password',
+    'client_credentials',
+    'refresh_token',
+    'authorization_code',
+  ],
+  redirectUris: ['https://app.example.com/callback'],
+  webOrigins: [],
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
+const publicClient = {
+  ...dbClient,
+  id: 'public-client-db-id',
+  clientId: 'public-client',
+  clientType: 'PUBLIC',
+  clientSecret: null as string | null,
+};
+
+// ---------------------------------------------------------------------------
+// Mock factories
+// ---------------------------------------------------------------------------
+
+function createMockCryptoService() {
+  return {
+    hashPassword: jest.fn(),
+    verifyPassword: jest.fn(),
+    generateSecret: jest.fn().mockReturnValue(FAKE_REFRESH_TOKEN_RAW),
+    sha256: jest.fn().mockReturnValue(FAKE_REFRESH_TOKEN_HASH),
+  };
+}
+
+function createMockJwkService() {
+  return {
+    signJwt: jest.fn().mockResolvedValue(FAKE_ACCESS_TOKEN),
+    computeAtHash: jest.fn().mockReturnValue(FAKE_AT_HASH),
+    generateRsaKeyPair: jest.fn(),
+    verifyJwt: jest.fn(),
+    publicKeyToJwk: jest.fn(),
+  };
+}
+
+function createMockScopesService() {
+  return {
+    parseAndValidate: jest.fn().mockReturnValue(['openid']),
+    getClaimsForScopes: jest.fn().mockReturnValue(new Set(['sub'])),
+    hasOpenidScope: jest.fn().mockReturnValue(true),
+    toString: jest
+      .fn()
+      .mockImplementation((scopes: string[]) => scopes.join(' ')),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Test suite
+// ---------------------------------------------------------------------------
+
+describe('AuthService', () => {
+  let service: AuthService;
+  let prisma: MockPrismaService;
+  let crypto: ReturnType<typeof createMockCryptoService>;
+  let jwkService: ReturnType<typeof createMockJwkService>;
+  let scopesService: ReturnType<typeof createMockScopesService>;
+
+  beforeEach(() => {
+    prisma = createMockPrismaService();
+    crypto = createMockCryptoService();
+    jwkService = createMockJwkService();
+    scopesService = createMockScopesService();
+
+    service = new AuthService(
+      prisma as any,
+      crypto as any,
+      jwkService as any,
+      scopesService as any,
+    );
+  });
+
+  // -----------------------------------------------------------------------
+  // Common setup helpers
+  // -----------------------------------------------------------------------
+
+  /** Set up the mocks so client validation passes for the confidential client. */
+  function setupValidClient(client = dbClient) {
+    prisma.client.findUnique.mockResolvedValue(client);
+    crypto.verifyPassword.mockResolvedValue(true);
+  }
+
+  /** Set up signing key so issueTokens can proceed. */
+  function setupSigningKey() {
+    prisma.realmSigningKey.findFirst.mockResolvedValue(signingKey);
+  }
+
+  /** Set up roles query to return empty arrays. */
+  function setupEmptyRoles() {
+    prisma.userRole.findMany.mockResolvedValue([]);
+  }
+
+  /** Set up session creation. */
+  function setupSessionCreate(sessionId = 'session-1') {
+    prisma.session.create.mockResolvedValue({ id: sessionId });
+  }
+
+  /** Set up refresh token creation. */
+  function setupRefreshTokenCreate() {
+    prisma.refreshToken.create.mockResolvedValue({ id: 'rt-1' });
+  }
+
+  /** Convenience: set up everything needed for a successful token issue. */
+  function setupForTokenIssuance(client = dbClient) {
+    setupValidClient(client);
+    setupSigningKey();
+    setupEmptyRoles();
+    setupSessionCreate();
+    setupRefreshTokenCreate();
+  }
+
+  // -----------------------------------------------------------------------
+  // Unsupported grant type
+  // -----------------------------------------------------------------------
+
+  describe('handleTokenRequest - unsupported grant type', () => {
+    it('should throw BadRequestException for an unknown grant_type', async () => {
+      await expect(
+        service.handleTokenRequest(realm, { grant_type: 'magic' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // validateClient
+  // -----------------------------------------------------------------------
+
+  describe('validateClient (via password grant)', () => {
+    it('should throw BadRequestException when client_id is missing', async () => {
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: '',
+          username: 'testuser',
+          password: 'pass',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw UnauthorizedException when client does not exist', async () => {
+      prisma.client.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: 'nonexistent',
+          username: 'testuser',
+          password: 'pass',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when client is disabled', async () => {
+      prisma.client.findUnique.mockResolvedValue({
+        ...dbClient,
+        enabled: false,
+      });
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'secret',
+          username: 'testuser',
+          password: 'pass',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when client_secret is wrong for a confidential client', async () => {
+      prisma.client.findUnique.mockResolvedValue(dbClient);
+      crypto.verifyPassword.mockResolvedValue(false);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'wrong-secret',
+          username: 'testuser',
+          password: 'pass',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when confidential client has no secret configured', async () => {
+      prisma.client.findUnique.mockResolvedValue({
+        ...dbClient,
+        clientSecret: null,
+      });
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'some-secret',
+          username: 'testuser',
+          password: 'pass',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when confidential client receives no client_secret', async () => {
+      prisma.client.findUnique.mockResolvedValue(dbClient);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: 'my-client',
+          username: 'testuser',
+          password: 'pass',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw BadRequestException when grant type is not allowed for the client', async () => {
+      prisma.client.findUnique.mockResolvedValue({
+        ...dbClient,
+        grantTypes: ['client_credentials'],
+      });
+      crypto.verifyPassword.mockResolvedValue(true);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'secret',
+          username: 'testuser',
+          password: 'pass',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should succeed for a valid confidential client', async () => {
+      setupForTokenIssuance();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+
+      const result = await service.handleTokenRequest(realm, {
+        grant_type: 'password',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        username: 'testuser',
+        password: 'pass',
+        scope: 'openid',
+      });
+
+      expect(result.access_token).toBeDefined();
+    });
+
+    it('should not require client_secret for a public client', async () => {
+      setupForTokenIssuance(publicClient as any);
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+
+      const result = await service.handleTokenRequest(realm, {
+        grant_type: 'password',
+        client_id: 'public-client',
+        username: 'testuser',
+        password: 'pass',
+        scope: 'openid',
+      });
+
+      expect(result.access_token).toBeDefined();
+      // verifyPassword called once for user password only, not for client
+      expect(crypto.verifyPassword).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // password grant
+  // -----------------------------------------------------------------------
+
+  describe('password grant', () => {
+    it('should return a valid token response for correct credentials', async () => {
+      setupForTokenIssuance();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+
+      const result = await service.handleTokenRequest(
+        realm,
+        {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          username: 'testuser',
+          password: 'pass',
+          scope: 'openid',
+        },
+        '127.0.0.1',
+        'jest-agent',
+      );
+
+      expect(result).toEqual({
+        access_token: FAKE_ACCESS_TOKEN,
+        token_type: 'Bearer',
+        expires_in: realm.accessTokenLifespan,
+        refresh_token: FAKE_REFRESH_TOKEN_RAW,
+        scope: 'openid',
+        id_token: FAKE_ACCESS_TOKEN, // signJwt mock returns same value for both calls
+      });
+
+      // Verify session was created with ip and user agent
+      expect(prisma.session.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: dbUser.id,
+            ipAddress: '127.0.0.1',
+            userAgent: 'jest-agent',
+          }),
+        }),
+      );
+
+      // Verify refresh token was persisted
+      expect(prisma.refreshToken.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tokenHash: FAKE_REFRESH_TOKEN_HASH,
+          }),
+        }),
+      );
+    });
+
+    it('should throw BadRequestException when username is missing', async () => {
+      setupValidClient();
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          password: 'pass',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when password is missing', async () => {
+      setupValidClient();
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          username: 'testuser',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw UnauthorizedException when user does not exist', async () => {
+      setupValidClient();
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          username: 'nonexistent',
+          password: 'pass',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when user is disabled', async () => {
+      setupValidClient();
+      prisma.user.findUnique.mockResolvedValue({ ...dbUser, enabled: false });
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          username: 'testuser',
+          password: 'pass',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when user has no passwordHash', async () => {
+      setupValidClient();
+      prisma.user.findUnique.mockResolvedValue({
+        ...dbUser,
+        passwordHash: null,
+      });
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          username: 'testuser',
+          password: 'pass',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when password is incorrect', async () => {
+      prisma.client.findUnique.mockResolvedValue(dbClient);
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+      // First call: client secret check (true), second: password check (false)
+      crypto.verifyPassword
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          username: 'testuser',
+          password: 'wrong-password',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // client_credentials grant
+  // -----------------------------------------------------------------------
+
+  describe('client_credentials grant', () => {
+    it('should return a token without refresh_token for valid client credentials', async () => {
+      setupValidClient();
+      setupSigningKey();
+
+      const result = await service.handleTokenRequest(realm, {
+        grant_type: 'client_credentials',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        scope: 'openid',
+      });
+
+      expect(result).toEqual({
+        access_token: FAKE_ACCESS_TOKEN,
+        token_type: 'Bearer',
+        expires_in: realm.accessTokenLifespan,
+        scope: 'openid',
+      });
+
+      // Should NOT create a session or refresh token
+      expect(prisma.session.create).not.toHaveBeenCalled();
+      expect(prisma.refreshToken.create).not.toHaveBeenCalled();
+    });
+
+    it('should default scope to "openid" when no scope is supplied', async () => {
+      setupValidClient();
+      setupSigningKey();
+
+      const result = await service.handleTokenRequest(realm, {
+        grant_type: 'client_credentials',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+      });
+
+      expect(result.scope).toBe('openid');
+    });
+
+    it('should throw UnauthorizedException when client_secret is wrong', async () => {
+      prisma.client.findUnique.mockResolvedValue(dbClient);
+      crypto.verifyPassword.mockResolvedValue(false);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'client_credentials',
+          client_id: 'my-client',
+          client_secret: 'wrong-secret',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should sign the JWT with the correct payload shape', async () => {
+      setupValidClient();
+      setupSigningKey();
+
+      await service.handleTokenRequest(realm, {
+        grant_type: 'client_credentials',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        scope: 'openid profile',
+      });
+
+      expect(jwkService.signJwt).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sub: dbClient.id,
+          aud: 'my-client',
+          azp: 'my-client',
+          typ: 'Bearer',
+          scope: 'openid profile',
+        }),
+        signingKey.privateKey,
+        signingKey.kid,
+        realm.accessTokenLifespan,
+      );
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // refresh_token grant
+  // -----------------------------------------------------------------------
+
+  describe('refresh_token grant', () => {
+    const storedRefreshToken = {
+      id: 'rt-1',
+      sessionId: 'session-1',
+      tokenHash: FAKE_REFRESH_TOKEN_HASH,
+      revoked: false,
+      expiresAt: new Date(Date.now() + 3600 * 1000), // 1 hour from now
+      session: {
+        id: 'session-1',
+        user: dbUser,
+      },
+    };
+
+    it('should rotate the refresh token and return new tokens', async () => {
+      setupValidClient();
+      setupSigningKey();
+      setupEmptyRoles();
+      setupRefreshTokenCreate();
+
+      prisma.refreshToken.findUnique.mockResolvedValue(storedRefreshToken);
+      prisma.refreshToken.update.mockResolvedValue({
+        ...storedRefreshToken,
+        revoked: true,
+      });
+
+      const result = await service.handleTokenRequest(realm, {
+        grant_type: 'refresh_token',
+        refresh_token: 'original-opaque-token',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        scope: 'openid',
+      });
+
+      expect(result.access_token).toBe(FAKE_ACCESS_TOKEN);
+      expect(result.refresh_token).toBe(FAKE_REFRESH_TOKEN_RAW);
+      expect(result.token_type).toBe('Bearer');
+
+      // Old token should be revoked
+      expect(prisma.refreshToken.update).toHaveBeenCalledWith({
+        where: { id: storedRefreshToken.id },
+        data: { revoked: true },
+      });
+
+      // New refresh token should be created
+      expect(prisma.refreshToken.create).toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException when refresh_token is missing', async () => {
+      setupValidClient();
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'refresh_token',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw UnauthorizedException when refresh token does not exist', async () => {
+      setupValidClient();
+      prisma.refreshToken.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'refresh_token',
+          refresh_token: 'nonexistent-token',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when refresh token is expired', async () => {
+      setupValidClient();
+      prisma.refreshToken.findUnique.mockResolvedValue({
+        ...storedRefreshToken,
+        expiresAt: new Date(Date.now() - 1000),
+      });
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'refresh_token',
+          refresh_token: 'expired-token',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException and revoke entire session when a revoked token is reused (reuse detection)', async () => {
+      setupValidClient();
+      prisma.refreshToken.findUnique.mockResolvedValue({
+        ...storedRefreshToken,
+        revoked: true,
+      });
+      prisma.refreshToken.updateMany.mockResolvedValue({ count: 3 });
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'refresh_token',
+          refresh_token: 'reused-token',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+
+      // All tokens for the session should be revoked
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { sessionId: storedRefreshToken.sessionId },
+        data: { revoked: true },
+      });
+    });
+
+    it('should not revoke session tokens when a non-revoked expired token is used', async () => {
+      setupValidClient();
+      prisma.refreshToken.findUnique.mockResolvedValue({
+        ...storedRefreshToken,
+        revoked: false,
+        expiresAt: new Date(Date.now() - 1000),
+      });
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'refresh_token',
+          refresh_token: 'expired-token',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+
+      // updateMany should NOT be called because token was not revoked
+      expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('should hash the incoming refresh_token to look it up', async () => {
+      setupValidClient();
+      prisma.refreshToken.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'refresh_token',
+          refresh_token: 'some-opaque-token',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(crypto.sha256).toHaveBeenCalledWith('some-opaque-token');
+      expect(prisma.refreshToken.findUnique).toHaveBeenCalledWith({
+        where: { tokenHash: FAKE_REFRESH_TOKEN_HASH },
+        include: { session: { include: { user: true } } },
+      });
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // authorization_code grant
+  // -----------------------------------------------------------------------
+
+  describe('authorization_code grant', () => {
+    const futureDate = new Date(Date.now() + 60_000);
+
+    const authCode = {
+      id: 'authcode-1',
+      code: 'valid-auth-code',
+      clientId: dbClient.id,
+      userId: dbUser.id,
+      redirectUri: 'https://app.example.com/callback',
+      scope: 'openid profile',
+      nonce: 'test-nonce',
+      codeChallenge: null,
+      codeChallengeMethod: null,
+      used: false,
+      expiresAt: futureDate,
+      createdAt: new Date(),
+    };
+
+    it('should return tokens for a valid authorization code', async () => {
+      setupForTokenIssuance();
+      prisma.authorizationCode.findUnique.mockResolvedValue(authCode);
+      prisma.authorizationCode.update.mockResolvedValue({
+        ...authCode,
+        used: true,
+      });
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+
+      const result = await service.handleTokenRequest(
+        realm,
+        {
+          grant_type: 'authorization_code',
+          code: 'valid-auth-code',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          redirect_uri: 'https://app.example.com/callback',
+        },
+        '127.0.0.1',
+        'jest-agent',
+      );
+
+      expect(result.access_token).toBe(FAKE_ACCESS_TOKEN);
+      expect(result.refresh_token).toBe(FAKE_REFRESH_TOKEN_RAW);
+      expect(result.token_type).toBe('Bearer');
+
+      // Code should be marked as used
+      expect(prisma.authorizationCode.update).toHaveBeenCalledWith({
+        where: { id: authCode.id },
+        data: { used: true },
+      });
+    });
+
+    it('should throw BadRequestException when code is missing', async () => {
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'authorization_code',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          redirect_uri: 'https://app.example.com/callback',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw UnauthorizedException when code does not exist', async () => {
+      setupValidClient();
+      prisma.authorizationCode.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'authorization_code',
+          code: 'nonexistent-code',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          redirect_uri: 'https://app.example.com/callback',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when code is expired', async () => {
+      setupValidClient();
+      prisma.authorizationCode.findUnique.mockResolvedValue({
+        ...authCode,
+        expiresAt: new Date(Date.now() - 1000),
+      });
+      prisma.authorizationCode.update.mockResolvedValue({});
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'authorization_code',
+          code: 'expired-code',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          redirect_uri: 'https://app.example.com/callback',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when code was already used', async () => {
+      setupValidClient();
+      prisma.authorizationCode.findUnique.mockResolvedValue({
+        ...authCode,
+        used: true,
+      });
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'authorization_code',
+          code: 'used-code',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          redirect_uri: 'https://app.example.com/callback',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException when code belongs to a different client', async () => {
+      setupValidClient();
+      prisma.authorizationCode.findUnique.mockResolvedValue({
+        ...authCode,
+        clientId: 'some-other-client-db-id',
+      });
+      prisma.authorizationCode.update.mockResolvedValue({});
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'authorization_code',
+          code: 'stolen-code',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          redirect_uri: 'https://app.example.com/callback',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw BadRequestException when redirect_uri does not match', async () => {
+      setupValidClient();
+      prisma.authorizationCode.findUnique.mockResolvedValue(authCode);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'authorization_code',
+          code: 'valid-auth-code',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          redirect_uri: 'https://evil.example.com/callback',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw UnauthorizedException when user is not found for the code', async () => {
+      setupValidClient();
+      setupSigningKey();
+      setupSessionCreate();
+      prisma.authorizationCode.findUnique.mockResolvedValue(authCode);
+      prisma.authorizationCode.update.mockResolvedValue({
+        ...authCode,
+        used: true,
+      });
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'authorization_code',
+          code: 'valid-auth-code',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          redirect_uri: 'https://app.example.com/callback',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    describe('PKCE', () => {
+      const pkceAuthCode = {
+        ...authCode,
+        codeChallenge: 'expected-challenge',
+        codeChallengeMethod: 'S256',
+      };
+
+      it('should throw BadRequestException when code has PKCE but code_verifier is missing', async () => {
+        setupValidClient();
+        prisma.authorizationCode.findUnique.mockResolvedValue(pkceAuthCode);
+
+        await expect(
+          service.handleTokenRequest(realm, {
+            grant_type: 'authorization_code',
+            code: 'valid-auth-code',
+            client_id: 'my-client',
+            client_secret: 'correct-secret',
+            redirect_uri: 'https://app.example.com/callback',
+          }),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('should throw UnauthorizedException when code_verifier does not match', async () => {
+        setupValidClient();
+        prisma.authorizationCode.findUnique.mockResolvedValue(pkceAuthCode);
+        // sha256 returns a hex string; the base64url of its buffer will not match the stored challenge
+        crypto.sha256.mockReturnValue('aabbccdd');
+
+        await expect(
+          service.handleTokenRequest(realm, {
+            grant_type: 'authorization_code',
+            code: 'valid-auth-code',
+            client_id: 'my-client',
+            client_secret: 'correct-secret',
+            redirect_uri: 'https://app.example.com/callback',
+            code_verifier: 'wrong-verifier',
+          }),
+        ).rejects.toThrow(UnauthorizedException);
+      });
+
+      it('should succeed when code_verifier is valid', async () => {
+        const hexHash = 'aabbccdd';
+        const expectedChallenge = Buffer.from(hexHash, 'hex').toString(
+          'base64url',
+        );
+
+        setupForTokenIssuance();
+        prisma.authorizationCode.findUnique.mockResolvedValue({
+          ...pkceAuthCode,
+          codeChallenge: expectedChallenge,
+        });
+        prisma.authorizationCode.update.mockResolvedValue({});
+        prisma.user.findUnique.mockResolvedValue(dbUser);
+        crypto.sha256.mockReturnValue(hexHash);
+
+        const result = await service.handleTokenRequest(realm, {
+          grant_type: 'authorization_code',
+          code: 'valid-auth-code',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          redirect_uri: 'https://app.example.com/callback',
+          code_verifier: 'correct-verifier',
+        });
+
+        expect(result.access_token).toBeDefined();
+      });
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // issueTokens - ID token generation and scope filtering
+  // -----------------------------------------------------------------------
+
+  describe('issueTokens', () => {
+    it('should include id_token when openid scope is present', async () => {
+      setupForTokenIssuance();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+      scopesService.hasOpenidScope.mockReturnValue(true);
+
+      // signJwt returns different tokens for access vs. id
+      jwkService.signJwt
+        .mockResolvedValueOnce(FAKE_ACCESS_TOKEN)
+        .mockResolvedValueOnce(FAKE_ID_TOKEN);
+
+      const result = await service.handleTokenRequest(
+        realm,
+        {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          username: 'testuser',
+          password: 'pass',
+          scope: 'openid',
+        },
+        '127.0.0.1',
+      );
+
+      expect(result.id_token).toBe(FAKE_ID_TOKEN);
+      // signJwt should be called twice: access token + id token
+      expect(jwkService.signJwt).toHaveBeenCalledTimes(2);
+
+      // The second call (id token) should include at_hash and typ: 'ID'
+      const idTokenPayload = jwkService.signJwt.mock.calls[1][0];
+      expect(idTokenPayload).toEqual(
+        expect.objectContaining({
+          typ: 'ID',
+          at_hash: FAKE_AT_HASH,
+        }),
+      );
+    });
+
+    it('should not include id_token when openid scope is absent', async () => {
+      setupForTokenIssuance();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+      scopesService.hasOpenidScope.mockReturnValue(false);
+
+      const result = await service.handleTokenRequest(
+        realm,
+        {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          username: 'testuser',
+          password: 'pass',
+          scope: 'profile',
+        },
+        '127.0.0.1',
+      );
+
+      expect(result.id_token).toBeUndefined();
+      // signJwt should be called only once (access token)
+      expect(jwkService.signJwt).toHaveBeenCalledTimes(1);
+    });
+
+    it('should include nonce in id_token when provided via authorization_code grant', async () => {
+      const codeWithNonce = {
+        id: 'authcode-1',
+        code: 'valid-auth-code',
+        clientId: dbClient.id,
+        userId: dbUser.id,
+        redirectUri: 'https://app.example.com/callback',
+        scope: 'openid',
+        nonce: 'my-nonce-value',
+        codeChallenge: null,
+        codeChallengeMethod: null,
+        used: false,
+        expiresAt: new Date(Date.now() + 60_000),
+        createdAt: new Date(),
+      };
+
+      setupForTokenIssuance();
+      prisma.authorizationCode.findUnique.mockResolvedValue(codeWithNonce);
+      prisma.authorizationCode.update.mockResolvedValue({
+        ...codeWithNonce,
+        used: true,
+      });
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+      jwkService.signJwt
+        .mockResolvedValueOnce(FAKE_ACCESS_TOKEN)
+        .mockResolvedValueOnce(FAKE_ID_TOKEN);
+
+      await service.handleTokenRequest(realm, {
+        grant_type: 'authorization_code',
+        code: 'valid-auth-code',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        redirect_uri: 'https://app.example.com/callback',
+      });
+
+      // The second signJwt call (id token) should include the nonce
+      const idTokenPayload = jwkService.signJwt.mock.calls[1][0];
+      expect(idTokenPayload).toEqual(
+        expect.objectContaining({
+          nonce: 'my-nonce-value',
+        }),
+      );
+    });
+
+    it('should default scopes to ["openid"] when no scope is provided', async () => {
+      setupForTokenIssuance();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+      scopesService.parseAndValidate.mockReturnValue([]);
+      scopesService.toString.mockReturnValue('openid');
+
+      const result = await service.handleTokenRequest(realm, {
+        grant_type: 'password',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        username: 'testuser',
+        password: 'pass',
+      });
+
+      expect(result.scope).toBe('openid');
+      expect(scopesService.getClaimsForScopes).toHaveBeenCalledWith([
+        'openid',
+      ]);
+    });
+
+    it('should throw when no active signing key exists', async () => {
+      setupValidClient();
+      setupSessionCreate();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+      prisma.realmSigningKey.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'password',
+          client_id: 'my-client',
+          client_secret: 'correct-secret',
+          username: 'testuser',
+          password: 'pass',
+          scope: 'openid',
+        }),
+      ).rejects.toThrow('No active signing key found for realm');
+    });
+
+    it('should include realm_access and resource_access when roles scope grants them', async () => {
+      setupForTokenIssuance();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+
+      scopesService.getClaimsForScopes.mockReturnValue(
+        new Set(['sub', 'realm_access', 'resource_access']),
+      );
+
+      prisma.userRole.findMany.mockResolvedValue([
+        {
+          userId: dbUser.id,
+          roleId: 'role-1',
+          role: { id: 'role-1', name: 'admin', clientId: null, client: null },
+        },
+        {
+          userId: dbUser.id,
+          roleId: 'role-2',
+          role: {
+            id: 'role-2',
+            name: 'viewer',
+            clientId: dbClient.id,
+            client: { clientId: 'my-client' },
+          },
+        },
+      ]);
+
+      await service.handleTokenRequest(realm, {
+        grant_type: 'password',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        username: 'testuser',
+        password: 'pass',
+        scope: 'openid roles',
+      });
+
+      const accessTokenPayload = jwkService.signJwt.mock.calls[0][0];
+      expect(accessTokenPayload.realm_access).toEqual({
+        roles: ['admin'],
+      });
+      expect(accessTokenPayload.resource_access).toEqual({
+        'my-client': { roles: ['viewer'] },
+      });
+    });
+
+    it('should include roles by default when scope parameter is not provided', async () => {
+      setupForTokenIssuance();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+      scopesService.getClaimsForScopes.mockReturnValue(new Set(['sub']));
+      scopesService.parseAndValidate.mockReturnValue([]);
+      scopesService.toString.mockReturnValue('openid');
+
+      prisma.userRole.findMany.mockResolvedValue([
+        {
+          userId: dbUser.id,
+          roleId: 'role-1',
+          role: { id: 'role-1', name: 'user', clientId: null, client: null },
+        },
+      ]);
+
+      await service.handleTokenRequest(realm, {
+        grant_type: 'password',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        username: 'testuser',
+        password: 'pass',
+        // no scope parameter
+      });
+
+      const accessTokenPayload = jwkService.signJwt.mock.calls[0][0];
+      expect(accessTokenPayload.realm_access).toEqual({
+        roles: ['user'],
+      });
+    });
+
+    it('should exclude roles when explicit scope is provided without roles scope', async () => {
+      setupForTokenIssuance();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+      scopesService.parseAndValidate.mockReturnValue(['openid', 'profile']);
+      scopesService.toString.mockReturnValue('openid profile');
+      scopesService.getClaimsForScopes.mockReturnValue(
+        new Set(['sub', 'name', 'preferred_username']),
+      );
+
+      prisma.userRole.findMany.mockResolvedValue([
+        {
+          userId: dbUser.id,
+          roleId: 'role-1',
+          role: { id: 'role-1', name: 'admin', clientId: null, client: null },
+        },
+      ]);
+
+      await service.handleTokenRequest(realm, {
+        grant_type: 'password',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        username: 'testuser',
+        password: 'pass',
+        scope: 'openid profile',
+      });
+
+      const accessTokenPayload = jwkService.signJwt.mock.calls[0][0];
+      // scope is provided and realm_access is NOT in allowedClaims, so roles excluded
+      expect(accessTokenPayload.realm_access).toBeUndefined();
+      expect(accessTokenPayload.resource_access).toBeUndefined();
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Scope filtering of claims
+  // -----------------------------------------------------------------------
+
+  describe('scope filtering of claims', () => {
+    it('should pass the correct scopes through to getClaimsForScopes', async () => {
+      setupForTokenIssuance();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+      scopesService.parseAndValidate.mockReturnValue(['openid', 'email']);
+      scopesService.toString.mockReturnValue('openid email');
+      scopesService.getClaimsForScopes.mockReturnValue(
+        new Set(['sub', 'email', 'email_verified']),
+      );
+
+      await service.handleTokenRequest(realm, {
+        grant_type: 'password',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        username: 'testuser',
+        password: 'pass',
+        scope: 'openid email',
+      });
+
+      expect(scopesService.parseAndValidate).toHaveBeenCalledWith(
+        'openid email',
+      );
+      expect(scopesService.getClaimsForScopes).toHaveBeenCalledWith([
+        'openid',
+        'email',
+      ]);
+    });
+
+    it('should call getClaimsForScopes twice when openid scope triggers id token', async () => {
+      setupForTokenIssuance();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+      scopesService.parseAndValidate.mockReturnValue(['openid', 'profile']);
+      scopesService.toString.mockReturnValue('openid profile');
+      scopesService.getClaimsForScopes.mockReturnValue(
+        new Set([
+          'sub',
+          'name',
+          'preferred_username',
+          'given_name',
+          'family_name',
+        ]),
+      );
+      scopesService.hasOpenidScope.mockReturnValue(true);
+
+      jwkService.signJwt
+        .mockResolvedValueOnce(FAKE_ACCESS_TOKEN)
+        .mockResolvedValueOnce(FAKE_ID_TOKEN);
+
+      await service.handleTokenRequest(realm, {
+        grant_type: 'password',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        username: 'testuser',
+        password: 'pass',
+        scope: 'openid profile',
+      });
+
+      // Called once for access token claims, once for id token claims
+      expect(scopesService.getClaimsForScopes).toHaveBeenCalledTimes(2);
+    });
+
+    it('should set the validated scope string on the token response', async () => {
+      setupForTokenIssuance();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+      scopesService.parseAndValidate.mockReturnValue(['openid', 'profile']);
+      scopesService.toString.mockReturnValue('openid profile');
+
+      const result = await service.handleTokenRequest(realm, {
+        grant_type: 'password',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        username: 'testuser',
+        password: 'pass',
+        scope: 'openid profile bogus',
+      });
+
+      expect(result.scope).toBe('openid profile');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // getIssuer
+  // -----------------------------------------------------------------------
+
+  describe('issuer', () => {
+    it('should build the issuer from BASE_URL and realm name', async () => {
+      process.env['BASE_URL'] = 'https://auth.example.com';
+
+      setupForTokenIssuance();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+
+      await service.handleTokenRequest(realm, {
+        grant_type: 'password',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        username: 'testuser',
+        password: 'pass',
+        scope: 'openid',
+      });
+
+      const accessTokenPayload = jwkService.signJwt.mock.calls[0][0];
+      expect(accessTokenPayload.iss).toBe(
+        'https://auth.example.com/realms/test-realm',
+      );
+
+      delete process.env['BASE_URL'];
+    });
+
+    it('should default to http://localhost:3000 when BASE_URL is not set', async () => {
+      delete process.env['BASE_URL'];
+
+      setupForTokenIssuance();
+      prisma.user.findUnique.mockResolvedValue(dbUser);
+
+      await service.handleTokenRequest(realm, {
+        grant_type: 'password',
+        client_id: 'my-client',
+        client_secret: 'correct-secret',
+        username: 'testuser',
+        password: 'pass',
+        scope: 'openid',
+      });
+
+      const accessTokenPayload = jwkService.signJwt.mock.calls[0][0];
+      expect(accessTokenPayload.iss).toBe(
+        'http://localhost:3000/realms/test-realm',
+      );
+    });
+  });
+});

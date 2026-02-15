@@ -1,0 +1,32 @@
+# Dependencies
+node_modules
+admin-ui/node_modules
+
+# Build output
+dist
+admin-ui/dist
+
+# Environment
+.env
+
+# Generated
+/generated/prisma
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage
+
+# Docker volumes
+pgdata
+
+# Claude
+.claude

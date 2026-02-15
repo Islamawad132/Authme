@@ -1,0 +1,292 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── REALMS ───────────────────────────────────────────────
+
+model Realm {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  displayName String? @map("display_name")
+  enabled     Boolean @default(true)
+
+  accessTokenLifespan  Int @default(300) @map("access_token_lifespan")
+  refreshTokenLifespan Int @default(1800) @map("refresh_token_lifespan")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users              User[]
+  clients            Client[]
+  roles              Role[]
+  signingKeys        RealmSigningKey[]
+  loginSessions      LoginSession[]
+  identityProviders  IdentityProvider[]
+
+  @@map("realms")
+}
+
+// ─── USERS ────────────────────────────────────────────────
+
+model User {
+  id            String  @id @default(uuid())
+  realmId       String  @map("realm_id")
+  username      String
+  email         String?
+  emailVerified Boolean @default(false) @map("email_verified")
+  firstName     String? @map("first_name")
+  lastName      String? @map("last_name")
+  enabled       Boolean @default(true)
+  passwordHash  String? @map("password_hash")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  realm               Realm               @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  userRoles           UserRole[]
+  sessions            Session[]
+  loginSessions       LoginSession[]
+  consents            UserConsent[]
+  federatedIdentities FederatedIdentity[]
+
+  @@unique([realmId, username])
+  @@unique([realmId, email])
+  @@map("users")
+}
+
+// ─── CLIENTS ──────────────────────────────────────────────
+
+enum ClientType {
+  CONFIDENTIAL
+  PUBLIC
+}
+
+model Client {
+  id           String     @id @default(uuid())
+  realmId      String     @map("realm_id")
+  clientId     String     @map("client_id")
+  clientSecret String?    @map("client_secret")
+  clientType   ClientType @default(CONFIDENTIAL) @map("client_type")
+  name         String?
+  description  String?
+  enabled        Boolean    @default(true)
+  requireConsent Boolean    @default(false) @map("require_consent")
+
+  redirectUris String[] @map("redirect_uris")
+  webOrigins   String[] @map("web_origins")
+  grantTypes   String[] @default(["authorization_code"]) @map("grant_types")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  realm       Realm               @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  clientRoles Role[]
+  authCodes   AuthorizationCode[]
+  consents    UserConsent[]
+
+  @@unique([realmId, clientId])
+  @@map("clients")
+}
+
+// ─── ROLES ────────────────────────────────────────────────
+
+model Role {
+  id          String  @id @default(uuid())
+  realmId     String  @map("realm_id")
+  clientId    String? @map("client_id")
+  name        String
+  description String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  realm     Realm      @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  client    Client?    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userRoles UserRole[]
+
+  @@unique([realmId, clientId, name])
+  @@map("roles")
+}
+
+// ─── USER-ROLE ASSIGNMENT ─────────────────────────────────
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  roleId String @map("role_id")
+
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+// ─── SESSIONS & REFRESH TOKENS ────────────────────────────
+
+model Session {
+  id        String  @id @default(uuid())
+  userId    String  @map("user_id")
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id        String  @id @default(uuid())
+  sessionId String  @map("session_id")
+  tokenHash String  @unique @map("token_hash")
+  revoked   Boolean @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ─── AUTHORIZATION CODES ──────────────────────────────────
+
+model AuthorizationCode {
+  id                  String  @id @default(uuid())
+  code                String  @unique
+  clientId            String  @map("client_id")
+  userId              String  @map("user_id")
+  redirectUri         String  @map("redirect_uri")
+  scope               String?
+  codeChallenge       String? @map("code_challenge")
+  codeChallengeMethod String? @map("code_challenge_method")
+  nonce               String?
+  used                Boolean @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("authorization_codes")
+}
+
+// ─── REALM SIGNING KEYS ───────────────────────────────────
+
+model RealmSigningKey {
+  id        String  @id @default(uuid())
+  realmId   String  @map("realm_id")
+  kid       String
+  algorithm String  @default("RS256")
+  publicKey String  @map("public_key")
+  privateKey String @map("private_key")
+  active    Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@unique([realmId, kid])
+  @@map("realm_signing_keys")
+}
+
+// ─── LOGIN SESSIONS (browser SSO) ───────────────────────
+
+model LoginSession {
+  id        String  @id @default(uuid())
+  userId    String  @map("user_id")
+  realmId   String  @map("realm_id")
+  tokenHash String  @unique @map("token_hash")
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@map("login_sessions")
+}
+
+// ─── USER CONSENT ────────────────────────────────────────
+
+model UserConsent {
+  id       String   @id @default(uuid())
+  userId   String   @map("user_id")
+  clientId String   @map("client_id")
+  scopes   String[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@map("user_consents")
+}
+
+// ─── IDENTITY PROVIDERS (Social Login) ───────────────────
+
+model IdentityProvider {
+  id            String  @id @default(uuid())
+  realmId       String  @map("realm_id")
+  alias         String
+  displayName   String? @map("display_name")
+  enabled       Boolean @default(true)
+  providerType  String  @default("oidc") @map("provider_type")
+
+  clientId         String  @map("idp_client_id")
+  clientSecret     String  @map("idp_client_secret")
+  authorizationUrl String  @map("authorization_url")
+  tokenUrl         String  @map("token_url")
+  userinfoUrl      String? @map("userinfo_url")
+  jwksUrl          String? @map("jwks_url")
+  issuer           String?
+
+  defaultScopes    String @default("openid email profile") @map("default_scopes")
+  trustEmail       Boolean @default(false) @map("trust_email")
+  linkOnly         Boolean @default(false) @map("link_only")
+  syncUserProfile  Boolean @default(true)  @map("sync_user_profile")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  realm               Realm               @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  federatedIdentities FederatedIdentity[]
+
+  @@unique([realmId, alias])
+  @@map("identity_providers")
+}
+
+// ─── FEDERATED IDENTITIES ────────────────────────────────
+
+model FederatedIdentity {
+  id                 String  @id @default(uuid())
+  userId             String  @map("user_id")
+  identityProviderId String  @map("identity_provider_id")
+  externalUserId     String  @map("external_user_id")
+  externalUsername   String? @map("external_username")
+  externalEmail      String? @map("external_email")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  identityProvider IdentityProvider @relation(fields: [identityProviderId], references: [id], onDelete: Cascade)
+
+  @@unique([identityProviderId, externalUserId])
+  @@unique([userId, identityProviderId])
+  @@map("federated_identities")
+}

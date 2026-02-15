@@ -1,0 +1,49 @@
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import Layout from './components/Layout';
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
+import RealmListPage from './pages/realms/RealmListPage';
+import RealmCreatePage from './pages/realms/RealmCreatePage';
+import RealmDetailPage from './pages/realms/RealmDetailPage';
+import UserListPage from './pages/users/UserListPage';
+import UserCreatePage from './pages/users/UserCreatePage';
+import UserDetailPage from './pages/users/UserDetailPage';
+import ClientListPage from './pages/clients/ClientListPage';
+import ClientCreatePage from './pages/clients/ClientCreatePage';
+import ClientDetailPage from './pages/clients/ClientDetailPage';
+import RoleListPage from './pages/roles/RoleListPage';
+
+function ProtectedRoute() {
+  const apiKey = sessionStorage.getItem('adminApiKey');
+  if (!apiKey) {
+    return <Navigate to="/console/login" replace />;
+  }
+  return <Outlet />;
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/console/login" element={<LoginPage />} />
+
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
+          <Route path="/console" element={<DashboardPage />} />
+          <Route path="/console/realms" element={<RealmListPage />} />
+          <Route path="/console/realms/create" element={<RealmCreatePage />} />
+          <Route path="/console/realms/:name" element={<RealmDetailPage />} />
+          <Route path="/console/realms/:name/users" element={<UserListPage />} />
+          <Route path="/console/realms/:name/users/create" element={<UserCreatePage />} />
+          <Route path="/console/realms/:name/users/:id" element={<UserDetailPage />} />
+          <Route path="/console/realms/:name/clients" element={<ClientListPage />} />
+          <Route path="/console/realms/:name/clients/create" element={<ClientCreatePage />} />
+          <Route path="/console/realms/:name/clients/:id" element={<ClientDetailPage />} />
+          <Route path="/console/realms/:name/roles" element={<RoleListPage />} />
+        </Route>
+      </Route>
+
+      {/* Catch-all: redirect to console */}
+      <Route path="*" element={<Navigate to="/console" replace />} />
+    </Routes>
+  );
+}

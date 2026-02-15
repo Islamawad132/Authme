@@ -1,0 +1,34 @@
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import type { Request } from 'express';
+import { PrismaService } from '../../prisma/prisma.service.js';
+
+@Injectable()
+export class RealmGuard implements CanActivate {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<Request>();
+    const rawName =
+      request.params['realmName'] ?? request.params['realm'];
+
+    if (!rawName) return true;
+
+    const realmName = Array.isArray(rawName) ? rawName[0] : rawName;
+
+    const realm = await this.prisma.realm.findUnique({
+      where: { name: realmName },
+    });
+
+    if (!realm) {
+      throw new NotFoundException(`Realm '${realmName}' not found`);
+    }
+
+    (request as any).realm = realm;
+    return true;
+  }
+}

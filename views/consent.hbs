@@ -1,0 +1,18 @@
+<h2 class="auth-subtitle">{{clientName}} is requesting access</h2>
+
+<p class="consent-description">This application would like to:</p>
+
+<ul class="consent-scopes">
+  {{#each scopes}}
+  <li>{{this}}</li>
+  {{/each}}
+</ul>
+
+<form method="POST" action="/realms/{{realmName}}/consent" class="auth-form consent-form">
+  <input type="hidden" name="auth_req_id" value="{{authReqId}}">
+
+  <div class="consent-buttons">
+    <button type="submit" name="action" value="grant" class="btn-primary">Allow</button>
+    <button type="submit" name="action" value="deny" class="btn-secondary">Deny</button>
+  </div>
+</form>
