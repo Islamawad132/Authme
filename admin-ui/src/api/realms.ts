@@ -22,7 +22,7 @@ export async function updateRealm(
   name: string,
   realm: Partial<Realm>,
 ): Promise<Realm> {
-  const { data } = await apiClient.patch<Realm>(`/realms/${name}`, realm);
+  const { data } = await apiClient.put<Realm>(`/realms/${name}`, realm);
   return data;
 }
 
