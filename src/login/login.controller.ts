@@ -8,6 +8,7 @@ import {
   Body,
   Req,
   Res,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiExcludeController } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -17,6 +18,14 @@ import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { LoginService } from './login.service.js';
 import { OAuthService } from '../oauth/oauth.service.js';
+import { ConsentService } from '../consent/consent.service.js';
+
+const SCOPE_DESCRIPTIONS: Record<string, string> = {
+  openid: 'Verify your identity',
+  profile: 'Access your profile information (name, username)',
+  email: 'Access your email address',
+  roles: 'Access your role assignments',
+};
 
 @ApiExcludeController()
 @Controller('realms/:realmName')
@@ -26,6 +35,7 @@ export class LoginController {
   constructor(
     private readonly loginService: LoginService,
     private readonly oauthService: OAuthService,
+    private readonly consentService: ConsentService,
   ) {}
 
   @Get('login')
@@ -81,8 +91,8 @@ export class LoginController {
         path: `/realms/${realm.name}`,
       });
 
-      // Complete the OAuth flow: generate auth code and redirect
-      const result = await this.oauthService.authorizeWithUser(realm, user, {
+      // Check if client requires consent before completing OAuth flow
+      const oauthParams = {
         response_type: body['response_type'],
         client_id: body['client_id'],
         redirect_uri: body['redirect_uri'],
@@ -91,8 +101,31 @@ export class LoginController {
         nonce: body['nonce'],
         code_challenge: body['code_challenge'],
         code_challenge_method: body['code_challenge_method'],
-      });
+      };
 
+      if (body['client_id']) {
+        const client = await this.oauthService.validateAuthRequest(realm, oauthParams as any);
+
+        if (client.requireConsent) {
+          const scopes = (body['scope'] ?? 'openid').split(' ').filter(Boolean);
+          const hasConsent = await this.consentService.hasConsent(user.id, client.id, scopes);
+
+          if (!hasConsent) {
+            const reqId = this.consentService.storeConsentRequest({
+              userId: user.id,
+              clientId: client.id,
+              clientName: client.name ?? client.clientId,
+              realmName: realm.name,
+              scopes,
+              oauthParams,
+            });
+            return res.redirect(302, `/realms/${realm.name}/consent?req=${reqId}`);
+          }
+        }
+      }
+
+      // Complete the OAuth flow: generate auth code and redirect
+      const result = await this.oauthService.authorizeWithUser(realm, user, oauthParams as any);
       res.redirect(302, result.redirectUrl);
     } catch {
       // Re-render login page with error
@@ -109,5 +142,88 @@ export class LoginController {
 
       res.redirect(`/realms/${realm.name}/login?${params.toString()}`);
     }
+  }
+
+  @Get('consent')
+  @Render('consent')
+  showConsentForm(
+    @CurrentRealm() realm: Realm,
+    @Query('req') reqId: string,
+  ) {
+    if (!reqId) {
+      throw new BadRequestException('Missing consent request ID');
+    }
+
+    // Peek at the request without removing it (we need it for the POST)
+    const consentReq = this.consentService.getConsentRequest(reqId);
+    if (!consentReq) {
+      throw new BadRequestException('Consent request expired or invalid');
+    }
+
+    // Re-store it so the POST handler can retrieve it
+    const newReqId = this.consentService.storeConsentRequest(consentReq);
+
+    const scopeDescriptions = consentReq.scopes.map(
+      (s) => SCOPE_DESCRIPTIONS[s] ?? s,
+    );
+
+    return {
+      layout: 'layouts/main',
+      pageTitle: 'Grant Access',
+      realmName: realm.name,
+      realmDisplayName: realm.displayName ?? realm.name,
+      clientName: consentReq.clientName,
+      scopes: scopeDescriptions,
+      authReqId: newReqId,
+    };
+  }
+
+  @Post('consent')
+  async handleConsent(
+    @CurrentRealm() realm: Realm,
+    @Body() body: Record<string, string>,
+    @Res() res: Response,
+  ) {
+    const reqId = body['auth_req_id'];
+    if (!reqId) {
+      throw new BadRequestException('Missing consent request ID');
+    }
+
+    const consentReq = this.consentService.getConsentRequest(reqId);
+    if (!consentReq) {
+      throw new BadRequestException('Consent request expired or invalid');
+    }
+
+    if (body['action'] === 'deny') {
+      // Redirect back to the client with error
+      const redirectUri = new URL(consentReq.oauthParams['redirect_uri']);
+      redirectUri.searchParams.set('error', 'access_denied');
+      redirectUri.searchParams.set('error_description', 'User denied the consent request');
+      if (consentReq.oauthParams['state']) {
+        redirectUri.searchParams.set('state', consentReq.oauthParams['state']);
+      }
+      return res.redirect(302, redirectUri.toString());
+    }
+
+    // Grant consent
+    await this.consentService.grantConsent(
+      consentReq.userId,
+      consentReq.clientId,
+      consentReq.scopes,
+    );
+
+    // Complete the OAuth flow
+    const user = await this.loginService.findUserById(consentReq.userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const result = await this.oauthService.authorizeWithUser(
+      realm,
+      user,
+      consentReq.oauthParams as any,
+    );
+
+    res.redirect(302, result.redirectUrl);
   }
 }

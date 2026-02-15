@@ -75,4 +75,8 @@ export class LoginService {
 
     return session.user;
   }
+
+  async findUserById(userId: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { id: userId } });
+  }
 }
