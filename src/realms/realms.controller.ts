@@ -14,7 +14,8 @@ import { RealmsService } from './realms.service.js';
 import { RealmExportService } from './realm-export.service.js';
 import { RealmImportService } from './realm-import.service.js';
 import { EmailService } from '../email/email.service.js';
-import { ThemeService } from '../login/theme.service.js';
+import { ThemeService } from '../theme/theme.service.js';
+import { ThemeEmailService } from '../theme/theme-email.service.js';
 import { CreateRealmDto } from './dto/create-realm.dto.js';
 import { UpdateRealmDto } from './dto/update-realm.dto.js';
 
@@ -27,6 +28,7 @@ export class RealmsController {
     private readonly importService: RealmImportService,
     private readonly emailService: EmailService,
     private readonly themeService: ThemeService,
+    private readonly themeEmail: ThemeEmailService,
   ) {}
 
   @Post()
@@ -105,12 +107,10 @@ export class RealmsController {
     if (!configured) {
       throw new BadRequestException('SMTP is not configured for this realm');
     }
-    await this.emailService.sendEmail(
-      realmName,
-      to,
-      'AuthMe Test Email',
-      '<h2>AuthMe Test Email</h2><p>If you received this email, your SMTP configuration is working correctly.</p>',
-    );
+    const realm = await this.realmsService.findByName(realmName);
+    const subject = this.themeEmail.getSubject(realm, 'testEmailSubject');
+    const html = this.themeEmail.renderEmail(realm, 'test-email', {});
+    await this.emailService.sendEmail(realmName, to, subject, html);
     return { message: 'Test email sent successfully' };
   }
 }

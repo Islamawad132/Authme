@@ -66,6 +66,10 @@ describe('UsersService', () => {
       recordHistory: jest.fn().mockResolvedValue(undefined),
       isExpired: jest.fn().mockReturnValue(false),
     };
+    const themeEmailService = {
+      getSubject: jest.fn().mockReturnValue('Verify Your Email — AuthMe'),
+      renderEmail: jest.fn().mockReturnValue('<html>verify</html>'),
+    };
     service = new UsersService(
       prisma as any,
       cryptoService as any,
@@ -73,6 +77,7 @@ describe('UsersService', () => {
       emailService as any,
       configService as any,
       passwordPolicyService as any,
+      themeEmailService as any,
     );
   });
 

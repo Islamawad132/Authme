@@ -83,7 +83,7 @@ export class UsersController {
     if (!user.email) {
       return { message: 'User has no email address' };
     }
-    await this.usersService.sendVerificationEmail(realm.name, user.id, user.email);
+    await this.usersService.sendVerificationEmail(realm, user.id, user.email);
     return { message: 'Verification email sent' };
   }
 

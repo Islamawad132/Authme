@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   Post,
-  Render,
   UseGuards,
   Query,
   Body,
@@ -26,7 +25,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { PasswordPolicyService } from '../password-policy/password-policy.service.js';
 import { MfaService } from '../mfa/mfa.service.js';
-import { ThemeService } from './theme.service.js';
+import { ThemeRenderService } from '../theme/theme-render.service.js';
+import { ThemeEmailService } from '../theme/theme-email.service.js';
 
 const SCOPE_DESCRIPTIONS: Record<string, string> = {
   openid: 'Verify your identity',
@@ -51,23 +51,20 @@ export class LoginController {
     private readonly config: ConfigService,
     private readonly passwordPolicyService: PasswordPolicyService,
     private readonly mfaService: MfaService,
-    private readonly themeService: ThemeService,
+    private readonly themeRender: ThemeRenderService,
+    private readonly themeEmail: ThemeEmailService,
   ) {}
 
   // ─── LOGIN ──────────────────────────────────────────────
 
   @Get('login')
-  @Render('login')
   showLoginForm(
     @CurrentRealm() realm: Realm,
     @Query() query: Record<string, string>,
+    @Res() res: Response,
   ) {
-    return {
-      layout: 'layouts/main',
+    this.themeRender.render(res, realm, 'login', 'login', {
       pageTitle: 'Sign In',
-      realmName: realm.name,
-      realmDisplayName: realm.displayName ?? realm.name,
-      ...this.themeService.resolveTheme(realm),
       client_id: query['client_id'] ?? '',
       redirect_uri: query['redirect_uri'] ?? '',
       response_type: query['response_type'] ?? '',
@@ -78,7 +75,7 @@ export class LoginController {
       code_challenge_method: query['code_challenge_method'] ?? '',
       error: query['error'] ?? '',
       info: query['info'] ?? '',
-    };
+    });
   }
 
   @Post('login')
@@ -230,19 +227,15 @@ export class LoginController {
   // ─── MFA / TOTP ───────────────────────────────────────────
 
   @Get('totp')
-  @Render('totp')
   showTotpForm(
     @CurrentRealm() realm: Realm,
     @Query('error') error: string,
+    @Res() res: Response,
   ) {
-    return {
-      layout: 'layouts/main',
+    this.themeRender.render(res, realm, 'login', 'totp', {
       pageTitle: 'Two-Factor Authentication',
-      realmName: realm.name,
-      realmDisplayName: realm.displayName ?? realm.name,
-      ...this.themeService.resolveTheme(realm),
       error: error ?? '',
-    };
+    });
   }
 
   @Post('totp')
@@ -304,10 +297,10 @@ export class LoginController {
   // ─── CHANGE PASSWORD (forced) ─────────────────────────────
 
   @Get('change-password')
-  @Render('change-password')
   showChangePasswordForm(
     @CurrentRealm() realm: Realm,
     @Query() query: Record<string, string>,
+    @Res() res: Response,
   ) {
     const policyHints: string[] = [];
     if (realm.passwordMinLength > 1) policyHints.push(`At least ${realm.passwordMinLength} characters`);
@@ -316,17 +309,13 @@ export class LoginController {
     if (realm.passwordRequireDigits) policyHints.push('At least one digit');
     if (realm.passwordRequireSpecialChars) policyHints.push('At least one special character');
 
-    return {
-      layout: 'layouts/main',
+    this.themeRender.render(res, realm, 'login', 'change-password', {
       pageTitle: 'Change Password',
-      realmName: realm.name,
-      realmDisplayName: realm.displayName ?? realm.name,
-      ...this.themeService.resolveTheme(realm),
       token: query['token'] ?? '',
       error: query['error'] ?? '',
       info: query['info'] ?? '',
       policyHints: policyHints.length > 0 ? policyHints : null,
-    };
+    });
   }
 
   @Post('change-password')
@@ -406,10 +395,10 @@ export class LoginController {
   // ─── CONSENT ────────────────────────────────────────────
 
   @Get('consent')
-  @Render('consent')
   async showConsentForm(
     @CurrentRealm() realm: Realm,
     @Query('req') reqId: string,
+    @Res() res: Response,
   ) {
     if (!reqId) {
       throw new BadRequestException('Missing consent request ID');
@@ -426,16 +415,12 @@ export class LoginController {
       (s) => SCOPE_DESCRIPTIONS[s] ?? s,
     );
 
-    return {
-      layout: 'layouts/main',
+    this.themeRender.render(res, realm, 'login', 'consent', {
       pageTitle: 'Grant Access',
-      realmName: realm.name,
-      realmDisplayName: realm.displayName ?? realm.name,
-      ...this.themeService.resolveTheme(realm),
       clientName: consentReq.clientName,
       scopes: scopeDescriptions,
       authReqId: newReqId,
-    };
+    });
   }
 
   @Post('consent')
@@ -487,10 +472,10 @@ export class LoginController {
   // ─── REGISTRATION ──────────────────────────────────────
 
   @Get('register')
-  @Render('register')
   showRegistrationForm(
     @CurrentRealm() realm: Realm,
     @Query() query: Record<string, string>,
+    @Res() res: Response,
   ) {
     const hints: string[] = [];
     if (realm.passwordMinLength > 1) hints.push(`at least ${realm.passwordMinLength} characters`);
@@ -499,12 +484,8 @@ export class LoginController {
     if (realm.passwordRequireDigits) hints.push('a digit');
     if (realm.passwordRequireSpecialChars) hints.push('a special character');
 
-    return {
-      layout: 'layouts/main',
+    this.themeRender.render(res, realm, 'login', 'register', {
       pageTitle: 'Create Account',
-      realmName: realm.name,
-      realmDisplayName: realm.displayName ?? realm.name,
-      ...this.themeService.resolveTheme(realm),
       passwordMinLength: realm.passwordMinLength || 8,
       passwordHint: hints.length ? `Must contain ${hints.join(', ')}` : '',
       username: query['username'] ?? '',
@@ -513,7 +494,7 @@ export class LoginController {
       lastName: query['lastName'] ?? '',
       error: query['error'] ?? '',
       info: query['info'] ?? '',
-    };
+    });
   }
 
   @Post('register')
@@ -614,15 +595,12 @@ export class LoginController {
           const baseUrl = this.config.get<string>('BASE_URL', 'http://localhost:3000');
           const verifyUrl = `${baseUrl}/realms/${realm.name}/verify-email?token=${rawToken}`;
 
-          await this.emailService.sendEmail(
-            realm.name,
-            email,
-            'Verify Your Email — AuthMe',
-            `<h2>Verify Your Email</h2>
-            <p>Click the link below to verify your email address. This link expires in 24 hours.</p>
-            <p><a href="${verifyUrl}" style="display:inline-block;padding:10px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">Verify Email</a></p>
-            <p style="color:#6b7280;font-size:0.875rem;">If you didn't create an account, you can safely ignore this email.</p>`,
-          );
+          const fullRealm = await this.prisma.realm.findUnique({ where: { name: realm.name } });
+          if (fullRealm) {
+            const subject = this.themeEmail.getSubject(fullRealm, 'verifyEmailSubject');
+            const html = this.themeEmail.renderEmail(fullRealm, 'verify-email', { verifyUrl });
+            await this.emailService.sendEmail(realm.name, email, subject, html);
+          }
         }
       } catch {
         // Don't block registration if email fails
@@ -636,26 +614,26 @@ export class LoginController {
   // ─── EMAIL VERIFICATION ─────────────────────────────────
 
   @Get('verify-email')
-  @Render('verify-email')
   async verifyEmail(
     @CurrentRealm() realm: Realm,
     @Query('token') token: string,
+    @Res() res: Response,
   ) {
-    const base = {
-      layout: 'layouts/main',
-      pageTitle: 'Email Verification',
-      realmName: realm.name,
-      realmDisplayName: realm.displayName ?? realm.name,
-      ...this.themeService.resolveTheme(realm),
-    };
-
     if (!token) {
-      return { ...base, success: false, error: 'Missing verification token.' };
+      return this.themeRender.render(res, realm, 'login', 'verify-email', {
+        pageTitle: 'Email Verification',
+        success: false,
+        error: 'Missing verification token.',
+      });
     }
 
     const result = await this.verificationService.validateToken(token, 'email_verification');
     if (!result) {
-      return { ...base, success: false, error: 'This verification link is invalid or has expired.' };
+      return this.themeRender.render(res, realm, 'login', 'verify-email', {
+        pageTitle: 'Email Verification',
+        success: false,
+        error: 'This verification link is invalid or has expired.',
+      });
     }
 
     await this.prisma.user.update({
@@ -663,26 +641,25 @@ export class LoginController {
       data: { emailVerified: true },
     });
 
-    return { ...base, success: true };
+    this.themeRender.render(res, realm, 'login', 'verify-email', {
+      pageTitle: 'Email Verification',
+      success: true,
+    });
   }
 
   // ─── FORGOT / RESET PASSWORD ────────────────────────────
 
   @Get('forgot-password')
-  @Render('forgot-password')
   showForgotPasswordForm(
     @CurrentRealm() realm: Realm,
     @Query() query: Record<string, string>,
+    @Res() res: Response,
   ) {
-    return {
-      layout: 'layouts/main',
+    this.themeRender.render(res, realm, 'login', 'forgot-password', {
       pageTitle: 'Forgot Password',
-      realmName: realm.name,
-      realmDisplayName: realm.displayName ?? realm.name,
-      ...this.themeService.resolveTheme(realm),
       info: query['info'] ?? '',
       error: query['error'] ?? '',
-    };
+    });
   }
 
   @Post('forgot-password')
@@ -709,15 +686,12 @@ export class LoginController {
         const baseUrl = this.config.get<string>('BASE_URL', 'http://localhost:3000');
         const resetUrl = `${baseUrl}/realms/${realm.name}/reset-password?token=${rawToken}`;
 
-        await this.emailService.sendEmail(
-          realm.name,
-          email,
-          'Reset Your Password — AuthMe',
-          `<h2>Reset Your Password</h2>
-          <p>Click the link below to reset your password. This link expires in 1 hour.</p>
-          <p><a href="${resetUrl}" style="display:inline-block;padding:10px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">Reset Password</a></p>
-          <p style="color:#6b7280;font-size:0.875rem;">If you didn't request this, you can safely ignore this email.</p>`,
-        );
+        const fullRealm = await this.prisma.realm.findUnique({ where: { name: realm.name } });
+        if (fullRealm) {
+          const subject = this.themeEmail.getSubject(fullRealm, 'resetPasswordSubject');
+          const html = this.themeEmail.renderEmail(fullRealm, 'reset-password', { resetUrl });
+          await this.emailService.sendEmail(realm.name, email, subject, html);
+        }
       }
     }
 
@@ -725,22 +699,18 @@ export class LoginController {
   }
 
   @Get('reset-password')
-  @Render('reset-password')
   async showResetPasswordForm(
     @CurrentRealm() realm: Realm,
     @Query('token') token: string,
     @Query('error') error: string,
+    @Res() res: Response,
   ) {
-    const base = {
-      layout: 'layouts/main',
-      pageTitle: 'Reset Password',
-      realmName: realm.name,
-      realmDisplayName: realm.displayName ?? realm.name,
-      ...this.themeService.resolveTheme(realm),
-    };
-
     if (!token) {
-      return { ...base, error: 'Missing reset token.', token: '' };
+      return this.themeRender.render(res, realm, 'login', 'reset-password', {
+        pageTitle: 'Reset Password',
+        error: 'Missing reset token.',
+        token: '',
+      });
     }
 
     const tokenHash = this.crypto.sha256(token);
@@ -749,10 +719,18 @@ export class LoginController {
     });
 
     if (!record || record.type !== 'password_reset' || record.expiresAt < new Date()) {
-      return { ...base, error: 'This reset link is invalid or has expired.', token: '' };
+      return this.themeRender.render(res, realm, 'login', 'reset-password', {
+        pageTitle: 'Reset Password',
+        error: 'This reset link is invalid or has expired.',
+        token: '',
+      });
     }
 
-    return { ...base, token, error: error ?? '' };
+    this.themeRender.render(res, realm, 'login', 'reset-password', {
+      pageTitle: 'Reset Password',
+      token,
+      error: error ?? '',
+    });
   }
 
   @Post('reset-password')

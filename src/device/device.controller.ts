@@ -19,6 +19,7 @@ import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
+import { ThemeRenderService } from '../theme/theme-render.service.js';
 
 @ApiTags('Device Authorization')
 @Controller('realms/:realmName')
@@ -29,6 +30,7 @@ export class DeviceController {
     private readonly deviceService: DeviceService,
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly themeRender: ThemeRenderService,
   ) {}
 
   @Post('protocol/openid-connect/auth/device')
@@ -48,10 +50,8 @@ export class DeviceController {
     @Query('user_code') userCode: string,
     @Res() res: Response,
   ) {
-    return res.render('device', {
+    this.themeRender.render(res, realm, 'login', 'device', {
       pageTitle: 'Device Authorization',
-      realmName: realm.name,
-      realmDisplayName: realm.displayName ?? realm.name,
       userCode: userCode ?? '',
     });
   }
@@ -64,17 +64,11 @@ export class DeviceController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    const renderCtx = {
-      pageTitle: 'Device Authorization',
-      realmName: realm.name,
-      realmDisplayName: realm.displayName ?? realm.name,
-    };
-
     // Authenticate user if approving
     if (body.action === 'approve') {
       if (!body.username || !body.password) {
-        return res.render('device', {
-          ...renderCtx,
+        return this.themeRender.render(res, realm, 'login', 'device', {
+          pageTitle: 'Device Authorization',
           userCode: body.user_code,
           error: 'Username and password are required',
         });
@@ -85,8 +79,8 @@ export class DeviceController {
       });
 
       if (!user || !user.passwordHash) {
-        return res.render('device', {
-          ...renderCtx,
+        return this.themeRender.render(res, realm, 'login', 'device', {
+          pageTitle: 'Device Authorization',
           userCode: body.user_code,
           error: 'Invalid credentials',
         });
@@ -94,24 +88,24 @@ export class DeviceController {
 
       const valid = await this.crypto.verifyPassword(user.passwordHash, body.password);
       if (!valid) {
-        return res.render('device', {
-          ...renderCtx,
+        return this.themeRender.render(res, realm, 'login', 'device', {
+          pageTitle: 'Device Authorization',
           userCode: body.user_code,
           error: 'Invalid credentials',
         });
       }
 
       await this.deviceService.approveDevice(realm, body.user_code, user.id);
-      return res.render('device-success', {
-        ...renderCtx,
+      return this.themeRender.render(res, realm, 'login', 'device-success', {
+        pageTitle: 'Device Authorization',
         message: 'Device authorized successfully. You can close this page.',
       });
     }
 
     // Deny
     await this.deviceService.denyDevice(realm, body.user_code);
-    return res.render('device-success', {
-      ...renderCtx,
+    this.themeRender.render(res, realm, 'login', 'device-success', {
+      pageTitle: 'Device Authorization',
       message: 'Device authorization denied.',
     });
   }
