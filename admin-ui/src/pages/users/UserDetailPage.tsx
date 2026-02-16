@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUserById, updateUser, deleteUser, resetPassword } from '../../api/users';
+import { getUserById, updateUser, deleteUser, resetPassword, getMfaStatus, resetMfa } from '../../api/users';
 import {
   getRealmRoles,
   getUserRealmRoles,
@@ -18,6 +18,7 @@ export default function UserDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showDelete, setShowDelete] = useState(false);
+  const [showResetMfa, setShowResetMfa] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
@@ -38,6 +39,12 @@ export default function UserDetailPage() {
   const { data: userRoles, refetch: refetchUserRoles } = useQuery({
     queryKey: ['userRoles', name, id],
     queryFn: () => getUserRealmRoles(name!, id!),
+    enabled: !!name && !!id,
+  });
+
+  const { data: mfaStatus } = useQuery({
+    queryKey: ['mfaStatus', name, id],
+    queryFn: () => getMfaStatus(name!, id!),
     enabled: !!name && !!id,
   });
 
@@ -85,6 +92,14 @@ export default function UserDetailPage() {
     },
     onError: () => {
       setPasswordMsg('Failed to reset password.');
+    },
+  });
+
+  const resetMfaMutation = useMutation({
+    mutationFn: () => resetMfa(name!, id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mfaStatus', name, id] });
+      setShowResetMfa(false);
     },
   });
 
@@ -327,6 +342,46 @@ export default function UserDetailPage() {
         </div>
       </form>
 
+      {/* Security - MFA Status */}
+      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900">Security</h2>
+
+        <div>
+          <h3 className="mb-2 text-sm font-medium text-gray-700">MFA Status</h3>
+          <div className="flex items-center gap-3">
+            {mfaStatus?.enabled ? (
+              <>
+                <span className="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                  Enabled
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowResetMfa(true)}
+                  className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+                >
+                  Reset MFA
+                </button>
+              </>
+            ) : (
+              <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+                Not configured
+              </span>
+            )}
+          </div>
+        </div>
+
+        {resetMfaMutation.isSuccess && (
+          <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+            MFA has been reset successfully.
+          </div>
+        )}
+        {resetMfaMutation.isError && (
+          <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+            Failed to reset MFA.
+          </div>
+        )}
+      </div>
+
       {/* Role Mappings */}
       <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900">Role Mappings</h2>
@@ -525,6 +580,14 @@ export default function UserDetailPage() {
         message={`Are you sure you want to delete user "${user.username}"? This action is irreversible.`}
         onConfirm={() => deleteMutation.mutate()}
         onCancel={() => setShowDelete(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={showResetMfa}
+        title="Reset MFA"
+        message={`Are you sure you want to reset MFA for user "${user.username}"? They will need to set up TOTP again on their next login.`}
+        onConfirm={() => resetMfaMutation.mutate()}
+        onCancel={() => setShowResetMfa(false)}
       />
     </div>
   );

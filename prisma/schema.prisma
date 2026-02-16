@@ -24,6 +24,25 @@ model Realm {
   smtpFrom     String?  @map("smtp_from")
   smtpSecure   Boolean  @default(false) @map("smtp_secure")
 
+  // Password policies
+  passwordMinLength          Int     @default(8)    @map("password_min_length")
+  passwordRequireUppercase   Boolean @default(false) @map("password_require_uppercase")
+  passwordRequireLowercase   Boolean @default(false) @map("password_require_lowercase")
+  passwordRequireDigits      Boolean @default(false) @map("password_require_digits")
+  passwordRequireSpecialChars Boolean @default(false) @map("password_require_special_chars")
+  passwordHistoryCount       Int     @default(0)    @map("password_history_count")
+  passwordMaxAgeDays         Int     @default(0)    @map("password_max_age_days")
+
+  // Brute force protection
+  bruteForceEnabled     Boolean @default(false) @map("brute_force_enabled")
+  maxLoginFailures      Int     @default(5)     @map("max_login_failures")
+  lockoutDuration       Int     @default(900)   @map("lockout_duration")
+  failureResetTime      Int     @default(600)   @map("failure_reset_time")
+  permanentLockoutAfter Int     @default(0)     @map("permanent_lockout_after")
+
+  // MFA
+  mfaRequired Boolean @default(false) @map("mfa_required")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -34,6 +53,8 @@ model Realm {
   loginSessions      LoginSession[]
   identityProviders  IdentityProvider[]
   groups             Group[]
+  passwordHistories  PasswordHistory[]
+  loginFailures      LoginFailure[]
 
   @@map("realms")
 }
@@ -51,6 +72,9 @@ model User {
   enabled       Boolean @default(true)
   passwordHash  String? @map("password_hash")
 
+  passwordChangedAt DateTime? @map("password_changed_at")
+  lockedUntil       DateTime? @map("locked_until")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -62,6 +86,10 @@ model User {
   federatedIdentities FederatedIdentity[]
   userGroups          UserGroup[]
   verificationTokens  VerificationToken[]
+  passwordHistories   PasswordHistory[]
+  loginFailures       LoginFailure[]
+  userCredentials     UserCredential[]
+  recoveryCodes       RecoveryCode[]
 
   @@unique([realmId, username])
   @@unique([realmId, email])
@@ -89,6 +117,10 @@ model Client {
   redirectUris String[] @map("redirect_uris")
   webOrigins   String[] @map("web_origins")
   grantTypes   String[] @default(["authorization_code"]) @map("grant_types")
+
+  // Backchannel logout
+  backchannelLogoutUri             String?  @map("backchannel_logout_uri")
+  backchannelLogoutSessionRequired Boolean  @default(true) @map("backchannel_logout_session_required")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -311,6 +343,70 @@ model VerificationToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("verification_tokens")
+}
+
+// ─── PASSWORD HISTORY ────────────────────────────────────
+
+model PasswordHistory {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  realmId      String   @map("realm_id")
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@map("password_histories")
+}
+
+// ─── LOGIN FAILURES (brute force) ────────────────────────
+
+model LoginFailure {
+  id        String   @id @default(uuid())
+  realmId   String   @map("realm_id")
+  userId    String?  @map("user_id")
+  ipAddress String?  @map("ip_address")
+  failedAt  DateTime @default(now()) @map("failed_at")
+
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([realmId, userId, failedAt])
+  @@map("login_failures")
+}
+
+// ─── MFA / TOTP ──────────────────────────────────────────
+
+model UserCredential {
+  id        String  @id @default(uuid())
+  userId    String  @map("user_id")
+  type      String  @default("totp")
+  secretKey String  @map("secret_key")
+  algorithm String  @default("SHA1")
+  digits    Int     @default(6)
+  period    Int     @default(30)
+  verified  Boolean @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@map("user_credentials")
+}
+
+model RecoveryCode {
+  id       String  @id @default(uuid())
+  userId   String  @map("user_id")
+  codeHash String  @map("code_hash")
+  used     Boolean @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("recovery_codes")
 }
 
 // ─── IDENTITY PROVIDERS (Social Login) ───────────────────

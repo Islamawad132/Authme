@@ -11,6 +11,22 @@ export interface Realm {
   smtpPassword: string | null;
   smtpFrom: string | null;
   smtpSecure: boolean;
+  // Password policies
+  passwordMinLength: number;
+  passwordRequireUppercase: boolean;
+  passwordRequireLowercase: boolean;
+  passwordRequireDigits: boolean;
+  passwordRequireSpecialChars: boolean;
+  passwordHistoryCount: number;
+  passwordMaxAgeDays: number;
+  // Brute force
+  bruteForceEnabled: boolean;
+  maxLoginFailures: number;
+  lockoutDuration: number;
+  failureResetTime: number;
+  permanentLockoutAfter: number;
+  // MFA
+  mfaRequired: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,6 +57,8 @@ export interface Client {
   webOrigins: string[];
   grantTypes: string[];
   requireConsent: boolean;
+  backchannelLogoutUri: string | null;
+  backchannelLogoutSessionRequired: boolean;
   createdAt: string;
   updatedAt: string;
 }

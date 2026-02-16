@@ -63,11 +63,20 @@ describe('TokensService', () => {
       parseAndValidate: jest.fn(),
       getClaimsForScopes: jest.fn(),
     };
+    const blacklistService = {
+      isBlacklisted: jest.fn().mockReturnValue(false),
+      blacklistToken: jest.fn(),
+    };
+    const backchannelLogoutService = {
+      sendLogoutTokens: jest.fn().mockResolvedValue(undefined),
+    };
     service = new TokensService(
       prisma as any,
       cryptoService as any,
       jwkService as any,
       scopesService as any,
+      blacklistService as any,
+      backchannelLogoutService as any,
     );
   });
 
@@ -177,10 +186,15 @@ describe('TokensService', () => {
       });
     });
 
-    it('should be a no-op for access_token hint (stateless JWTs)', async () => {
+    it('should attempt to blacklist an access token by jti', async () => {
+      prisma.realmSigningKey.findFirst.mockResolvedValue(mockSigningKey);
+      jwkService.verifyJwt.mockResolvedValue({
+        jti: 'token-jti-1',
+        exp: Math.floor(Date.now() / 1000) + 300,
+      });
+
       await service.revoke(mockRealm, 'access-token', 'access_token');
 
-      expect(cryptoService.sha256).not.toHaveBeenCalled();
       expect(prisma.refreshToken.findUnique).not.toHaveBeenCalled();
     });
   });

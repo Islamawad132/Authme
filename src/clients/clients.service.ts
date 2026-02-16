@@ -21,6 +21,8 @@ const CLIENT_SELECT = {
   webOrigins: true,
   grantTypes: true,
   requireConsent: true,
+  backchannelLogoutUri: true,
+  backchannelLogoutSessionRequired: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -66,6 +68,8 @@ export class ClientsService {
         webOrigins: dto.webOrigins ?? [],
         grantTypes: dto.grantTypes ?? ['authorization_code'],
         requireConsent: dto.requireConsent ?? false,
+        backchannelLogoutUri: dto.backchannelLogoutUri,
+        backchannelLogoutSessionRequired: dto.backchannelLogoutSessionRequired,
       },
       select: CLIENT_SELECT,
     });
@@ -114,6 +118,8 @@ export class ClientsService {
         webOrigins: dto.webOrigins,
         grantTypes: dto.grantTypes,
         requireConsent: dto.requireConsent,
+        backchannelLogoutUri: dto.backchannelLogoutUri,
+        backchannelLogoutSessionRequired: dto.backchannelLogoutSessionRequired,
       },
       select: CLIENT_SELECT,
     });

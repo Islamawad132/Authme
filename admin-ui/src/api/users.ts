@@ -63,3 +63,31 @@ export async function resetPassword(
     { password },
   );
 }
+
+export async function unlockUser(
+  realmName: string,
+  userId: string,
+): Promise<void> {
+  await apiClient.post(
+    `/realms/${realmName}/brute-force/users/${userId}/unlock`,
+  );
+}
+
+export async function getMfaStatus(
+  realmName: string,
+  userId: string,
+): Promise<{ enabled: boolean }> {
+  const { data } = await apiClient.get<{ enabled: boolean }>(
+    `/realms/${realmName}/users/${userId}/mfa/status`,
+  );
+  return data;
+}
+
+export async function resetMfa(
+  realmName: string,
+  userId: string,
+): Promise<void> {
+  await apiClient.delete(
+    `/realms/${realmName}/users/${userId}/mfa`,
+  );
+}

@@ -58,3 +58,34 @@
     <button type="submit" class="btn-primary">Change Password</button>
   </form>
 </div>
+
+<div style="border-top: 1px solid #e5e7eb; padding-top: 1.25rem; margin-top: 1.5rem;">
+  <h3 style="font-size: 0.95rem; font-weight: 600; color: #374151; margin-bottom: 1rem;">Two-Factor Authentication</h3>
+
+  {{#if mfaEnabled}}
+  <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem;">
+    <span style="color: #166534; font-weight: 500;">Enabled</span>
+    <span style="color: #6b7280; font-size: 0.85rem;"> &mdash; Your account is protected with TOTP.</span>
+  </div>
+
+  <form method="POST" action="/realms/{{realmName}}/account/totp-disable" class="auth-form">
+    <div class="form-group">
+      <label for="disablePassword">Current Password</label>
+      <input type="password" id="disablePassword" name="currentPassword" required autocomplete="current-password">
+    </div>
+    <button type="submit" class="btn-primary" style="background: #dc2626;"
+      onclick="return confirm('Are you sure you want to disable two-factor authentication?')">
+      Disable Two-Factor Authentication
+    </button>
+  </form>
+  {{else}}
+  <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem;">
+    <span style="color: #92400e; font-weight: 500;">Not enabled</span>
+    <span style="color: #6b7280; font-size: 0.85rem;"> &mdash; Add an extra layer of security to your account.</span>
+  </div>
+
+  <a href="/realms/{{realmName}}/account/totp-setup" class="btn-primary" style="display: inline-block; text-align: center; text-decoration: none;">
+    Set Up Two-Factor Authentication
+  </a>
+  {{/if}}
+</div>

@@ -68,6 +68,8 @@ export class WellKnownController {
         'resource_access',
       ],
       code_challenge_methods_supported: ['S256'],
+      backchannel_logout_supported: true,
+      backchannel_logout_session_supported: true,
     };
   }
 

@@ -37,6 +37,8 @@ describe('OAuthService', () => {
     webOrigins: [],
     grantTypes: ['authorization_code'],
     requireConsent: false,
+    backchannelLogoutUri: null,
+    backchannelLogoutSessionRequired: true,
     createdAt: new Date(),
     updatedAt: new Date(),
   } as Client;

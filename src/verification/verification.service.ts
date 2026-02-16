@@ -34,6 +34,26 @@ export class VerificationService {
     return rawToken;
   }
 
+  async createTokenWithHash(
+    userId: string,
+    type: string,
+    expiresInSeconds: number,
+    tokenHash: string,
+  ): Promise<void> {
+    await this.prisma.verificationToken.deleteMany({
+      where: { userId, type },
+    });
+
+    await this.prisma.verificationToken.create({
+      data: {
+        tokenHash,
+        userId,
+        type,
+        expiresAt: new Date(Date.now() + expiresInSeconds * 1000),
+      },
+    });
+  }
+
   async validateToken(
     rawToken: string,
     type: string,

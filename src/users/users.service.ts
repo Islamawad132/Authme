@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -9,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { VerificationService } from '../verification/verification.service.js';
 import { EmailService } from '../email/email.service.js';
+import { PasswordPolicyService } from '../password-policy/password-policy.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import type { Realm } from '@prisma/client';
@@ -36,6 +38,7 @@ export class UsersService {
     private readonly verificationService: VerificationService,
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
+    private readonly passwordPolicyService: PasswordPolicyService,
   ) {}
 
   async create(realm: Realm, dto: CreateUserDto) {
@@ -48,6 +51,12 @@ export class UsersService {
 
     let passwordHash: string | undefined;
     if (dto.password) {
+      // Validate password against realm policy
+      const validation = this.passwordPolicyService.validate(realm, dto.password);
+      if (!validation.valid) {
+        throw new BadRequestException(validation.errors.join('. '));
+      }
+
       passwordHash = await this.crypto.hashPassword(dto.password);
     }
 
@@ -60,9 +69,17 @@ export class UsersService {
         lastName: dto.lastName,
         enabled: dto.enabled,
         passwordHash,
+        passwordChangedAt: passwordHash ? new Date() : undefined,
       },
       select: USER_SELECT,
     });
+
+    // Record password history
+    if (passwordHash && realm.passwordHistoryCount > 0) {
+      await this.passwordPolicyService.recordHistory(
+        user.id, realm.id, passwordHash, realm.passwordHistoryCount,
+      );
+    }
 
     // Send verification email if user has email and SMTP is configured
     if (user.email) {
@@ -140,10 +157,32 @@ export class UsersService {
 
   async setPassword(realm: Realm, userId: string, password: string) {
     await this.findById(realm, userId);
+
+    // Validate against realm password policy
+    const validation = this.passwordPolicyService.validate(realm, password);
+    if (!validation.valid) {
+      throw new BadRequestException(validation.errors.join('. '));
+    }
+
+    // Check password history
+    if (realm.passwordHistoryCount > 0) {
+      const inHistory = await this.passwordPolicyService.checkHistory(
+        userId, realm.id, password, realm.passwordHistoryCount,
+      );
+      if (inHistory) {
+        throw new BadRequestException('Password was used recently. Choose a different password.');
+      }
+    }
+
     const passwordHash = await this.crypto.hashPassword(password);
     await this.prisma.user.update({
       where: { id: userId },
-      data: { passwordHash },
+      data: { passwordHash, passwordChangedAt: new Date() },
     });
+
+    // Record password history
+    await this.passwordPolicyService.recordHistory(
+      userId, realm.id, passwordHash, realm.passwordHistoryCount,
+    );
   }
 }

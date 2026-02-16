@@ -56,4 +56,14 @@ export class CreateClientDto {
   @IsOptional()
   @IsBoolean()
   requireConsent?: boolean;
+
+  @ApiPropertyOptional({ example: 'https://example.com/backchannel-logout' })
+  @IsOptional()
+  @IsString()
+  backchannelLogoutUri?: string;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  backchannelLogoutSessionRequired?: boolean;
 }

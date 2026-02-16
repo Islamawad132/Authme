@@ -60,4 +60,79 @@ export class CreateRealmDto {
   @IsOptional()
   @IsBoolean()
   smtpSecure?: boolean;
+
+  // Password policies
+  @ApiPropertyOptional({ default: 8 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  passwordMinLength?: number;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  passwordRequireUppercase?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  passwordRequireLowercase?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  passwordRequireDigits?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  passwordRequireSpecialChars?: boolean;
+
+  @ApiPropertyOptional({ default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  passwordHistoryCount?: number;
+
+  @ApiPropertyOptional({ default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  passwordMaxAgeDays?: number;
+
+  // Brute force
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  bruteForceEnabled?: boolean;
+
+  @ApiPropertyOptional({ default: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxLoginFailures?: number;
+
+  @ApiPropertyOptional({ default: 900 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  lockoutDuration?: number;
+
+  @ApiPropertyOptional({ default: 600 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  failureResetTime?: number;
+
+  @ApiPropertyOptional({ default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  permanentLockoutAfter?: number;
+
+  // MFA
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  mfaRequired?: boolean;
 }

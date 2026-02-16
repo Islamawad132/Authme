@@ -25,6 +25,8 @@ export default function ClientDetailPage() {
     grantTypes: '',
     requireConsent: false,
     enabled: true,
+    backchannelLogoutUri: '',
+    backchannelLogoutSessionRequired: true,
   });
 
   useEffect(() => {
@@ -37,6 +39,8 @@ export default function ClientDetailPage() {
         grantTypes: (client.grantTypes || []).join(', '),
         requireConsent: client.requireConsent,
         enabled: client.enabled,
+        backchannelLogoutUri: client.backchannelLogoutUri || '',
+        backchannelLogoutSessionRequired: client.backchannelLogoutSessionRequired ?? true,
       });
     }
   }, [client]);
@@ -60,6 +64,8 @@ export default function ClientDetailPage() {
           .filter(Boolean),
         requireConsent: form.requireConsent,
         enabled: form.enabled,
+        backchannelLogoutUri: form.backchannelLogoutUri || undefined,
+        backchannelLogoutSessionRequired: form.backchannelLogoutSessionRequired,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client', name, id] });
@@ -234,6 +240,37 @@ export default function ClientDetailPage() {
             />
             <label htmlFor="enabled" className="text-sm font-medium text-gray-700">
               Enabled
+            </label>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 pt-4">
+          <h3 className="mb-3 text-sm font-semibold text-gray-900">Backchannel Logout</h3>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Backchannel Logout URI
+            </label>
+            <input
+              type="url"
+              value={form.backchannelLogoutUri}
+              onChange={(e) => setForm({ ...form, backchannelLogoutUri: e.target.value })}
+              placeholder="https://example.com/backchannel-logout"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              URL that will receive a logout token when the user logs out.
+            </p>
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="backchannelLogoutSessionRequired"
+              checked={form.backchannelLogoutSessionRequired}
+              onChange={(e) => setForm({ ...form, backchannelLogoutSessionRequired: e.target.checked })}
+              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <label htmlFor="backchannelLogoutSessionRequired" className="text-sm font-medium text-gray-700">
+              Include session ID in logout token
             </label>
           </div>
         </div>

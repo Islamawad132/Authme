@@ -136,11 +136,32 @@ describe('AuthService', () => {
     jwkService = createMockJwkService();
     scopesService = createMockScopesService();
 
+    const bruteForceService = {
+      checkLocked: jest.fn(),
+      recordFailure: jest.fn(),
+      resetFailures: jest.fn(),
+    };
+    const passwordPolicyService = {
+      isExpired: jest.fn().mockReturnValue(false),
+      validate: jest.fn().mockReturnValue({ valid: true, errors: [] }),
+    };
+    const mfaService = {
+      isMfaEnabled: jest.fn().mockResolvedValue(false),
+      isMfaRequired: jest.fn().mockReturnValue(false),
+      createMfaChallenge: jest.fn(),
+      validateMfaChallenge: jest.fn(),
+      verifyTotp: jest.fn(),
+      verifyRecoveryCode: jest.fn(),
+    };
+
     service = new AuthService(
       prisma as any,
       crypto as any,
       jwkService as any,
       scopesService as any,
+      bruteForceService as any,
+      passwordPolicyService as any,
+      mfaService as any,
     );
   });
 
