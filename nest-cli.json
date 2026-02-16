@@ -6,13 +6,8 @@
     "deleteOutDir": true,
     "assets": [
       {
-        "include": "../views/**/*",
-        "outDir": "dist/views",
-        "watchAssets": true
-      },
-      {
-        "include": "../public/**/*",
-        "outDir": "dist/public",
+        "include": "../themes/**/*",
+        "outDir": "dist/themes",
         "watchAssets": true
       }
     ]
