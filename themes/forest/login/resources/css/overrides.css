@@ -1,0 +1,19 @@
+/* Forest theme overrides */
+
+.form-group input:focus {
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+.auth-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.consent-scopes li {
+  background: #f0fdf4;
+}
+
+.consent-scopes li::before {
+  color: #059669;
+}

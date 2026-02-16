@@ -1,0 +1,247 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg-color, #f0f2f5);
+  color: var(--text-color, #1a1a2e);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+.auth-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+.auth-card {
+  background: var(--card-color, #fff);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.auth-logo {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-color, #1a1a2e);
+  letter-spacing: -0.5px;
+}
+
+.auth-logo-img {
+  max-height: 48px;
+  max-width: 200px;
+  object-fit: contain;
+}
+
+.auth-realm {
+  color: var(--muted-color, #6b7280);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.auth-subtitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--label-color, #374151);
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"],
+.form-group input[type="email"] {
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--input-border-color, #d1d5db);
+  border-radius: 6px;
+  font-size: 0.9375rem;
+  background: var(--input-bg-color, #ffffff);
+  color: var(--text-color, #1a1a2e);
+  transition: border-color 0.15s;
+  outline: none;
+}
+
+.form-group input:focus {
+  border-color: var(--primary-color, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-checkbox label {
+  font-size: 0.8125rem;
+  color: var(--muted-color, #6b7280);
+}
+
+.btn-primary {
+  background: var(--primary-color, #2563eb);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover-color, #1d4ed8);
+}
+
+.btn-secondary {
+  background: var(--card-color, #fff);
+  color: var(--label-color, #374151);
+  border: 1px solid var(--input-border-color, #d1d5db);
+  border-radius: 6px;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background 0.15s;
+}
+
+.btn-secondary:hover {
+  background: #f9fafb;
+}
+
+.auth-success {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.auth-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.auth-error-page {
+  text-align: center;
+}
+
+.auth-error-page h2 {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.auth-error-page p {
+  color: var(--muted-color, #6b7280);
+  margin-bottom: 1.5rem;
+}
+
+.consent-description {
+  color: var(--muted-color, #6b7280);
+  font-size: 0.875rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.consent-scopes {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 1.5rem;
+}
+
+.consent-scopes li {
+  padding: 0.5rem 0.75rem;
+  background: #f9fafb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  margin-bottom: 0.375rem;
+}
+
+.consent-scopes li::before {
+  content: "\2713 ";
+  color: var(--primary-color, #2563eb);
+  font-weight: 700;
+}
+
+.consent-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.consent-buttons button {
+  flex: 1;
+}
+
+.password-wrapper {
+  position: relative;
+}
+
+.password-wrapper input {
+  padding-right: 2.5rem;
+  width: 100%;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.625rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.125rem;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-toggle:hover {
+  color: #4b5563;
+}
+
+.password-toggle svg {
+  width: 1rem;
+  height: 1rem;
+}

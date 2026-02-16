@@ -2,6 +2,7 @@
   "name": "dark",
   "displayName": "Dark",
   "description": "Modern dark theme with indigo accents",
+  "parent": "authme",
   "colors": {
     "primaryColor": "#6366f1",
     "backgroundColor": "#0f172a",
@@ -12,5 +13,11 @@
     "inputBgColor": "#0f172a",
     "mutedColor": "#94a3b8"
   },
-  "css": ["css/overrides.css"]
+  "types": {
+    "login": {
+      "css": ["css/overrides.css"]
+    },
+    "account": {},
+    "email": {}
+  }
 }

@@ -2,6 +2,7 @@
   "name": "forest",
   "displayName": "Forest",
   "description": "Nature-inspired theme with emerald accents",
+  "parent": "authme",
   "colors": {
     "primaryColor": "#059669",
     "backgroundColor": "#f0fdf4",
@@ -12,5 +13,11 @@
     "inputBgColor": "#ffffff",
     "mutedColor": "#6b7e6b"
   },
-  "css": ["css/overrides.css"]
+  "types": {
+    "login": {
+      "css": ["css/overrides.css"]
+    },
+    "account": {},
+    "email": {}
+  }
 }

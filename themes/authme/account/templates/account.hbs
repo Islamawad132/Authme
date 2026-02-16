@@ -1,0 +1,91 @@
+{{#if success}}
+<div class="auth-success">{{success}}</div>
+{{/if}}
+
+{{#if error}}
+<div class="auth-error">{{error}}</div>
+{{/if}}
+
+<h2 class="auth-subtitle">{{msg "accountTitle"}}</h2>
+
+<div style="margin-bottom: 1.5rem; text-align: center;">
+  <span style="font-weight: 600; color: #1a1a2e;">{{username}}</span>
+  {{#if email}}
+  <span style="color: #6b7280; font-size: 0.85rem;"> &middot; {{email}}</span>
+  {{#if emailVerified}}
+  <span style="color: #166534; font-size: 0.75rem; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; padding: 0.1rem 0.4rem; margin-left: 0.25rem;">{{msg "accountVerified"}}</span>
+  {{else}}
+  <span style="color: #92400e; font-size: 0.75rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; padding: 0.1rem 0.4rem; margin-left: 0.25rem;">{{msg "accountUnverified"}}</span>
+  {{/if}}
+  {{/if}}
+</div>
+
+<div style="border-top: 1px solid #e5e7eb; padding-top: 1.25rem; margin-top: 0.5rem;">
+  <h3 style="font-size: 0.95rem; font-weight: 600; color: #374151; margin-bottom: 1rem;">{{msg "accountProfile"}}</h3>
+  <form method="POST" action="/realms/{{realmName}}/account/profile" class="auth-form">
+    <div class="form-group">
+      <label for="firstName">{{msg "accountFirstName"}}</label>
+      <input type="text" id="firstName" name="firstName" value="{{firstName}}" autocomplete="given-name">
+    </div>
+
+    <div class="form-group">
+      <label for="lastName">{{msg "accountLastName"}}</label>
+      <input type="text" id="lastName" name="lastName" value="{{lastName}}" autocomplete="family-name">
+    </div>
+
+    <button type="submit" class="btn-primary">{{msg "accountUpdateProfile"}}</button>
+  </form>
+</div>
+
+<div style="border-top: 1px solid #e5e7eb; padding-top: 1.25rem; margin-top: 1.5rem;">
+  <h3 style="font-size: 0.95rem; font-weight: 600; color: #374151; margin-bottom: 1rem;">{{msg "accountChangePassword"}}</h3>
+  <form method="POST" action="/realms/{{realmName}}/account/password" class="auth-form">
+    <div class="form-group">
+      <label for="currentPassword">{{msg "accountCurrentPassword"}}</label>
+      <input type="password" id="currentPassword" name="currentPassword" required autocomplete="current-password">
+    </div>
+
+    <div class="form-group">
+      <label for="newPassword">{{msg "accountNewPassword"}}</label>
+      <input type="password" id="newPassword" name="newPassword" required minlength="8" autocomplete="new-password">
+    </div>
+
+    <div class="form-group">
+      <label for="confirmPassword">{{msg "accountConfirmNewPassword"}}</label>
+      <input type="password" id="confirmPassword" name="confirmPassword" required minlength="8" autocomplete="new-password">
+    </div>
+
+    <button type="submit" class="btn-primary">{{msg "accountChangePasswordSubmit"}}</button>
+  </form>
+</div>
+
+<div style="border-top: 1px solid #e5e7eb; padding-top: 1.25rem; margin-top: 1.5rem;">
+  <h3 style="font-size: 0.95rem; font-weight: 600; color: #374151; margin-bottom: 1rem;">{{msg "accountTwoFactor"}}</h3>
+
+  {{#if mfaEnabled}}
+  <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem;">
+    <span style="color: #166534; font-weight: 500;">{{msg "accountMfaEnabled"}}</span>
+    <span style="color: #6b7280; font-size: 0.85rem;"> &mdash; {{msg "accountMfaEnabledDesc"}}</span>
+  </div>
+
+  <form method="POST" action="/realms/{{realmName}}/account/totp-disable" class="auth-form">
+    <div class="form-group">
+      <label for="disablePassword">{{msg "accountCurrentPassword"}}</label>
+      <input type="password" id="disablePassword" name="currentPassword" required autocomplete="current-password">
+    </div>
+    <button type="submit" class="btn-primary" style="background: #dc2626;"
+      onclick="return confirm('{{msg "accountMfaDisableConfirm"}}')">
+      {{msg "accountMfaDisable"}}
+    </button>
+  </form>
+  {{else}}
+  <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem;">
+    <span style="color: #92400e; font-weight: 500;">{{msg "accountMfaNotEnabled"}}</span>
+    <span style="color: #6b7280; font-size: 0.85rem;"> &mdash; {{msg "accountMfaNotEnabledDesc"}}</span>
+  </div>
+
+  <a href="/realms/{{realmName}}/account/totp-setup" class="btn-primary" style="display: inline-block; text-align: center; text-decoration: none;">
+    {{msg "accountMfaSetup"}}
+  </a>
+  {{/if}}
+</div>
