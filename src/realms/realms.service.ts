@@ -64,6 +64,7 @@ export class RealmsService {
         eventsEnabled: dto.eventsEnabled,
         eventsExpiration: dto.eventsExpiration,
         adminEventsEnabled: dto.adminEventsEnabled,
+        themeName: dto.themeName,
         theme: dto.theme as any,
         signingKeys: {
           create: {
@@ -139,6 +140,7 @@ export class RealmsService {
       eventsEnabled: dto.eventsEnabled,
       eventsExpiration: dto.eventsExpiration,
       adminEventsEnabled: dto.adminEventsEnabled,
+      themeName: dto.themeName,
       theme: dto.theme as any,
     };
 
