@@ -51,6 +51,27 @@ export async function importRealm(
   return data;
 }
 
+export interface ThemeInfo {
+  name: string;
+  displayName: string;
+  description: string;
+  colors: {
+    primaryColor: string;
+    backgroundColor: string;
+    cardColor: string;
+    textColor: string;
+    labelColor: string;
+    inputBorderColor: string;
+    inputBgColor: string;
+    mutedColor: string;
+  };
+}
+
+export async function getThemes(): Promise<ThemeInfo[]> {
+  const { data } = await apiClient.get<ThemeInfo[]>('/realms/themes');
+  return data;
+}
+
 export async function sendTestEmail(
   name: string,
   to: string,
