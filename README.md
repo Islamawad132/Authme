@@ -345,6 +345,57 @@ This starts 2 app instances behind an Nginx load balancer.
 
 ---
 
+## Client SDK
+
+AuthMe ships with `authme-js` — a zero-dependency TypeScript SDK for integrating frontend apps.
+
+```bash
+npm install authme-js
+```
+
+### Vanilla JavaScript
+
+```typescript
+import { AuthmeClient } from 'authme-js';
+
+const authme = new AuthmeClient({
+  url: 'http://localhost:3000',
+  realm: 'my-realm',
+  clientId: 'my-app',
+  redirectUri: 'http://localhost:5173/callback',
+});
+
+await authme.init();
+if (!authme.isAuthenticated()) {
+  await authme.login(); // redirects to AuthMe
+}
+```
+
+### React
+
+```tsx
+import { AuthmeClient } from 'authme-js';
+import { AuthmeProvider, useAuthme, useUser } from 'authme-js/react';
+
+const authme = new AuthmeClient({ url: '...', realm: '...', clientId: '...', redirectUri: '...' });
+
+<AuthmeProvider client={authme}>
+  <App />
+</AuthmeProvider>
+
+function App() {
+  const { isAuthenticated, login, logout } = useAuthme();
+  const user = useUser();
+  // ...
+}
+```
+
+AuthMe also works with any standard OIDC client library (`oidc-client-ts`, `react-oidc-context`, `next-auth`, etc.) since it implements standard OpenID Connect.
+
+See the full SDK documentation at [`packages/authme-js/README.md`](packages/authme-js/README.md).
+
+---
+
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request.
