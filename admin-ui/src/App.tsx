@@ -22,6 +22,12 @@ import IdpDetailPage from './pages/identity-providers/IdpDetailPage';
 import ClientScopeListPage from './pages/client-scopes/ClientScopeListPage';
 import ClientScopeCreatePage from './pages/client-scopes/ClientScopeCreatePage';
 import ClientScopeDetailPage from './pages/client-scopes/ClientScopeDetailPage';
+import FederationListPage from './pages/user-federation/FederationListPage';
+import FederationCreatePage from './pages/user-federation/FederationCreatePage';
+import FederationDetailPage from './pages/user-federation/FederationDetailPage';
+import SamlSpListPage from './pages/saml/SamlSpListPage';
+import SamlSpCreatePage from './pages/saml/SamlSpCreatePage';
+import SamlSpDetailPage from './pages/saml/SamlSpDetailPage';
 import LoginEventsPage from './pages/events/LoginEventsPage';
 import AdminEventsPage from './pages/events/AdminEventsPage';
 
@@ -60,9 +66,15 @@ export default function App() {
           <Route path="/console/realms/:name/client-scopes/:scopeId" element={<ClientScopeDetailPage />} />
           <Route path="/console/realms/:name/events" element={<LoginEventsPage />} />
           <Route path="/console/realms/:name/admin-events" element={<AdminEventsPage />} />
+          <Route path="/console/realms/:name/user-federation" element={<FederationListPage />} />
+          <Route path="/console/realms/:name/user-federation/create" element={<FederationCreatePage />} />
+          <Route path="/console/realms/:name/user-federation/:id" element={<FederationDetailPage />} />
           <Route path="/console/realms/:name/identity-providers" element={<IdpListPage />} />
           <Route path="/console/realms/:name/identity-providers/create" element={<IdpCreatePage />} />
           <Route path="/console/realms/:name/identity-providers/:alias" element={<IdpDetailPage />} />
+          <Route path="/console/realms/:name/saml-providers" element={<SamlSpListPage />} />
+          <Route path="/console/realms/:name/saml-providers/create" element={<SamlSpCreatePage />} />
+          <Route path="/console/realms/:name/saml-providers/:id" element={<SamlSpDetailPage />} />
         </Route>
       </Route>
 

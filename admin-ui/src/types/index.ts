@@ -33,8 +33,22 @@ export interface Realm {
   eventsEnabled: boolean;
   eventsExpiration: number;
   adminEventsEnabled: boolean;
+  // Theming
+  theme: RealmTheme | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface RealmTheme {
+  logoUrl?: string;
+  faviconUrl?: string;
+  primaryColor?: string;
+  primaryHoverColor?: string;
+  backgroundColor?: string;
+  cardColor?: string;
+  textColor?: string;
+  customCss?: string;
+  appTitle?: string;
 }
 
 export interface User {
@@ -98,6 +112,25 @@ export interface IdentityProvider {
   trustEmail: boolean;
   linkOnly: boolean;
   syncUserProfile: boolean;
+  samlConfig?: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SamlServiceProvider {
+  id: string;
+  realmId: string;
+  entityId: string;
+  name: string;
+  enabled: boolean;
+  acsUrl: string;
+  sloUrl: string | null;
+  certificate: string | null;
+  nameIdFormat: string;
+  signAssertions: boolean;
+  signResponses: boolean;
+  attributeStatements: Record<string, unknown>;
+  validRedirectUris: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -143,4 +176,32 @@ export interface OfflineSession {
   sessionStarted: string;
   expiresAt: string;
   createdAt: string;
+}
+
+export interface UserFederation {
+  id: string;
+  realmId: string;
+  name: string;
+  providerType: string;
+  enabled: boolean;
+  priority: number;
+  connectionUrl: string;
+  bindDn: string;
+  bindCredential: string;
+  startTls: boolean;
+  connectionTimeout: number;
+  usersDn: string;
+  userObjectClass: string;
+  usernameLdapAttr: string;
+  rdnLdapAttr: string;
+  uuidLdapAttr: string;
+  searchFilter: string | null;
+  syncMode: string;
+  syncPeriod: number;
+  lastSyncAt: string | null;
+  lastSyncStatus: string | null;
+  importEnabled: boolean;
+  editMode: string;
+  createdAt: string;
+  updatedAt: string;
 }

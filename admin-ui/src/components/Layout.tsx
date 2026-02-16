@@ -38,7 +38,9 @@ export default function Layout() {
         { to: `/console/realms/${currentRealm}/sessions`, label: 'Sessions' },
         { to: `/console/realms/${currentRealm}/events`, label: 'Events' },
         { to: `/console/realms/${currentRealm}/admin-events`, label: 'Admin Events' },
+        { to: `/console/realms/${currentRealm}/user-federation`, label: 'User Federation' },
         { to: `/console/realms/${currentRealm}/identity-providers`, label: 'Identity Providers' },
+        { to: `/console/realms/${currentRealm}/saml-providers`, label: 'SAML Providers' },
       ]
     : [];
 

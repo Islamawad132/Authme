@@ -118,7 +118,7 @@ export class AuthService {
     const mfaEnabled = await this.mfaService.isMfaEnabled(user.id);
 
     if (mfaEnabled) {
-      const mfaToken = this.mfaService.createMfaChallenge(user.id, realm.id);
+      const mfaToken = await this.mfaService.createMfaChallenge(user.id, realm.id);
       return {
         error: 'mfa_required',
         mfa_token: mfaToken,
@@ -159,7 +159,7 @@ export class AuthService {
       throw new BadRequestException('mfa_token and otp are required');
     }
 
-    const challenge = this.mfaService.validateMfaChallenge(mfa_token);
+    const challenge = await this.mfaService.validateMfaChallenge(mfa_token);
     if (!challenge) {
       throw new UnauthorizedException('Invalid or expired MFA token');
     }

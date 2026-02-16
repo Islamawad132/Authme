@@ -3,14 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{pageTitle}} — AuthMe</title>
+  <title>{{pageTitle}} — {{appTitle}}</title>
+  {{#if faviconUrl}}
+  <link rel="icon" href="{{faviconUrl}}">
+  {{/if}}
   <link rel="stylesheet" href="/css/auth.css">
+  <style>
+    :root {
+      --primary-color: {{primaryColor}};
+      --primary-hover-color: {{primaryHoverColor}};
+      --bg-color: {{backgroundColor}};
+      --card-color: {{cardColor}};
+      --text-color: {{textColor}};
+    }
+  </style>
+  {{#if customCss}}
+  <style>{{{customCss}}}</style>
+  {{/if}}
 </head>
 <body>
   <div class="auth-container">
     <div class="auth-card">
       <div class="auth-header">
-        <h1 class="auth-logo">AuthMe</h1>
+        {{#if logoUrl}}
+        <img src="{{logoUrl}}" alt="{{appTitle}}" class="auth-logo-img">
+        {{else}}
+        <h1 class="auth-logo">{{appTitle}}</h1>
+        {{/if}}
         {{#if realmDisplayName}}
         <p class="auth-realm">{{realmDisplayName}}</p>
         {{/if}}

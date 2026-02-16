@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { randomBytes } from 'crypto';
+import { Injectable, Logger } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CryptoService } from '../crypto/crypto.service.js';
 
 export interface ConsentRequest {
   userId: string;
@@ -13,9 +14,12 @@ export interface ConsentRequest {
 
 @Injectable()
 export class ConsentService {
-  private readonly pendingRequests = new Map<string, ConsentRequest>();
+  private readonly logger = new Logger(ConsentService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly crypto: CryptoService,
+  ) {}
 
   /**
    * Check if a user has already granted consent for the requested scopes.
@@ -56,24 +60,53 @@ export class ConsentService {
   }
 
   /**
-   * Store a pending consent request in memory. Returns the request ID.
+   * Store a pending consent request in DB. Returns a token for retrieval.
    */
-  storeConsentRequest(data: ConsentRequest): string {
-    const id = randomBytes(16).toString('hex');
-    this.pendingRequests.set(id, data);
+  async storeConsentRequest(data: ConsentRequest): Promise<string> {
+    const token = this.crypto.generateSecret(16);
+    const tokenHash = this.crypto.sha256(token);
 
-    // Auto-cleanup after 10 minutes
-    setTimeout(() => this.pendingRequests.delete(id), 10 * 60 * 1000);
+    await this.prisma.pendingAction.create({
+      data: {
+        tokenHash,
+        type: 'consent_request',
+        data: data as any,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min TTL
+      },
+    });
 
-    return id;
+    return token;
   }
 
   /**
    * Retrieve and remove a pending consent request.
    */
-  getConsentRequest(id: string): ConsentRequest | undefined {
-    const req = this.pendingRequests.get(id);
-    if (req) this.pendingRequests.delete(id);
-    return req;
+  async getConsentRequest(token: string): Promise<ConsentRequest | undefined> {
+    const tokenHash = this.crypto.sha256(token);
+
+    const action = await this.prisma.pendingAction.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!action || action.type !== 'consent_request') return undefined;
+    if (action.expiresAt < new Date()) {
+      await this.prisma.pendingAction.delete({ where: { id: action.id } });
+      return undefined;
+    }
+
+    // Consume the request (one-time use)
+    await this.prisma.pendingAction.delete({ where: { id: action.id } });
+
+    return action.data as unknown as ConsentRequest;
+  }
+
+  @Interval(120_000)
+  async cleanupExpiredConsentRequests(): Promise<void> {
+    const { count } = await this.prisma.pendingAction.deleteMany({
+      where: { type: 'consent_request', expiresAt: { lt: new Date() } },
+    });
+    if (count > 0) {
+      this.logger.debug(`Cleaned up ${count} expired consent requests`);
+    }
   }
 }

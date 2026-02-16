@@ -162,6 +162,12 @@ export function createMockPrismaService(): MockPrismaService {
       deleteMany: jest.fn(),
       count: jest.fn(),
     },
+    pendingAction: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+    },
     $connect: jest.fn(),
     $disconnect: jest.fn(),
   } as any;

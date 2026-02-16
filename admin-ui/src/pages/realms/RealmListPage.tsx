@@ -1,14 +1,35 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { getAllRealms } from '../../api/realms';
+import { getAllRealms, importRealm } from '../../api/realms';
 
 export default function RealmListPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const { data: realms, isLoading, error } = useQuery({
     queryKey: ['realms'],
     queryFn: getAllRealms,
   });
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      const result = await importRealm(payload);
+      setImportStatus({ type: 'success', message: `Realm "${(result as any).realmName}" imported successfully.` });
+      queryClient.invalidateQueries({ queryKey: ['realms'] });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message ?? err.message ?? 'Import failed.';
+      setImportStatus({ type: 'error', message: msg });
+    }
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   if (isLoading) {
     return (
@@ -35,13 +56,35 @@ export default function RealmListPage() {
             Manage your identity realms
           </p>
         </div>
-        <button
-          onClick={() => navigate('/console/realms/create')}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          Create Realm
-        </button>
+        <div className="flex items-center gap-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImportFile}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Import Realm
+          </button>
+          <button
+            onClick={() => navigate('/console/realms/create')}
+            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            Create Realm
+          </button>
+        </div>
       </div>
+
+      {importStatus && (
+        <div className={`mb-4 rounded-md p-3 text-sm ${importStatus.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          {importStatus.message}
+          <button onClick={() => setImportStatus(null)} className="ml-2 underline">dismiss</button>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-gray-200">

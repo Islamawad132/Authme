@@ -26,6 +26,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { PasswordPolicyService } from '../password-policy/password-policy.service.js';
 import { MfaService } from '../mfa/mfa.service.js';
+import { getThemeVars } from './theme.util.js';
 
 const SCOPE_DESCRIPTIONS: Record<string, string> = {
   openid: 'Verify your identity',
@@ -65,6 +66,7 @@ export class LoginController {
       pageTitle: 'Sign In',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
+      ...getThemeVars(realm),
       client_id: query['client_id'] ?? '',
       redirect_uri: query['redirect_uri'] ?? '',
       response_type: query['response_type'] ?? '',
@@ -121,7 +123,7 @@ export class LoginController {
 
       if (mfaEnabled) {
         // User has TOTP set up — require verification
-        const challengeToken = this.mfaService.createMfaChallenge(
+        const challengeToken = await this.mfaService.createMfaChallenge(
           user.id,
           realm.id,
           oauthParams,
@@ -198,7 +200,7 @@ export class LoginController {
       const hasConsent = await this.consentService.hasConsent(user.id, client.id, scopes);
 
       if (!hasConsent) {
-        const reqId = this.consentService.storeConsentRequest({
+        const reqId = await this.consentService.storeConsentRequest({
           userId: user.id,
           clientId: client.id,
           clientName: client.name ?? client.clientId,
@@ -227,6 +229,7 @@ export class LoginController {
       pageTitle: 'Two-Factor Authentication',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
+      ...getThemeVars(realm),
       error: error ?? '',
     };
   }
@@ -243,7 +246,7 @@ export class LoginController {
       return res.redirect(`/realms/${realm.name}/login?error=${encodeURIComponent('MFA session expired. Please login again.')}`);
     }
 
-    const challenge = this.mfaService.validateMfaChallenge(challengeToken);
+    const challenge = await this.mfaService.validateMfaChallenge(challengeToken);
     if (!challenge) {
       return res.redirect(`/realms/${realm.name}/login?error=${encodeURIComponent('MFA session expired. Please login again.')}`);
     }
@@ -263,7 +266,7 @@ export class LoginController {
 
     if (!verified) {
       // Re-create challenge for retry
-      const newToken = this.mfaService.createMfaChallenge(
+      const newToken = await this.mfaService.createMfaChallenge(
         challenge.userId,
         challenge.realmId,
         challenge.oauthParams,
@@ -307,6 +310,7 @@ export class LoginController {
       pageTitle: 'Change Password',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
+      ...getThemeVars(realm),
       token: query['token'] ?? '',
       error: query['error'] ?? '',
       info: query['info'] ?? '',
@@ -392,7 +396,7 @@ export class LoginController {
 
   @Get('consent')
   @Render('consent')
-  showConsentForm(
+  async showConsentForm(
     @CurrentRealm() realm: Realm,
     @Query('req') reqId: string,
   ) {
@@ -400,12 +404,12 @@ export class LoginController {
       throw new BadRequestException('Missing consent request ID');
     }
 
-    const consentReq = this.consentService.getConsentRequest(reqId);
+    const consentReq = await this.consentService.getConsentRequest(reqId);
     if (!consentReq) {
       throw new BadRequestException('Consent request expired or invalid');
     }
 
-    const newReqId = this.consentService.storeConsentRequest(consentReq);
+    const newReqId = await this.consentService.storeConsentRequest(consentReq);
 
     const scopeDescriptions = consentReq.scopes.map(
       (s) => SCOPE_DESCRIPTIONS[s] ?? s,
@@ -416,6 +420,7 @@ export class LoginController {
       pageTitle: 'Grant Access',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
+      ...getThemeVars(realm),
       clientName: consentReq.clientName,
       scopes: scopeDescriptions,
       authReqId: newReqId,
@@ -433,7 +438,7 @@ export class LoginController {
       throw new BadRequestException('Missing consent request ID');
     }
 
-    const consentReq = this.consentService.getConsentRequest(reqId);
+    const consentReq = await this.consentService.getConsentRequest(reqId);
     if (!consentReq) {
       throw new BadRequestException('Consent request expired or invalid');
     }
@@ -481,6 +486,7 @@ export class LoginController {
       pageTitle: 'Email Verification',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
+      ...getThemeVars(realm),
     };
 
     if (!token) {
@@ -513,6 +519,7 @@ export class LoginController {
       pageTitle: 'Forgot Password',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
+      ...getThemeVars(realm),
       info: query['info'] ?? '',
       error: query['error'] ?? '',
     };
@@ -569,6 +576,7 @@ export class LoginController {
       pageTitle: 'Reset Password',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
+      ...getThemeVars(realm),
     };
 
     if (!token) {

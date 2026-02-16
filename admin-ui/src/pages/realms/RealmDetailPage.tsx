@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getRealmByName, updateRealm, deleteRealm, sendTestEmail } from '../../api/realms';
+import { getRealmByName, updateRealm, deleteRealm, sendTestEmail, exportRealm } from '../../api/realms';
 import { getUsers } from '../../api/users';
 import { getClients } from '../../api/clients';
 import { getRealmRoles } from '../../api/roles';
@@ -20,7 +20,7 @@ export default function RealmDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showDelete, setShowDelete] = useState(false);
-  const [activeTab, setActiveTab] = useState<'general' | 'tokens' | 'email' | 'security' | 'events'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'tokens' | 'email' | 'security' | 'events' | 'theme'>('general');
   const [testEmailTo, setTestEmailTo] = useState('');
 
   const { data: realm, isLoading } = useQuery({
@@ -85,6 +85,17 @@ export default function RealmDetailPage() {
     eventsEnabled: false,
     eventsExpiration: 604800,
     adminEventsEnabled: false,
+    // Theme
+    theme: {
+      logoUrl: '',
+      faviconUrl: '',
+      primaryColor: '#2563eb',
+      backgroundColor: '#f0f2f5',
+      cardColor: '#ffffff',
+      textColor: '#1a1a2e',
+      customCss: '',
+      appTitle: '',
+    },
   });
 
   useEffect(() => {
@@ -121,6 +132,17 @@ export default function RealmDetailPage() {
         eventsEnabled: realm.eventsEnabled ?? false,
         eventsExpiration: realm.eventsExpiration ?? 604800,
         adminEventsEnabled: realm.adminEventsEnabled ?? false,
+        // Theme
+        theme: {
+          logoUrl: (realm.theme as any)?.logoUrl ?? '',
+          faviconUrl: (realm.theme as any)?.faviconUrl ?? '',
+          primaryColor: (realm.theme as any)?.primaryColor ?? '#2563eb',
+          backgroundColor: (realm.theme as any)?.backgroundColor ?? '#f0f2f5',
+          cardColor: (realm.theme as any)?.cardColor ?? '#ffffff',
+          textColor: (realm.theme as any)?.textColor ?? '#1a1a2e',
+          customCss: (realm.theme as any)?.customCss ?? '',
+          appTitle: (realm.theme as any)?.appTitle ?? '',
+        },
       });
     }
   }, [realm]);
@@ -172,6 +194,7 @@ export default function RealmDetailPage() {
     { key: 'email' as const, label: 'Email' },
     { key: 'security' as const, label: 'Security' },
     { key: 'events' as const, label: 'Events' },
+    { key: 'theme' as const, label: 'Theme' },
   ];
 
   const quickLinks = [
@@ -194,12 +217,29 @@ export default function RealmDetailPage() {
             {realm.displayName || 'Realm settings and overview'}
           </p>
         </div>
-        <button
-          onClick={() => setShowDelete(true)}
-          className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
-        >
-          Delete Realm
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              const data = await exportRealm(name!, { includeUsers: true });
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${name}-realm-export.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Export Realm
+          </button>
+          <button
+            onClick={() => setShowDelete(true)}
+            className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+          >
+            Delete Realm
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -908,6 +948,222 @@ export default function RealmDetailPage() {
           {updateMutation.isError && (
             <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
               Failed to update event settings.
+            </div>
+          )}
+
+          <div className="flex justify-end border-t border-gray-200 pt-4">
+            <button
+              type="submit"
+              disabled={updateMutation.isPending}
+              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Theme Tab */}
+      {activeTab === 'theme' && (
+        <form onSubmit={handleSubmit} className="space-y-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Login Page Theme</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Customize the appearance of login and account pages for this realm.
+            </p>
+          </div>
+
+          {/* Branding */}
+          <div className="space-y-6">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Branding</h3>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">App Title</label>
+              <input
+                type="text"
+                value={form.theme.appTitle}
+                onChange={(e) => setForm({ ...form, theme: { ...form.theme, appTitle: e.target.value } })}
+                placeholder="AuthMe"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-gray-400">Replaces "AuthMe" in the page header. Leave empty for default.</p>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Logo URL</label>
+              <input
+                type="text"
+                value={form.theme.logoUrl}
+                onChange={(e) => setForm({ ...form, theme: { ...form.theme, logoUrl: e.target.value } })}
+                placeholder="https://example.com/logo.png"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-gray-400">URL to a logo image. Replaces the text title on login pages.</p>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Favicon URL</label>
+              <input
+                type="text"
+                value={form.theme.faviconUrl}
+                onChange={(e) => setForm({ ...form, theme: { ...form.theme, faviconUrl: e.target.value } })}
+                placeholder="https://example.com/favicon.ico"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Colors */}
+          <div className="space-y-6 border-t border-gray-200 pt-6">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Colors</h3>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Primary Color</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={form.theme.primaryColor}
+                    onChange={(e) => setForm({ ...form, theme: { ...form.theme, primaryColor: e.target.value } })}
+                    className="h-9 w-12 cursor-pointer rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={form.theme.primaryColor}
+                    onChange={(e) => setForm({ ...form, theme: { ...form.theme, primaryColor: e.target.value } })}
+                    className="w-28 rounded-md border border-gray-300 px-3 py-2 text-sm font-mono shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-400">Buttons, links, and accent elements</p>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Background Color</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={form.theme.backgroundColor}
+                    onChange={(e) => setForm({ ...form, theme: { ...form.theme, backgroundColor: e.target.value } })}
+                    className="h-9 w-12 cursor-pointer rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={form.theme.backgroundColor}
+                    onChange={(e) => setForm({ ...form, theme: { ...form.theme, backgroundColor: e.target.value } })}
+                    className="w-28 rounded-md border border-gray-300 px-3 py-2 text-sm font-mono shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-400">Page background color</p>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Card Color</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={form.theme.cardColor}
+                    onChange={(e) => setForm({ ...form, theme: { ...form.theme, cardColor: e.target.value } })}
+                    className="h-9 w-12 cursor-pointer rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={form.theme.cardColor}
+                    onChange={(e) => setForm({ ...form, theme: { ...form.theme, cardColor: e.target.value } })}
+                    className="w-28 rounded-md border border-gray-300 px-3 py-2 text-sm font-mono shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-400">Login card background</p>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Text Color</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={form.theme.textColor}
+                    onChange={(e) => setForm({ ...form, theme: { ...form.theme, textColor: e.target.value } })}
+                    className="h-9 w-12 cursor-pointer rounded border border-gray-300"
+                  />
+                  <input
+                    type="text"
+                    value={form.theme.textColor}
+                    onChange={(e) => setForm({ ...form, theme: { ...form.theme, textColor: e.target.value } })}
+                    className="w-28 rounded-md border border-gray-300 px-3 py-2 text-sm font-mono shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-400">Primary text and heading color</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Custom CSS */}
+          <div className="space-y-4 border-t border-gray-200 pt-6">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Custom CSS</h3>
+            <div>
+              <textarea
+                value={form.theme.customCss}
+                onChange={(e) => setForm({ ...form, theme: { ...form.theme, customCss: e.target.value } })}
+                rows={6}
+                placeholder=".auth-card { border-radius: 16px; }"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Inject custom CSS into login pages. Use with caution.
+              </p>
+            </div>
+          </div>
+
+          {/* Preview */}
+          <div className="space-y-4 border-t border-gray-200 pt-6">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Preview</h3>
+            <div
+              className="rounded-lg border p-8"
+              style={{ backgroundColor: form.theme.backgroundColor }}
+            >
+              <div
+                className="mx-auto max-w-xs rounded-lg p-6 shadow-md"
+                style={{ backgroundColor: form.theme.cardColor }}
+              >
+                <div className="mb-4 text-center">
+                  {form.theme.logoUrl ? (
+                    <img
+                      src={form.theme.logoUrl}
+                      alt="Logo preview"
+                      className="mx-auto"
+                      style={{ maxHeight: 48, maxWidth: 200, objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <h3
+                      className="text-lg font-bold"
+                      style={{ color: form.theme.textColor }}
+                    >
+                      {form.theme.appTitle || 'AuthMe'}
+                    </h3>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  <div className="h-8 rounded border border-gray-200" />
+                  <div className="h-8 rounded border border-gray-200" />
+                  <button
+                    type="button"
+                    className="w-full rounded py-2 text-sm font-medium text-white"
+                    style={{ backgroundColor: form.theme.primaryColor }}
+                  >
+                    Sign In
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {updateMutation.isSuccess && (
+            <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+              Theme settings updated successfully.
+            </div>
+          )}
+          {updateMutation.isError && (
+            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+              Failed to update theme settings.
             </div>
           )}
 
