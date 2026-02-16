@@ -1,0 +1,21 @@
+{
+  "name": "midnight",
+  "displayName": "Midnight",
+  "description": "Glassmorphism dark theme with neon cyan accents",
+  "parent": null,
+  "colors": {
+    "primaryColor": "#06b6d4",
+    "backgroundColor": "#0c0a1a",
+    "cardColor": "rgba(255, 255, 255, 0.05)",
+    "textColor": "#e2e8f0",
+    "labelColor": "#94a3b8",
+    "inputBorderColor": "rgba(255, 255, 255, 0.1)",
+    "inputBgColor": "rgba(255, 255, 255, 0.05)",
+    "mutedColor": "#64748b"
+  },
+  "types": {
+    "login": { "css": ["css/midnight.css"] },
+    "account": { "css": ["css/midnight.css"] },
+    "email": {}
+  }
+}

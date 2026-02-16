@@ -1,0 +1,42 @@
+{{#if info}}
+<div class="auth-success">{{info}}</div>
+{{/if}}
+
+{{#if error}}
+<div class="auth-error">{{error}}</div>
+{{/if}}
+
+<form method="POST" action="/realms/{{realmName}}/login" class="auth-form">
+  <div class="form-group">
+    <label for="username">{{msg "loginUsername"}}</label>
+    <input type="text" id="username" name="username" required autocomplete="username" autofocus placeholder="{{msg "loginUsername"}}">
+  </div>
+
+  <div class="form-group">
+    <label for="password">{{msg "loginPassword"}}</label>
+    <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="{{msg "loginPassword"}}">
+  </div>
+
+  <div class="auth-row">
+    <div class="form-checkbox">
+      <input type="checkbox" id="rememberMe" name="rememberMe" value="true">
+      <label for="rememberMe">{{msg "loginRememberMe"}}</label>
+    </div>
+    <a href="/realms/{{realmName}}/forgot-password" style="font-size: 0.8rem;">{{msg "loginForgotPassword"}}</a>
+  </div>
+
+  <input type="hidden" name="client_id" value="{{client_id}}">
+  <input type="hidden" name="redirect_uri" value="{{redirect_uri}}">
+  <input type="hidden" name="response_type" value="{{response_type}}">
+  <input type="hidden" name="scope" value="{{scope}}">
+  <input type="hidden" name="state" value="{{state}}">
+  <input type="hidden" name="nonce" value="{{nonce}}">
+  <input type="hidden" name="code_challenge" value="{{code_challenge}}">
+  <input type="hidden" name="code_challenge_method" value="{{code_challenge_method}}">
+
+  <button type="submit" class="btn-primary">{{msg "loginSignIn"}}</button>
+</form>
+
+<div class="auth-footer-link">
+  <a href="/realms/{{realmName}}/register">{{msg "loginNoAccount"}}</a>
+</div>

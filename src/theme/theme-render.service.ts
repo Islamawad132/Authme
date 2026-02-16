@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { relative } from 'path';
 import type { Response } from 'express';
 import type { Realm } from '@prisma/client';
 import { ThemeService } from './theme.service.js';
@@ -37,8 +38,13 @@ export class ThemeRenderService {
     const messages = this.messageService.getMessages(themeName, themeType, 'en');
     const cssFiles = this.themeService.resolveCss(themeName, themeType);
 
-    res.render(templatePath, {
-      layout: layoutPath,
+    // Convert absolute paths to relative (relative to themes dir) for Express view resolution
+    const themesDir = this.themeService.getThemesDir();
+    const relativeTemplate = relative(themesDir, templatePath);
+    const relativeLayout = relative(themesDir, layoutPath);
+
+    res.render(relativeTemplate, {
+      layout: relativeLayout,
       ...data,
       ...colors,
       _messages: messages,

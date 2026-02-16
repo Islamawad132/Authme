@@ -1,0 +1,51 @@
+{{#if error}}
+<div class="auth-error">{{error}}</div>
+{{/if}}
+
+{{#if success}}
+<div class="auth-success">{{success}}</div>
+{{/if}}
+
+<h2 class="auth-subtitle">{{msg "totpSetupTitle"}}</h2>
+
+{{#if recoveryCodes}}
+<div style="background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.2); border-radius: 14px; padding: 1rem; margin-bottom: 1rem;">
+  <p style="font-weight: 600; color: #fde047; margin-bottom: 0.5rem;">{{msg "totpSetupSaveRecovery"}}</p>
+  <p style="font-size: 0.8rem; color: #fde047; opacity: 0.8; margin-bottom: 0.75rem;">
+    {{msg "totpSetupRecoveryHelp"}}
+  </p>
+  <div style="background: rgba(255,255,255,0.05); border-radius: 10px; padding: 0.75rem; font-family: monospace; font-size: 0.9rem; column-count: 2; column-gap: 1rem; color: #e2e8f0;">
+    {{#each recoveryCodes}}
+    <div style="margin-bottom: 0.25rem;">{{this}}</div>
+    {{/each}}
+  </div>
+</div>
+<a href="/realms/{{realmName}}/account" class="btn-primary" style="display: block; text-align: center; text-decoration: none;">{{msg "totpSetupDone"}}</a>
+{{else}}
+<p style="color: #64748b; font-size: 0.85rem; margin-bottom: 1rem; text-align: center;">
+  {{msg "totpSetupScanQr"}}
+</p>
+
+<div style="text-align: center; margin-bottom: 1rem;">
+  <img src="{{qrCodeDataUrl}}" alt="{{msg "totpSetupQrAlt"}}" style="width: 200px; height: 200px; border-radius: 12px;">
+</div>
+
+<div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 0.75rem; margin-bottom: 1.25rem; text-align: center;">
+  <p style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">{{msg "totpSetupManualEntry"}}</p>
+  <code style="font-size: 0.9rem; font-weight: 600; letter-spacing: 0.1rem; color: #06b6d4;">{{secret}}</code>
+</div>
+
+<form method="POST" action="/realms/{{realmName}}/account/totp-verify" class="auth-form">
+  <div class="form-group">
+    <label for="code">{{msg "totpSetupVerifyLabel"}}</label>
+    <input type="text" id="code" name="code" pattern="[0-9]{6}" maxlength="6" inputmode="numeric" required autofocus
+      style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem;" placeholder="000000">
+  </div>
+
+  <button type="submit" class="btn-primary">{{msg "totpSetupVerifyActivate"}}</button>
+</form>
+
+<div style="margin-top: 1rem; text-align: center;">
+  <a href="/realms/{{realmName}}/account" style="color: #64748b; font-size: 0.85rem;">{{msg "totpSetupCancel"}}</a>
+</div>
+{{/if}}

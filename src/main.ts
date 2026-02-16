@@ -39,6 +39,7 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // Handlebars template engine — templates live in themes/ and are resolved by ThemeRenderService
+  app.setBaseViewsDir(join(__dirname, '..', 'themes'));
   app.setViewEngine('hbs');
   app.useStaticAssets(join(__dirname, '..', 'themes'), { prefix: '/themes' });
 

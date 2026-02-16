@@ -1,0 +1,50 @@
+{{#if info}}
+<div class="auth-success">{{info}}</div>
+{{/if}}
+
+{{#if error}}
+<div class="auth-error">{{error}}</div>
+{{/if}}
+
+<form method="POST" action="/realms/{{realmName}}/register" class="auth-form">
+  <div class="form-group">
+    <label for="username">{{msg "registerUsername"}}</label>
+    <input type="text" id="username" name="username" required autocomplete="username" autofocus value="{{username}}" placeholder="{{msg "registerUsername"}}">
+  </div>
+
+  <div class="form-group">
+    <label for="email">{{msg "registerEmail"}}</label>
+    <input type="email" id="email" name="email" required autocomplete="email" value="{{email}}" placeholder="{{msg "registerEmail"}}">
+  </div>
+
+  <div class="auth-name-grid">
+    <div class="form-group">
+      <label for="firstName">{{msg "registerFirstName"}}</label>
+      <input type="text" id="firstName" name="firstName" autocomplete="given-name" value="{{firstName}}" placeholder="{{msg "registerFirstName"}}">
+    </div>
+
+    <div class="form-group">
+      <label for="lastName">{{msg "registerLastName"}}</label>
+      <input type="text" id="lastName" name="lastName" autocomplete="family-name" value="{{lastName}}" placeholder="{{msg "registerLastName"}}">
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="password">{{msg "registerPassword"}}</label>
+    <input type="password" id="password" name="password" required autocomplete="new-password" minlength="{{passwordMinLength}}" placeholder="{{msg "registerPassword"}}">
+    {{#if passwordHint}}
+    <small class="auth-hint">{{passwordHint}}</small>
+    {{/if}}
+  </div>
+
+  <div class="form-group">
+    <label for="confirmPassword">{{msg "registerConfirmPassword"}}</label>
+    <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password" placeholder="{{msg "registerConfirmPassword"}}">
+  </div>
+
+  <button type="submit" class="btn-primary">{{msg "registerCreateAccount"}}</button>
+</form>
+
+<div class="auth-footer-link">
+  <a href="/realms/{{realmName}}/login">{{msg "registerSignInPrompt"}}</a>
+</div>

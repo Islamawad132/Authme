@@ -1,0 +1,15 @@
+{{#if success}}
+<div class="auth-success">
+  {{msg "verifyEmailSuccess"}}
+</div>
+<p style="text-align: center; margin-top: 1.25rem;">
+  <a href="/realms/{{realmName}}/login" class="btn-primary" style="display: inline-block; text-decoration: none;">{{msg "verifyEmailSignIn"}}</a>
+</p>
+{{else}}
+<div class="auth-error">
+  {{#if error}}{{error}}{{else}}{{msg "verifyEmailInvalid"}}{{/if}}
+</div>
+<p style="text-align: center; margin-top: 1.25rem;">
+  <a href="/realms/{{realmName}}/login" style="font-size: 0.85rem;">{{msg "verifyEmailBackToSignIn"}}</a>
+</p>
+{{/if}}

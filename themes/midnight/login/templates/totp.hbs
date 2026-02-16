@@ -1,0 +1,48 @@
+{{#if error}}
+<div class="auth-error">{{error}}</div>
+{{/if}}
+
+<h2 class="auth-subtitle">{{msg "totpTitle"}}</h2>
+<p class="consent-description">
+  {{msg "totpInstruction"}}
+</p>
+
+<form method="POST" action="/realms/{{realmName}}/totp" class="auth-form" id="totpForm">
+  <div class="form-group totp-input">
+    <label for="code">{{msg "totpAuthCode"}}</label>
+    <input type="text" id="code" name="code" pattern="[0-9]{6}" maxlength="6" inputmode="numeric" autocomplete="one-time-code" required autofocus placeholder="000000">
+  </div>
+
+  <button type="submit" class="btn-primary">{{msg "totpVerify"}}</button>
+</form>
+
+<div class="auth-footer-link" style="border-top: none; padding-top: 0; margin-top: 1rem;">
+  <button type="button" id="toggleRecovery" class="btn-link">
+    {{msg "totpUseRecovery"}}
+  </button>
+</div>
+
+<form method="POST" action="/realms/{{realmName}}/totp" class="auth-form" id="recoveryForm" style="display: none;">
+  <div class="form-group">
+    <label for="recoveryCode">{{msg "totpRecoveryCode"}}</label>
+    <input type="text" id="recoveryCode" name="recoveryCode" required autocomplete="off" placeholder="{{msg "totpRecoveryCode"}}">
+  </div>
+
+  <button type="submit" class="btn-primary">{{msg "totpVerifyRecovery"}}</button>
+</form>
+
+<script>
+  document.getElementById('toggleRecovery').addEventListener('click', function() {
+    var totpForm = document.getElementById('totpForm');
+    var recoveryForm = document.getElementById('recoveryForm');
+    if (recoveryForm.style.display === 'none') {
+      recoveryForm.style.display = '';
+      totpForm.style.display = 'none';
+      this.textContent = '{{msg "totpUseAuthenticator"}}';
+    } else {
+      recoveryForm.style.display = 'none';
+      totpForm.style.display = '';
+      this.textContent = '{{msg "totpUseRecovery"}}';
+    }
+  });
+</script>
