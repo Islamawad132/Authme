@@ -473,6 +473,155 @@ export class LoginController {
     res.redirect(302, result.redirectUrl);
   }
 
+  // ─── REGISTRATION ──────────────────────────────────────
+
+  @Get('register')
+  @Render('register')
+  showRegistrationForm(
+    @CurrentRealm() realm: Realm,
+    @Query() query: Record<string, string>,
+  ) {
+    const hints: string[] = [];
+    if (realm.passwordMinLength > 1) hints.push(`at least ${realm.passwordMinLength} characters`);
+    if (realm.passwordRequireUppercase) hints.push('an uppercase letter');
+    if (realm.passwordRequireLowercase) hints.push('a lowercase letter');
+    if (realm.passwordRequireDigits) hints.push('a digit');
+    if (realm.passwordRequireSpecialChars) hints.push('a special character');
+
+    return {
+      layout: 'layouts/main',
+      pageTitle: 'Create Account',
+      realmName: realm.name,
+      realmDisplayName: realm.displayName ?? realm.name,
+      ...getThemeVars(realm),
+      passwordMinLength: realm.passwordMinLength || 8,
+      passwordHint: hints.length ? `Must contain ${hints.join(', ')}` : '',
+      username: query['username'] ?? '',
+      email: query['email'] ?? '',
+      firstName: query['firstName'] ?? '',
+      lastName: query['lastName'] ?? '',
+      error: query['error'] ?? '',
+      info: query['info'] ?? '',
+    };
+  }
+
+  @Post('register')
+  async handleRegistration(
+    @CurrentRealm() realm: Realm,
+    @Body() body: Record<string, string>,
+    @Res() res: Response,
+  ) {
+    const username = (body['username'] ?? '').trim();
+    const email = (body['email'] ?? '').trim();
+    const firstName = (body['firstName'] ?? '').trim();
+    const lastName = (body['lastName'] ?? '').trim();
+    const password = body['password'] ?? '';
+    const confirmPassword = body['confirmPassword'] ?? '';
+
+    const preserveFields = `&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}`;
+
+    if (!username || username.length < 2) {
+      return res.redirect(
+        `/realms/${realm.name}/register?error=${encodeURIComponent('Username must be at least 2 characters.')}${preserveFields}`,
+      );
+    }
+
+    if (!email) {
+      return res.redirect(
+        `/realms/${realm.name}/register?error=${encodeURIComponent('Email is required.')}${preserveFields}`,
+      );
+    }
+
+    if (!password) {
+      return res.redirect(
+        `/realms/${realm.name}/register?error=${encodeURIComponent('Password is required.')}${preserveFields}`,
+      );
+    }
+
+    if (password !== confirmPassword) {
+      return res.redirect(
+        `/realms/${realm.name}/register?error=${encodeURIComponent('Passwords do not match.')}${preserveFields}`,
+      );
+    }
+
+    // Validate against password policy
+    const validation = this.passwordPolicyService.validate(realm, password);
+    if (!validation.valid) {
+      return res.redirect(
+        `/realms/${realm.name}/register?error=${encodeURIComponent(validation.errors.join('. '))}${preserveFields}`,
+      );
+    }
+
+    // Check for duplicate username
+    const existingByUsername = await this.prisma.user.findUnique({
+      where: { realmId_username: { realmId: realm.id, username } },
+    });
+    if (existingByUsername) {
+      return res.redirect(
+        `/realms/${realm.name}/register?error=${encodeURIComponent('An account with that username already exists.')}${preserveFields}`,
+      );
+    }
+
+    // Check for duplicate email
+    const existingByEmail = await this.prisma.user.findUnique({
+      where: { realmId_email: { realmId: realm.id, email } },
+    });
+    if (existingByEmail) {
+      return res.redirect(
+        `/realms/${realm.name}/register?error=${encodeURIComponent('An account with that email already exists.')}${preserveFields}`,
+      );
+    }
+
+    // Create user
+    const passwordHash = await this.crypto.hashPassword(password);
+    const user = await this.prisma.user.create({
+      data: {
+        realmId: realm.id,
+        username,
+        email,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        enabled: true,
+        passwordHash,
+        passwordChangedAt: new Date(),
+      },
+    });
+
+    // Record password history
+    if (realm.passwordHistoryCount > 0) {
+      await this.passwordPolicyService.recordHistory(
+        user.id, realm.id, passwordHash, realm.passwordHistoryCount,
+      );
+    }
+
+    // Send verification email
+    if (email) {
+      try {
+        const configured = await this.emailService.isConfigured(realm.name);
+        if (configured) {
+          const rawToken = await this.verificationService.createToken(user.id, 'email_verification', 86400);
+          const baseUrl = this.config.get<string>('BASE_URL', 'http://localhost:3000');
+          const verifyUrl = `${baseUrl}/realms/${realm.name}/verify-email?token=${rawToken}`;
+
+          await this.emailService.sendEmail(
+            realm.name,
+            email,
+            'Verify Your Email — AuthMe',
+            `<h2>Verify Your Email</h2>
+            <p>Click the link below to verify your email address. This link expires in 24 hours.</p>
+            <p><a href="${verifyUrl}" style="display:inline-block;padding:10px 20px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">Verify Email</a></p>
+            <p style="color:#6b7280;font-size:0.875rem;">If you didn't create an account, you can safely ignore this email.</p>`,
+          );
+        }
+      } catch {
+        // Don't block registration if email fails
+      }
+    }
+
+    const info = encodeURIComponent('Account created successfully! Please check your email to verify your account, then sign in.');
+    res.redirect(`/realms/${realm.name}/login?info=${info}`);
+  }
+
   // ─── EMAIL VERIFICATION ─────────────────────────────────
 
   @Get('verify-email')
