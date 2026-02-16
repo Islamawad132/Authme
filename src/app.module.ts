@@ -3,8 +3,10 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { ScheduleModule } from '@nestjs/schedule';
-import { APP_GUARD } from '@nestjs/core';
+import { LoggerModule } from 'nestjs-pino';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { join } from 'path';
+import { createLoggerConfig } from './common/logging/logger.config.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { CryptoModule } from './crypto/crypto.module.js';
 import { RealmsModule } from './realms/realms.module.js';
@@ -31,11 +33,17 @@ import { MfaModule } from './mfa/mfa.module.js';
 import { AdminAuthModule } from './admin-auth/admin-auth.module.js';
 import { ClientScopesModule } from './client-scopes/client-scopes.module.js';
 import { DeviceModule } from './device/device.module.js';
+import { HealthModule } from './health/health.module.js';
+import { EventsModule } from './events/events.module.js';
+import { MetricsModule } from './metrics/metrics.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
+import { AdminEventInterceptor } from './events/admin-event.interceptor.js';
+import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    LoggerModule.forRoot(createLoggerConfig()),
     ThrottlerModule.forRoot([{
       ttl: parseInt(process.env['THROTTLE_TTL'] ?? '60000', 10),
       limit: parseInt(process.env['THROTTLE_LIMIT'] ?? '100', 10),
@@ -75,10 +83,15 @@ import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
     AccountModule,
     ClientScopesModule,
     DeviceModule,
+    HealthModule,
+    EventsModule,
+    MetricsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AdminApiKeyGuard },
+    { provide: APP_INTERCEPTOR, useClass: AdminEventInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
   ],
 })
 export class AppModule {}

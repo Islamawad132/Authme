@@ -11,6 +11,9 @@ import { ProtocolMapperExecutor, type MapperContext } from '../scopes/protocol-m
 import { BruteForceService } from '../brute-force/brute-force.service.js';
 import { PasswordPolicyService } from '../password-policy/password-policy.service.js';
 import { MfaService } from '../mfa/mfa.service.js';
+import { EventsService } from '../events/events.service.js';
+import { MetricsService } from '../metrics/metrics.service.js';
+import { LoginEventType } from '../events/event-types.js';
 import { resolveUserClaims, type UserClaimSource } from '../scopes/claims.resolver.js';
 import type { Realm } from '@prisma/client';
 import type { JWTPayload } from 'jose';
@@ -37,6 +40,8 @@ export class AuthService {
     private readonly passwordPolicyService: PasswordPolicyService,
     private readonly mfaService: MfaService,
     private readonly protocolMapperExecutor: ProtocolMapperExecutor,
+    private readonly eventsService: EventsService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   async handleTokenRequest(
@@ -95,6 +100,8 @@ export class AuthService {
     const valid = await this.crypto.verifyPassword(user.passwordHash, password);
     if (!valid) {
       await this.bruteForceService.recordFailure(realm, user.id, ip);
+      this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.LOGIN_ERROR, userId: user.id, clientId: client_id, ipAddress: ip, error: 'Invalid credentials' });
+      this.metricsService.authLoginTotal.inc({ realm: realm.name, status: 'failure' });
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -131,6 +138,10 @@ export class AuthService {
       },
     });
 
+    this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.LOGIN, userId: user.id, sessionId: session.id, clientId: client_id, ipAddress: ip });
+    this.metricsService.authLoginTotal.inc({ realm: realm.name, status: 'success' });
+    this.metricsService.authTokenIssuedTotal.inc({ realm: realm.name, grant_type: 'password' });
+
     return this.issueTokens(realm, user, client_id, session.id, scope, undefined, new Date());
   }
 
@@ -158,6 +169,7 @@ export class AuthService {
       // Try as recovery code
       const recoveryVerified = await this.mfaService.verifyRecoveryCode(challenge.userId, otp);
       if (!recoveryVerified) {
+        this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.MFA_VERIFY_ERROR, userId: challenge.userId, ipAddress: ip, error: 'Invalid OTP code' });
         throw new UnauthorizedException('Invalid OTP code');
       }
     }
@@ -177,6 +189,9 @@ export class AuthService {
         expiresAt: new Date(Date.now() + realm.refreshTokenLifespan * 1000),
       },
     });
+
+    this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.MFA_VERIFY, userId: user.id, sessionId: session.id, clientId: client_id, ipAddress: ip });
+    this.metricsService.authTokenIssuedTotal.inc({ realm: realm.name, grant_type: 'mfa_otp' });
 
     return this.issueTokens(realm, user, client_id, session.id, scope, undefined, new Date());
   }
@@ -226,6 +241,9 @@ export class AuthService {
       realm.accessTokenLifespan,
     );
 
+    this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.CLIENT_LOGIN, clientId: client_id });
+    this.metricsService.authTokenIssuedTotal.inc({ realm: realm.name, grant_type: 'client_credentials' });
+
     return {
       access_token: accessToken,
       token_type: 'Bearer',
@@ -268,6 +286,7 @@ export class AuthService {
           data: { revoked: true },
         });
       }
+      this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.TOKEN_REFRESH_ERROR, clientId: client_id, error: 'Invalid or expired refresh token' });
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
@@ -278,6 +297,10 @@ export class AuthService {
     });
 
     const user = storedToken.session.user;
+
+    this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.TOKEN_REFRESH, userId: user.id, sessionId: storedToken.sessionId, clientId: client_id });
+    this.metricsService.authTokenIssuedTotal.inc({ realm: realm.name, grant_type: 'refresh_token' });
+
     return this.issueTokens(
       realm,
       user,
@@ -368,6 +391,9 @@ export class AuthService {
       },
     });
 
+    this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.CODE_TO_TOKEN, userId: user.id, sessionId: session.id, clientId: client_id, ipAddress: ip });
+    this.metricsService.authTokenIssuedTotal.inc({ realm: realm.name, grant_type: 'authorization_code' });
+
     return this.issueTokens(
       realm,
       user,
@@ -451,6 +477,9 @@ export class AuthService {
         expiresAt: new Date(Date.now() + realm.refreshTokenLifespan * 1000),
       },
     });
+
+    this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.DEVICE_CODE_TO_TOKEN, userId: user.id, sessionId: session.id, clientId: client_id, ipAddress: ip });
+    this.metricsService.authTokenIssuedTotal.inc({ realm: realm.name, grant_type: 'device_code' });
 
     return this.issueTokens(
       realm,

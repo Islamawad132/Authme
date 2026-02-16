@@ -20,7 +20,7 @@ export default function RealmDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showDelete, setShowDelete] = useState(false);
-  const [activeTab, setActiveTab] = useState<'general' | 'tokens' | 'email' | 'security'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'tokens' | 'email' | 'security' | 'events'>('general');
   const [testEmailTo, setTestEmailTo] = useState('');
 
   const { data: realm, isLoading } = useQuery({
@@ -81,6 +81,10 @@ export default function RealmDetailPage() {
     permanentLockoutAfter: 0,
     // Security - MFA
     mfaRequired: false,
+    // Events
+    eventsEnabled: false,
+    eventsExpiration: 604800,
+    adminEventsEnabled: false,
   });
 
   useEffect(() => {
@@ -113,6 +117,10 @@ export default function RealmDetailPage() {
         permanentLockoutAfter: realm.permanentLockoutAfter ?? 0,
         // Security - MFA
         mfaRequired: realm.mfaRequired ?? false,
+        // Events
+        eventsEnabled: realm.eventsEnabled ?? false,
+        eventsExpiration: realm.eventsExpiration ?? 604800,
+        adminEventsEnabled: realm.adminEventsEnabled ?? false,
       });
     }
   }, [realm]);
@@ -163,6 +171,7 @@ export default function RealmDetailPage() {
     { key: 'tokens' as const, label: 'Tokens' },
     { key: 'email' as const, label: 'Email' },
     { key: 'security' as const, label: 'Security' },
+    { key: 'events' as const, label: 'Events' },
   ];
 
   const quickLinks = [
@@ -808,6 +817,97 @@ export default function RealmDetailPage() {
           {updateMutation.isError && (
             <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
               Failed to update security settings.
+            </div>
+          )}
+
+          <div className="flex justify-end border-t border-gray-200 pt-4">
+            <button
+              type="submit"
+              disabled={updateMutation.isPending}
+              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Events Tab */}
+      {activeTab === 'events' && (
+        <form onSubmit={handleSubmit} className="space-y-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Event Configuration</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Control whether login and admin events are recorded for this realm.
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="eventsEnabled"
+                checked={form.eventsEnabled}
+                onChange={(e) => setForm({ ...form, eventsEnabled: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label htmlFor="eventsEnabled" className="text-sm font-medium text-gray-700">
+                Enable login events
+              </label>
+            </div>
+            <p className="ml-6 -mt-4 text-xs text-gray-400">
+              Records login, logout, token refresh, and authentication error events.
+            </p>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="adminEventsEnabled"
+                checked={form.adminEventsEnabled}
+                onChange={(e) => setForm({ ...form, adminEventsEnabled: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label htmlFor="adminEventsEnabled" className="text-sm font-medium text-gray-700">
+                Enable admin events
+              </label>
+            </div>
+            <p className="ml-6 -mt-4 text-xs text-gray-400">
+              Records create, update, and delete operations performed through the admin API.
+            </p>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Events Expiration (seconds)
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={60}
+                  value={form.eventsExpiration}
+                  onChange={(e) =>
+                    setForm({ ...form, eventsExpiration: Number(e.target.value) })
+                  }
+                  className="w-40 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+                <span className="text-sm text-gray-500">seconds</span>
+                <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                  {formatDuration(form.eventsExpiration)}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                How long events are kept before automatic cleanup. Default: 7 days (604800s).
+              </p>
+            </div>
+          </div>
+
+          {updateMutation.isSuccess && (
+            <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+              Event settings updated successfully.
+            </div>
+          )}
+          {updateMutation.isError && (
+            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+              Failed to update event settings.
             </div>
           )}
 

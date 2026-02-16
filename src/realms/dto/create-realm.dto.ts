@@ -142,4 +142,21 @@ export class CreateRealmDto {
   @IsInt()
   @Min(60)
   offlineTokenLifespan?: number;
+
+  // Events configuration
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  eventsEnabled?: boolean;
+
+  @ApiPropertyOptional({ default: 604800 })
+  @IsOptional()
+  @IsInt()
+  @Min(60)
+  eventsExpiration?: number;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  adminEventsEnabled?: boolean;
 }

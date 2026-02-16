@@ -159,6 +159,16 @@ describe('AuthService', () => {
       executeMappers: jest.fn().mockResolvedValue({}),
     };
 
+    const eventsService = {
+      recordLoginEvent: jest.fn().mockResolvedValue(undefined),
+      recordAdminEvent: jest.fn().mockResolvedValue(undefined),
+    };
+    const metricsService = {
+      authLoginTotal: { inc: jest.fn() },
+      authTokenIssuedTotal: { inc: jest.fn() },
+      activeSessionsTotal: { inc: jest.fn(), dec: jest.fn() },
+    };
+
     service = new AuthService(
       prisma as any,
       crypto as any,
@@ -168,6 +178,8 @@ describe('AuthService', () => {
       passwordPolicyService as any,
       mfaService as any,
       protocolMapperExecutor as any,
+      eventsService as any,
+      metricsService as any,
     );
   });
 

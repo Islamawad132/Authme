@@ -46,6 +46,11 @@ model Realm {
   // Offline tokens
   offlineTokenLifespan Int @default(2592000) @map("offline_token_lifespan")
 
+  // Events configuration
+  eventsEnabled      Boolean @default(false) @map("events_enabled")
+  eventsExpiration   Int     @default(604800) @map("events_expiration")
+  adminEventsEnabled Boolean @default(false) @map("admin_events_enabled")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -59,6 +64,8 @@ model Realm {
   passwordHistories  PasswordHistory[]
   loginFailures      LoginFailure[]
   clientScopes       ClientScope[]
+  loginEvents        LoginEvent[]
+  adminEvents        AdminEvent[]
 
   @@map("realms")
 }
@@ -555,4 +562,46 @@ model DeviceCode {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("device_codes")
+}
+
+// ─── LOGIN EVENTS ────────────────────────────────────────
+
+model LoginEvent {
+  id        String   @id @default(uuid())
+  realmId   String   @map("realm_id")
+  userId    String?  @map("user_id")
+  sessionId String?  @map("session_id")
+  type      String
+  clientId  String?  @map("client_id")
+  ipAddress String?  @map("ip_address")
+  error     String?
+  details   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([realmId, createdAt])
+  @@index([realmId, type])
+  @@index([realmId, userId])
+  @@map("login_events")
+}
+
+// ─── ADMIN EVENTS ────────────────────────────────────────
+
+model AdminEvent {
+  id             String   @id @default(uuid())
+  realmId        String   @map("realm_id")
+  adminUserId    String   @map("admin_user_id")
+  operationType  String   @map("operation_type")
+  resourceType   String   @map("resource_type")
+  resourcePath   String   @map("resource_path")
+  representation Json?
+  ipAddress      String?  @map("ip_address")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([realmId, createdAt])
+  @@index([realmId, resourceType])
+  @@map("admin_events")
 }
