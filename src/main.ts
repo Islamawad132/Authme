@@ -25,8 +25,12 @@ async function bootstrap() {
           styleSrc: ["'self'", "'unsafe-inline'"],
           imgSrc: ["'self'", 'data:', 'blob:'],
           connectSrc: ["'self'"],
+          upgradeInsecureRequests: null,
         },
       },
+      hsts: false,
+      crossOriginOpenerPolicy: false,
+      crossOriginResourcePolicy: false,
     }),
   );
   app.enableCors();

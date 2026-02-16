@@ -33,7 +33,8 @@ import AdminEventsPage from './pages/events/AdminEventsPage';
 
 function ProtectedRoute() {
   const apiKey = sessionStorage.getItem('adminApiKey');
-  if (!apiKey) {
+  const token = sessionStorage.getItem('adminToken');
+  if (!apiKey && !token) {
     return <Navigate to="/console/login" replace />;
   }
   return <Outlet />;
