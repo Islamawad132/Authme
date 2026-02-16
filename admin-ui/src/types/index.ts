@@ -29,6 +29,10 @@ export interface Realm {
   mfaRequired: boolean;
   // Offline tokens
   offlineTokenLifespan: number;
+  // Events
+  eventsEnabled: boolean;
+  eventsExpiration: number;
+  adminEventsEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }

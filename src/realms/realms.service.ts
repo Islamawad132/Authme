@@ -61,6 +61,9 @@ export class RealmsService {
         permanentLockoutAfter: dto.permanentLockoutAfter,
         mfaRequired: dto.mfaRequired,
         offlineTokenLifespan: dto.offlineTokenLifespan,
+        eventsEnabled: dto.eventsEnabled,
+        eventsExpiration: dto.eventsExpiration,
+        adminEventsEnabled: dto.adminEventsEnabled,
         signingKeys: {
           create: {
             kid: keyPair.kid,
@@ -132,6 +135,9 @@ export class RealmsService {
       permanentLockoutAfter: dto.permanentLockoutAfter,
       mfaRequired: dto.mfaRequired,
       offlineTokenLifespan: dto.offlineTokenLifespan,
+      eventsEnabled: dto.eventsEnabled,
+      eventsExpiration: dto.eventsExpiration,
+      adminEventsEnabled: dto.adminEventsEnabled,
     };
 
     // Only update password if a real value is provided (not the redacted placeholder)

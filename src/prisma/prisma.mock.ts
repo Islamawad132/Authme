@@ -150,6 +150,18 @@ export function createMockPrismaService(): MockPrismaService {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    loginEvent: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+    },
+    adminEvent: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+    },
     $connect: jest.fn(),
     $disconnect: jest.fn(),
   } as any;
