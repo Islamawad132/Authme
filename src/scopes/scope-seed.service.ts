@@ -9,7 +9,7 @@ const DEFAULT_SCOPES = [
       {
         name: 'sub',
         mapperType: 'oidc-usermodel-attribute-mapper',
-        config: { 'user.attribute': 'username', 'claim.name': 'sub' },
+        config: { 'user.attribute': 'id', 'claim.name': 'sub' },
       },
     ],
   },
