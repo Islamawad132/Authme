@@ -8,6 +8,7 @@ import cookieParser from 'cookie-parser';
 import { join } from 'path';
 import { AppModule } from './app.module.js';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter.js';
+import { registerHandlebarsHelpers } from './theme/handlebars-helpers.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -42,6 +43,9 @@ async function bootstrap() {
   app.setViewEngine('hbs');
   app.useStaticAssets(join(__dirname, '..', 'public'));
   app.useStaticAssets(join(__dirname, '..', 'themes'), { prefix: '/themes' });
+
+  // Register theme engine Handlebars helpers ({{msg}}, {{msgArgs}})
+  registerHandlebarsHelpers();
 
   app.useGlobalPipes(
     new ValidationPipe({

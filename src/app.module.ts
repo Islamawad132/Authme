@@ -38,6 +38,7 @@ import { EventsModule } from './events/events.module.js';
 import { MetricsModule } from './metrics/metrics.module.js';
 import { UserFederationModule } from './user-federation/user-federation.module.js';
 import { SamlModule } from './saml/saml.module.js';
+import { ThemeModule } from './theme/theme.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
 import { AdminEventInterceptor } from './events/admin-event.interceptor.js';
 import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
@@ -86,6 +87,7 @@ import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
     MetricsModule,
     UserFederationModule,
     SamlModule,
+    ThemeModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
