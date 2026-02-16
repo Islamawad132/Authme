@@ -56,9 +56,9 @@ export class AuthService {
       case 'password':
         return this.handlePasswordGrant(realm, body, ip, userAgent);
       case 'client_credentials':
-        return this.handleClientCredentialsGrant(realm, body);
+        return this.handleClientCredentialsGrant(realm, body, ip);
       case 'refresh_token':
-        return this.handleRefreshTokenGrant(realm, body);
+        return this.handleRefreshTokenGrant(realm, body, ip);
       case 'authorization_code':
         return this.handleAuthorizationCodeGrant(realm, body, ip, userAgent);
       case 'mfa_otp':
@@ -199,6 +199,7 @@ export class AuthService {
   private async handleClientCredentialsGrant(
     realm: Realm,
     body: Record<string, string>,
+    ip?: string,
   ): Promise<TokenResponse> {
     const { client_id, client_secret, scope } = body;
     const client = await this.validateClient(
@@ -241,7 +242,7 @@ export class AuthService {
       realm.accessTokenLifespan,
     );
 
-    this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.CLIENT_LOGIN, clientId: client_id });
+    this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.CLIENT_LOGIN, clientId: client_id, ipAddress: ip });
     this.metricsService.authTokenIssuedTotal.inc({ realm: realm.name, grant_type: 'client_credentials' });
 
     return {
@@ -255,6 +256,7 @@ export class AuthService {
   private async handleRefreshTokenGrant(
     realm: Realm,
     body: Record<string, string>,
+    ip?: string,
   ): Promise<TokenResponse> {
     const { refresh_token, client_id, client_secret, scope } = body;
 
@@ -286,7 +288,7 @@ export class AuthService {
           data: { revoked: true },
         });
       }
-      this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.TOKEN_REFRESH_ERROR, clientId: client_id, error: 'Invalid or expired refresh token' });
+      this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.TOKEN_REFRESH_ERROR, clientId: client_id, ipAddress: ip, error: 'Invalid or expired refresh token' });
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
@@ -298,7 +300,7 @@ export class AuthService {
 
     const user = storedToken.session.user;
 
-    this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.TOKEN_REFRESH, userId: user.id, sessionId: storedToken.sessionId, clientId: client_id });
+    this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.TOKEN_REFRESH, userId: user.id, sessionId: storedToken.sessionId, clientId: client_id, ipAddress: ip });
     this.metricsService.authTokenIssuedTotal.inc({ realm: realm.name, grant_type: 'refresh_token' });
 
     return this.issueTokens(

@@ -30,6 +30,7 @@ export class AuthmeClient {
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   private cachedUserInfo: UserInfo | null = null;
   private initialized = false;
+  private callbackPromise: Promise<boolean> | null = null;
 
   constructor(config: AuthmeConfig) {
     this.config = {
@@ -124,6 +125,17 @@ export class AuthmeClient {
    * Returns true if tokens were obtained successfully.
    */
   async handleCallback(url?: string): Promise<boolean> {
+    // Deduplicate concurrent calls (e.g. React StrictMode double-mount)
+    if (this.callbackPromise) return this.callbackPromise;
+    this.callbackPromise = this._handleCallback(url);
+    try {
+      return await this.callbackPromise;
+    } finally {
+      this.callbackPromise = null;
+    }
+  }
+
+  private async _handleCallback(url?: string): Promise<boolean> {
     const currentUrl = url ?? window.location.href;
     const params = new URL(currentUrl).searchParams;
     const code = params.get('code');

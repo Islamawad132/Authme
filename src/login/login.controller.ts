@@ -27,6 +27,8 @@ import { PasswordPolicyService } from '../password-policy/password-policy.servic
 import { MfaService } from '../mfa/mfa.service.js';
 import { ThemeRenderService } from '../theme/theme-render.service.js';
 import { ThemeEmailService } from '../theme/theme-email.service.js';
+import { EventsService } from '../events/events.service.js';
+import { LoginEventType } from '../events/event-types.js';
 
 const SCOPE_DESCRIPTIONS: Record<string, string> = {
   openid: 'Verify your identity',
@@ -53,6 +55,7 @@ export class LoginController {
     private readonly mfaService: MfaService,
     private readonly themeRender: ThemeRenderService,
     private readonly themeEmail: ThemeEmailService,
+    private readonly eventsService: EventsService,
   ) {}
 
   // ─── LOGIN ──────────────────────────────────────────────
@@ -168,6 +171,14 @@ export class LoginController {
       // No MFA needed — proceed to create session
       return await this.completeLogin(realm, user, body, oauthParams, req, res);
     } catch (err: any) {
+      this.eventsService.recordLoginEvent({
+        realmId: realm.id,
+        type: LoginEventType.LOGIN_ERROR,
+        clientId: body['client_id'],
+        ipAddress: req.ip,
+        error: err.message ?? 'Invalid credentials',
+      });
+
       const params = new URLSearchParams();
       params.set('error', err.message ?? 'Invalid username or password');
       for (const key of ['client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method']) {
@@ -195,6 +206,14 @@ export class LoginController {
       sameSite: 'lax',
       maxAge: body['rememberMe'] ? 30 * 24 * 60 * 60 * 1000 : undefined,
       path: `/realms/${realm.name}`,
+    });
+
+    this.eventsService.recordLoginEvent({
+      realmId: realm.id,
+      type: LoginEventType.LOGIN,
+      userId: user.id,
+      clientId: oauthParams['client_id'],
+      ipAddress: req.ip,
     });
 
     if (!oauthParams['client_id']) {
@@ -269,6 +288,13 @@ export class LoginController {
     }
 
     if (!verified) {
+      this.eventsService.recordLoginEvent({
+        realmId: realm.id,
+        type: LoginEventType.MFA_VERIFY_ERROR,
+        userId: challenge.userId,
+        ipAddress: req.ip,
+        error: 'Invalid MFA code',
+      });
       // Re-create challenge for retry
       const newToken = await this.mfaService.createMfaChallenge(
         challenge.userId,
@@ -586,6 +612,12 @@ export class LoginController {
       );
     }
 
+    this.eventsService.recordLoginEvent({
+      realmId: realm.id,
+      type: LoginEventType.REGISTER,
+      userId: user.id,
+    });
+
     // Send verification email
     if (email) {
       try {
@@ -783,6 +815,12 @@ export class LoginController {
         user.id, realm.id, passwordHash, realm.passwordHistoryCount,
       );
     }
+
+    this.eventsService.recordLoginEvent({
+      realmId: realm.id,
+      type: LoginEventType.PASSWORD_RESET,
+      userId: result.userId,
+    });
 
     const info = encodeURIComponent('Your password has been reset. You can now sign in.');
     res.redirect(`/realms/${realm.name}/login?info=${info}`);

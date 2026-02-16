@@ -10,6 +10,8 @@ import { ScopesService } from '../scopes/scopes.service.js';
 import { resolveUserClaims } from '../scopes/claims.resolver.js';
 import { TokenBlacklistService } from './token-blacklist.service.js';
 import { BackchannelLogoutService } from './backchannel-logout.service.js';
+import { EventsService } from '../events/events.service.js';
+import { LoginEventType } from '../events/event-types.js';
 
 @Injectable()
 export class TokensService {
@@ -20,6 +22,7 @@ export class TokensService {
     private readonly scopesService: ScopesService,
     private readonly blacklist: TokenBlacklistService,
     private readonly backchannelLogout: BackchannelLogoutService,
+    private readonly eventsService: EventsService,
   ) {}
 
   async introspect(realm: Realm, token: string) {
@@ -96,7 +99,7 @@ export class TokensService {
     }
   }
 
-  async logout(realm: Realm, refreshToken: string) {
+  async logout(realm: Realm, refreshToken: string, ip?: string) {
     const tokenHash = this.crypto.sha256(refreshToken);
     const storedToken = await this.prisma.refreshToken.findUnique({
       where: { tokenHash },
@@ -119,6 +122,15 @@ export class TokensService {
       storedToken.session.userId,
       storedToken.sessionId,
     );
+
+    // Record logout event before deleting session
+    this.eventsService.recordLoginEvent({
+      realmId: realm.id,
+      type: LoginEventType.LOGOUT,
+      userId: storedToken.session.userId,
+      sessionId: storedToken.sessionId,
+      ipAddress: ip,
+    });
 
     // Delete the session
     await this.prisma.session.delete({

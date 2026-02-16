@@ -48,8 +48,9 @@ export class TokensController {
   logout(
     @CurrentRealm() realm: Realm,
     @Body() body: { refresh_token: string },
+    @Req() req: Request,
   ) {
-    return this.tokensService.logout(realm, body.refresh_token);
+    return this.tokensService.logout(realm, body.refresh_token, req.ip);
   }
 
   @Get('userinfo')
