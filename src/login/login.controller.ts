@@ -95,6 +95,16 @@ export class LoginController {
         req.ip,
       );
 
+      // Check email verification requirement
+      if (realm.requireEmailVerification && user.email && !user.emailVerified) {
+        const params = new URLSearchParams();
+        params.set('error', 'Please verify your email address before signing in. Check your inbox for the verification link.');
+        for (const key of ['client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method']) {
+          if (body[key]) params.set(key, body[key]);
+        }
+        return res.redirect(`/realms/${realm.name}/login?${params.toString()}`);
+      }
+
       // Build OAuth params for later use
       const oauthParams: Record<string, string> = {};
       for (const key of ['response_type', 'client_id', 'redirect_uri', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method']) {

@@ -130,6 +130,12 @@ export class CreateRealmDto {
   @Min(0)
   permanentLockoutAfter?: number;
 
+  // Email verification
+  @ApiPropertyOptional({ default: false, description: 'Require email verification before login' })
+  @IsOptional()
+  @IsBoolean()
+  requireEmailVerification?: boolean;
+
   // MFA
   @ApiPropertyOptional({ default: false })
   @IsOptional()
