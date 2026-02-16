@@ -2,6 +2,7 @@
   "name": "authme",
   "displayName": "AuthMe (Default)",
   "description": "Clean light theme with blue accents",
+  "parent": null,
   "colors": {
     "primaryColor": "#2563eb",
     "backgroundColor": "#f0f2f5",
@@ -12,5 +13,13 @@
     "inputBgColor": "#ffffff",
     "mutedColor": "#6b7280"
   },
-  "css": []
+  "types": {
+    "login": {
+      "css": ["css/auth.css"]
+    },
+    "account": {
+      "css": ["css/auth.css"]
+    },
+    "email": {}
+  }
 }

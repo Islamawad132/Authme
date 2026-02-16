@@ -1,0 +1,48 @@
+{{#if info}}
+<div class="auth-success">{{info}}</div>
+{{/if}}
+
+{{#if error}}
+<div class="auth-error">{{error}}</div>
+{{/if}}
+
+<form method="POST" action="/realms/{{realmName}}/register" class="auth-form">
+  <div class="form-group">
+    <label for="username">{{msg "registerUsername"}}</label>
+    <input type="text" id="username" name="username" required autocomplete="username" autofocus value="{{username}}">
+  </div>
+
+  <div class="form-group">
+    <label for="email">{{msg "registerEmail"}}</label>
+    <input type="email" id="email" name="email" required autocomplete="email" value="{{email}}">
+  </div>
+
+  <div class="form-group">
+    <label for="firstName">{{msg "registerFirstName"}}</label>
+    <input type="text" id="firstName" name="firstName" autocomplete="given-name" value="{{firstName}}">
+  </div>
+
+  <div class="form-group">
+    <label for="lastName">{{msg "registerLastName"}}</label>
+    <input type="text" id="lastName" name="lastName" autocomplete="family-name" value="{{lastName}}">
+  </div>
+
+  <div class="form-group">
+    <label for="password">{{msg "registerPassword"}}</label>
+    <input type="password" id="password" name="password" required autocomplete="new-password" minlength="{{passwordMinLength}}">
+    {{#if passwordHint}}
+    <small style="color: #6b7280; margin-top: 0.25rem; display: block;">{{passwordHint}}</small>
+    {{/if}}
+  </div>
+
+  <div class="form-group">
+    <label for="confirmPassword">{{msg "registerConfirmPassword"}}</label>
+    <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password">
+  </div>
+
+  <button type="submit" class="btn-primary">{{msg "registerCreateAccount"}}</button>
+</form>
+
+<div style="text-align: center; margin-top: 1rem;">
+  <a href="/realms/{{realmName}}/login" style="color: var(--primary-color); text-decoration: none; font-size: 0.85rem;">{{msg "registerSignInPrompt"}}</a>
+</div>

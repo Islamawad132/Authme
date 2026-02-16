@@ -1,0 +1,50 @@
+{{#if error}}
+<div class="auth-error">{{error}}</div>
+{{/if}}
+
+<h2 class="auth-subtitle">{{msg "totpTitle"}}</h2>
+<p style="color: #6b7280; font-size: 0.85rem; margin-bottom: 1.25rem; text-align: center;">
+  {{msg "totpInstruction"}}
+</p>
+
+<form method="POST" action="/realms/{{realmName}}/totp" class="auth-form" id="totpForm">
+  <div class="form-group">
+    <label for="code">{{msg "totpAuthCode"}}</label>
+    <input type="text" id="code" name="code" pattern="[0-9]{6}" maxlength="6" inputmode="numeric" autocomplete="one-time-code" required autofocus
+      style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem;">
+  </div>
+
+  <button type="submit" class="btn-primary">{{msg "totpVerify"}}</button>
+</form>
+
+<div style="margin-top: 1rem; text-align: center;">
+  <button type="button" id="toggleRecovery" class="btn-link" style="color: #2563eb; background: none; border: none; cursor: pointer; font-size: 0.85rem; text-decoration: underline;">
+    {{msg "totpUseRecovery"}}
+  </button>
+</div>
+
+<form method="POST" action="/realms/{{realmName}}/totp" class="auth-form" id="recoveryForm" style="display: none;">
+  <div class="form-group">
+    <label for="recoveryCode">{{msg "totpRecoveryCode"}}</label>
+    <input type="text" id="recoveryCode" name="recoveryCode" required autocomplete="off"
+      style="text-align: center; font-size: 1.1rem; letter-spacing: 0.15rem;">
+  </div>
+
+  <button type="submit" class="btn-primary">{{msg "totpVerifyRecovery"}}</button>
+</form>
+
+<script>
+  document.getElementById('toggleRecovery').addEventListener('click', function() {
+    var totpForm = document.getElementById('totpForm');
+    var recoveryForm = document.getElementById('recoveryForm');
+    if (recoveryForm.style.display === 'none') {
+      recoveryForm.style.display = '';
+      totpForm.style.display = 'none';
+      this.textContent = '{{msg "totpUseAuthenticator"}}';
+    } else {
+      recoveryForm.style.display = 'none';
+      totpForm.style.display = '';
+      this.textContent = '{{msg "totpUseRecovery"}}';
+    }
+  });
+</script>
