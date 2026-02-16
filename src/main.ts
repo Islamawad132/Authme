@@ -38,10 +38,8 @@ async function bootstrap() {
   app.enableCors();
   app.use(cookieParser());
 
-  // Handlebars template engine for login/consent pages
-  app.setBaseViewsDir(join(__dirname, '..', 'views'));
+  // Handlebars template engine — templates live in themes/ and are resolved by ThemeRenderService
   app.setViewEngine('hbs');
-  app.useStaticAssets(join(__dirname, '..', 'public'));
   app.useStaticAssets(join(__dirname, '..', 'themes'), { prefix: '/themes' });
 
   // Register theme engine Handlebars helpers ({{msg}}, {{msgArgs}})
