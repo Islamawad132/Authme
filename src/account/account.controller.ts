@@ -2,12 +2,10 @@ import {
   Controller,
   Get,
   Post,
-  Render,
   UseGuards,
   Body,
   Req,
   Res,
-  Query,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -20,7 +18,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { PasswordPolicyService } from '../password-policy/password-policy.service.js';
 import { MfaService } from '../mfa/mfa.service.js';
-import { ThemeService } from '../login/theme.service.js';
+import { ThemeRenderService } from '../theme/theme-render.service.js';
 
 @ApiExcludeController()
 @Controller('realms/:realmName/account')
@@ -33,7 +31,7 @@ export class AccountController {
     private readonly crypto: CryptoService,
     private readonly passwordPolicyService: PasswordPolicyService,
     private readonly mfaService: MfaService,
-    private readonly themeService: ThemeService,
+    private readonly themeRender: ThemeRenderService,
   ) {}
 
   private async getSessionUser(realm: Realm, req: Request) {
@@ -43,7 +41,6 @@ export class AccountController {
   }
 
   @Get()
-  @Render('account')
   async showAccount(
     @CurrentRealm() realm: Realm,
     @Req() req: Request,
@@ -57,12 +54,8 @@ export class AccountController {
     const query = req.query as Record<string, string>;
     const mfaEnabled = await this.mfaService.isMfaEnabled(user.id);
 
-    return res.render('account', {
-      layout: 'layouts/main',
+    this.themeRender.render(res, realm, 'account', 'account', {
       pageTitle: 'My Account',
-      realmName: realm.name,
-      realmDisplayName: realm.displayName ?? realm.name,
-      ...this.themeService.resolveTheme(realm),
       username: user.username,
       email: user.email ?? '',
       emailVerified: user.emailVerified,
@@ -182,12 +175,8 @@ export class AccountController {
 
     const setup = await this.mfaService.setupTotp(user.id, realm.name, user.username);
 
-    return res.render('totp-setup', {
-      layout: 'layouts/main',
+    this.themeRender.render(res, realm, 'account', 'totp-setup', {
       pageTitle: 'Set Up Two-Factor Authentication',
-      realmName: realm.name,
-      realmDisplayName: realm.displayName ?? realm.name,
-      ...this.themeService.resolveTheme(realm),
       qrCodeDataUrl: setup.qrCodeDataUrl,
       secret: setup.secret,
       error: query['error'] ?? '',
@@ -220,12 +209,8 @@ export class AccountController {
     // Fetch recovery codes to display
     const recoveryCodes = await this.mfaService.generateRecoveryCodes(user.id);
 
-    return res.render('totp-setup', {
-      layout: 'layouts/main',
+    this.themeRender.render(res, realm, 'account', 'totp-setup', {
       pageTitle: 'Two-Factor Authentication Enabled',
-      realmName: realm.name,
-      realmDisplayName: realm.displayName ?? realm.name,
-      ...this.themeService.resolveTheme(realm),
       activated: true,
       recoveryCodes,
     });
