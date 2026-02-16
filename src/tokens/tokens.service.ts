@@ -107,9 +107,9 @@ export class TokensService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Revoke all refresh tokens in this session
+    // Revoke all non-offline refresh tokens in this session
     await this.prisma.refreshToken.updateMany({
-      where: { sessionId: storedToken.sessionId },
+      where: { sessionId: storedToken.sessionId, isOffline: false },
       data: { revoked: true },
     });
 

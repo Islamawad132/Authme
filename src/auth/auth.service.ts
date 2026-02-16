@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
 import { ScopesService } from '../scopes/scopes.service.js';
+import { ProtocolMapperExecutor, type MapperContext } from '../scopes/protocol-mapper.executor.js';
 import { BruteForceService } from '../brute-force/brute-force.service.js';
 import { PasswordPolicyService } from '../password-policy/password-policy.service.js';
 import { MfaService } from '../mfa/mfa.service.js';
@@ -35,6 +36,7 @@ export class AuthService {
     private readonly bruteForceService: BruteForceService,
     private readonly passwordPolicyService: PasswordPolicyService,
     private readonly mfaService: MfaService,
+    private readonly protocolMapperExecutor: ProtocolMapperExecutor,
   ) {}
 
   async handleTokenRequest(
@@ -56,6 +58,8 @@ export class AuthService {
         return this.handleAuthorizationCodeGrant(realm, body, ip, userAgent);
       case 'mfa_otp':
         return this.handleMfaOtpGrant(realm, body, ip, userAgent);
+      case 'urn:ietf:params:oauth:grant-type:device_code':
+        return this.handleDeviceCodeGrant(realm, body, ip, userAgent);
       default:
         throw new BadRequestException(`Unsupported grant_type: ${grantType}`);
     }
@@ -189,6 +193,23 @@ export class AuthService {
       'client_credentials',
     );
 
+    // If client has a service account user, issue tokens through that user
+    if (client.serviceAccountUserId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: client.serviceAccountUserId },
+      });
+      if (user) {
+        const session = await this.prisma.session.create({
+          data: {
+            userId: user.id,
+            expiresAt: new Date(Date.now() + realm.refreshTokenLifespan * 1000),
+          },
+        });
+        return this.issueTokens(realm, user, client_id, session.id, scope, undefined, new Date());
+      }
+    }
+
+    // Fallback: basic client_credentials token without user context
     const signingKey = await this.getActiveSigningKey(realm.id);
 
     const accessToken = await this.jwkService.signJwt(
@@ -358,6 +379,90 @@ export class AuthService {
     );
   }
 
+  private async handleDeviceCodeGrant(
+    realm: Realm,
+    body: Record<string, string>,
+    ip?: string,
+    userAgent?: string,
+  ): Promise<TokenResponse> {
+    const { device_code, client_id, client_secret } = body;
+
+    if (!device_code) {
+      throw new BadRequestException('device_code is required');
+    }
+
+    await this.validateClient(realm, client_id, client_secret, 'urn:ietf:params:oauth:grant-type:device_code');
+
+    const deviceCode = await this.prisma.deviceCode.findUnique({
+      where: { deviceCode: device_code },
+    });
+
+    if (!deviceCode || deviceCode.realmId !== realm.id) {
+      throw new BadRequestException('Invalid device code');
+    }
+
+    if (deviceCode.expiresAt < new Date()) {
+      throw new BadRequestException('expired_token');
+    }
+
+    if (deviceCode.denied) {
+      throw new BadRequestException('access_denied');
+    }
+
+    // Check for slow polling
+    if (deviceCode.lastPolledAt) {
+      const elapsed = Date.now() - deviceCode.lastPolledAt.getTime();
+      if (elapsed < deviceCode.interval * 1000) {
+        // Update poll timestamp anyway
+        await this.prisma.deviceCode.update({
+          where: { id: deviceCode.id },
+          data: { lastPolledAt: new Date() },
+        });
+        throw new BadRequestException('slow_down');
+      }
+    }
+
+    // Update poll timestamp
+    await this.prisma.deviceCode.update({
+      where: { id: deviceCode.id },
+      data: { lastPolledAt: new Date() },
+    });
+
+    if (!deviceCode.approved || !deviceCode.userId) {
+      throw new BadRequestException('authorization_pending');
+    }
+
+    // Device has been approved — issue tokens
+    const user = await this.prisma.user.findUnique({
+      where: { id: deviceCode.userId },
+    });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Clean up the device code
+    await this.prisma.deviceCode.delete({ where: { id: deviceCode.id } });
+
+    const session = await this.prisma.session.create({
+      data: {
+        userId: user.id,
+        ipAddress: ip,
+        userAgent,
+        expiresAt: new Date(Date.now() + realm.refreshTokenLifespan * 1000),
+      },
+    });
+
+    return this.issueTokens(
+      realm,
+      user,
+      client_id,
+      session.id,
+      deviceCode.scope ?? undefined,
+      undefined,
+      new Date(),
+    );
+  }
+
   private async validateClient(
     realm: Realm,
     clientId: string,
@@ -456,6 +561,27 @@ export class AuthService {
     // Include roles by default (backward compat) or when 'roles' scope is granted
     const includeRoles = !scope || allowedClaims.has('realm_access');
 
+    // Try to apply protocol mappers from DB scopes
+    let mapperClaims: Record<string, unknown> = {};
+    try {
+      const mappers = await this.scopesService.getScopeMappers(effectiveScopes, realm.id);
+      if (mappers.length > 0) {
+        const mapperContext: MapperContext = {
+          userId: user.id,
+          username: (user as any).username ?? '',
+          email: (user as any).email ?? null,
+          emailVerified: (user as any).emailVerified ?? false,
+          firstName: (user as any).firstName ?? null,
+          lastName: (user as any).lastName ?? null,
+          realmRoles,
+          resourceAccess,
+        };
+        mapperClaims = this.protocolMapperExecutor.executeMappers(mappers, mapperContext, {});
+      }
+    } catch {
+      // If mappers fail, fall back to standard claims
+    }
+
     const accessTokenPayload: JWTPayload = {
       iss: this.getIssuer(realm),
       sub: user.id,
@@ -471,6 +597,7 @@ export class AuthService {
             resource_access: resourceAccess,
           }
         : {}),
+      ...mapperClaims,
     };
 
     const accessToken = await this.jwkService.signJwt(
@@ -480,6 +607,12 @@ export class AuthService {
       realm.accessTokenLifespan,
     );
 
+    // Determine if this is an offline token
+    const isOffline = effectiveScopes.includes('offline_access');
+    const refreshLifespan = isOffline
+      ? (realm as any).offlineTokenLifespan ?? 2592000
+      : realm.refreshTokenLifespan;
+
     // Generate opaque refresh token
     const rawRefreshToken = this.crypto.generateSecret(64);
     const refreshTokenHash = this.crypto.sha256(rawRefreshToken);
@@ -488,7 +621,8 @@ export class AuthService {
       data: {
         sessionId,
         tokenHash: refreshTokenHash,
-        expiresAt: new Date(Date.now() + realm.refreshTokenLifespan * 1000),
+        expiresAt: new Date(Date.now() + refreshLifespan * 1000),
+        isOffline,
       },
     });
 

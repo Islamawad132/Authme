@@ -4,7 +4,8 @@ describe('ScopesService', () => {
   let service: ScopesService;
 
   beforeEach(() => {
-    service = new ScopesService();
+    const mockPrisma = {} as any;
+    service = new ScopesService(mockPrisma);
   });
 
   describe('parseAndValidate', () => {

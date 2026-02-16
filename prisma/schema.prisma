@@ -43,6 +43,9 @@ model Realm {
   // MFA
   mfaRequired Boolean @default(false) @map("mfa_required")
 
+  // Offline tokens
+  offlineTokenLifespan Int @default(2592000) @map("offline_token_lifespan")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -55,6 +58,7 @@ model Realm {
   groups             Group[]
   passwordHistories  PasswordHistory[]
   loginFailures      LoginFailure[]
+  clientScopes       ClientScope[]
 
   @@map("realms")
 }
@@ -122,13 +126,18 @@ model Client {
   backchannelLogoutUri             String?  @map("backchannel_logout_uri")
   backchannelLogoutSessionRequired Boolean  @default(true) @map("backchannel_logout_session_required")
 
+  // Service account
+  serviceAccountUserId String? @map("service_account_user_id")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  realm       Realm               @relation(fields: [realmId], references: [id], onDelete: Cascade)
-  clientRoles Role[]
-  authCodes   AuthorizationCode[]
-  consents    UserConsent[]
+  realm          Realm               @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  clientRoles    Role[]
+  authCodes      AuthorizationCode[]
+  consents       UserConsent[]
+  defaultScopes  ClientDefaultScope[]
+  optionalScopes ClientOptionalScope[]
 
   @@unique([realmId, clientId])
   @@map("clients")
@@ -193,6 +202,7 @@ model RefreshToken {
   sessionId String  @map("session_id")
   tokenHash String  @unique @map("token_hash")
   revoked   Boolean @default(false)
+  isOffline Boolean @default(false) @map("is_offline")
 
   createdAt DateTime @default(now()) @map("created_at")
   expiresAt DateTime @map("expires_at")
@@ -461,4 +471,88 @@ model FederatedIdentity {
   @@unique([identityProviderId, externalUserId])
   @@unique([userId, identityProviderId])
   @@map("federated_identities")
+}
+
+// ─── CLIENT SCOPES & PROTOCOL MAPPERS ──────────────────
+
+model ClientScope {
+  id          String  @id @default(uuid())
+  realmId     String  @map("realm_id")
+  name        String
+  description String?
+  protocol    String  @default("openid-connect")
+  builtIn     Boolean @default(false) @map("built_in")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  realm            Realm              @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  protocolMappers  ProtocolMapper[]
+  defaultClients   ClientDefaultScope[]
+  optionalClients  ClientOptionalScope[]
+
+  @@unique([realmId, name])
+  @@map("client_scopes")
+}
+
+model ProtocolMapper {
+  id            String @id @default(uuid())
+  clientScopeId String @map("client_scope_id")
+  name          String
+  protocol      String @default("openid-connect")
+  mapperType    String @map("mapper_type")
+  config        Json   @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  clientScope ClientScope @relation(fields: [clientScopeId], references: [id], onDelete: Cascade)
+
+  @@unique([clientScopeId, name])
+  @@map("protocol_mappers")
+}
+
+model ClientDefaultScope {
+  id            String @id @default(uuid())
+  clientId      String @map("client_id")
+  clientScopeId String @map("client_scope_id")
+
+  client      Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientScope ClientScope @relation(fields: [clientScopeId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, clientScopeId])
+  @@map("client_default_scopes")
+}
+
+model ClientOptionalScope {
+  id            String @id @default(uuid())
+  clientId      String @map("client_id")
+  clientScopeId String @map("client_scope_id")
+
+  client      Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientScope ClientScope @relation(fields: [clientScopeId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, clientScopeId])
+  @@map("client_optional_scopes")
+}
+
+// ─── DEVICE AUTHORIZATION GRANT ─────────────────────────
+
+model DeviceCode {
+  id           String    @id @default(uuid())
+  deviceCode   String    @unique @map("device_code")
+  userCode     String    @unique @map("user_code")
+  clientId     String    @map("client_id")
+  realmId      String    @map("realm_id")
+  scope        String?
+  userId       String?   @map("user_id")
+  approved     Boolean   @default(false)
+  denied       Boolean   @default(false)
+  interval     Int       @default(5)
+  lastPolledAt DateTime? @map("last_polled_at")
+  expiresAt    DateTime  @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("device_codes")
 }

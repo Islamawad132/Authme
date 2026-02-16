@@ -34,15 +34,17 @@ export class WellKnownController {
       revocation_endpoint: `${protocolUrl}/revoke`,
       end_session_endpoint: `${protocolUrl}/logout`,
       response_types_supported: ['code'],
+      device_authorization_endpoint: `${protocolUrl}/auth/device`,
       grant_types_supported: [
         'authorization_code',
         'client_credentials',
         'password',
         'refresh_token',
+        'urn:ietf:params:oauth:grant-type:device_code',
       ],
       subject_types_supported: ['public'],
       id_token_signing_alg_values_supported: ['RS256'],
-      scopes_supported: ['openid', 'profile', 'email', 'roles'],
+      scopes_supported: ['openid', 'profile', 'email', 'roles', 'offline_access'],
       token_endpoint_auth_methods_supported: [
         'client_secret_post',
         'client_secret_basic',

@@ -19,6 +19,9 @@ import SessionListPage from './pages/sessions/SessionListPage';
 import IdpListPage from './pages/identity-providers/IdpListPage';
 import IdpCreatePage from './pages/identity-providers/IdpCreatePage';
 import IdpDetailPage from './pages/identity-providers/IdpDetailPage';
+import ClientScopeListPage from './pages/client-scopes/ClientScopeListPage';
+import ClientScopeCreatePage from './pages/client-scopes/ClientScopeCreatePage';
+import ClientScopeDetailPage from './pages/client-scopes/ClientScopeDetailPage';
 
 function ProtectedRoute() {
   const apiKey = sessionStorage.getItem('adminApiKey');
@@ -50,6 +53,9 @@ export default function App() {
           <Route path="/console/realms/:name/groups/create" element={<GroupCreatePage />} />
           <Route path="/console/realms/:name/groups/:groupId" element={<GroupDetailPage />} />
           <Route path="/console/realms/:name/sessions" element={<SessionListPage />} />
+          <Route path="/console/realms/:name/client-scopes" element={<ClientScopeListPage />} />
+          <Route path="/console/realms/:name/client-scopes/create" element={<ClientScopeCreatePage />} />
+          <Route path="/console/realms/:name/client-scopes/:scopeId" element={<ClientScopeDetailPage />} />
           <Route path="/console/realms/:name/identity-providers" element={<IdpListPage />} />
           <Route path="/console/realms/:name/identity-providers/create" element={<IdpCreatePage />} />
           <Route path="/console/realms/:name/identity-providers/:alias" element={<IdpDetailPage />} />

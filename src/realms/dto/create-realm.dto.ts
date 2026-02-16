@@ -135,4 +135,11 @@ export class CreateRealmDto {
   @IsOptional()
   @IsBoolean()
   mfaRequired?: boolean;
+
+  // Offline tokens
+  @ApiPropertyOptional({ default: 2592000 })
+  @IsOptional()
+  @IsInt()
+  @Min(60)
+  offlineTokenLifespan?: number;
 }

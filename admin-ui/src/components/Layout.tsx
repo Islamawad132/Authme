@@ -34,6 +34,7 @@ export default function Layout() {
         { to: `/console/realms/${currentRealm}/clients`, label: 'Clients' },
         { to: `/console/realms/${currentRealm}/roles`, label: 'Roles' },
         { to: `/console/realms/${currentRealm}/groups`, label: 'Groups' },
+        { to: `/console/realms/${currentRealm}/client-scopes`, label: 'Client Scopes' },
         { to: `/console/realms/${currentRealm}/sessions`, label: 'Sessions' },
         { to: `/console/realms/${currentRealm}/identity-providers`, label: 'Identity Providers' },
       ]

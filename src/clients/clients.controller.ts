@@ -73,4 +73,13 @@ export class ClientsController {
   ) {
     return this.clientsService.regenerateSecret(realm, clientId);
   }
+
+  @Get(':clientId/service-account-user')
+  @ApiOperation({ summary: 'Get service account user for a client' })
+  getServiceAccount(
+    @CurrentRealm() realm: Realm,
+    @Param('clientId') clientId: string,
+  ) {
+    return this.clientsService.getServiceAccount(realm, clientId);
+  }
 }

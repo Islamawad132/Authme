@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { Client } from '../types';
+import type { Client, User } from '../types';
 
 export async function getClients(realmName: string): Promise<Client[]> {
   const { data } = await apiClient.get<Client[]>(
@@ -54,6 +54,16 @@ export async function regenerateSecret(
 ): Promise<{ clientSecret: string }> {
   const { data } = await apiClient.post<{ clientSecret: string }>(
     `/realms/${realmName}/clients/${id}/regenerate-secret`,
+  );
+  return data;
+}
+
+export async function getServiceAccountUser(
+  realmName: string,
+  clientId: string,
+): Promise<User> {
+  const { data } = await apiClient.get<User>(
+    `/realms/${realmName}/clients/${clientId}/service-account-user`,
   );
   return data;
 }

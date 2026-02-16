@@ -18,6 +18,11 @@ describe('ClientsService', () => {
     verifyPassword: jest.Mock;
     sha256: jest.Mock;
   };
+  let scopeSeedService: {
+    getDefaultScopeNames: jest.Mock;
+    getOptionalScopeNames: jest.Mock;
+    seedDefaultScopes: jest.Mock;
+  };
 
   const mockRealm: Realm = {
     id: 'realm-1',
@@ -53,7 +58,16 @@ describe('ClientsService', () => {
       verifyPassword: jest.fn(),
       sha256: jest.fn(),
     };
-    service = new ClientsService(prisma as any, cryptoService as any);
+    scopeSeedService = {
+      getDefaultScopeNames: jest.fn().mockReturnValue(['openid', 'profile', 'email', 'roles']),
+      getOptionalScopeNames: jest.fn().mockReturnValue(['web-origins', 'offline_access']),
+      seedDefaultScopes: jest.fn().mockResolvedValue(undefined),
+    };
+    prisma.clientScope.findFirst.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({ id: 'sa-user-1' });
+    prisma.clientDefaultScope.create.mockResolvedValue({});
+    prisma.clientOptionalScope.create.mockResolvedValue({});
+    service = new ClientsService(prisma as any, cryptoService as any, scopeSeedService as any);
   });
 
   describe('create', () => {

@@ -6,6 +6,7 @@ import {
 import type { Realm, ClientType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
+import { ScopeSeedService } from '../scopes/scope-seed.service.js';
 import { CreateClientDto } from './dto/create-client.dto.js';
 import { UpdateClientDto } from './dto/update-client.dto.js';
 
@@ -23,6 +24,7 @@ const CLIENT_SELECT = {
   requireConsent: true,
   backchannelLogoutUri: true,
   backchannelLogoutSessionRequired: true,
+  serviceAccountUserId: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -32,6 +34,7 @@ export class ClientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly scopeSeedService: ScopeSeedService,
   ) {}
 
   async create(realm: Realm, dto: CreateClientDto) {
@@ -55,6 +58,22 @@ export class ClientsService {
       secretHash = await this.crypto.hashPassword(rawSecret);
     }
 
+    const grantTypes = dto.grantTypes ?? ['authorization_code'];
+
+    // Create service account user if client_credentials grant is enabled
+    let serviceAccountUserId: string | undefined;
+    if (grantTypes.includes('client_credentials') && clientType === 'CONFIDENTIAL') {
+      const saUsername = `service-account-${dto.clientId}`;
+      const saUser = await this.prisma.user.create({
+        data: {
+          realmId: realm.id,
+          username: saUsername,
+          enabled: true,
+        },
+      });
+      serviceAccountUserId = saUser.id;
+    }
+
     const client = await this.prisma.client.create({
       data: {
         realmId: realm.id,
@@ -66,13 +85,17 @@ export class ClientsService {
         enabled: dto.enabled,
         redirectUris: dto.redirectUris ?? [],
         webOrigins: dto.webOrigins ?? [],
-        grantTypes: dto.grantTypes ?? ['authorization_code'],
+        grantTypes,
         requireConsent: dto.requireConsent ?? false,
         backchannelLogoutUri: dto.backchannelLogoutUri,
         backchannelLogoutSessionRequired: dto.backchannelLogoutSessionRequired,
+        serviceAccountUserId,
       },
       select: CLIENT_SELECT,
     });
+
+    // Assign default and optional scopes to the new client
+    await this.assignBuiltInScopes(realm.id, client.id);
 
     return {
       ...client,
@@ -126,10 +149,35 @@ export class ClientsService {
   }
 
   async remove(realm: Realm, clientId: string) {
-    await this.findByClientId(realm, clientId);
+    const client = await this.findByClientId(realm, clientId);
+
+    // Delete service account user if it exists
+    if (client.serviceAccountUserId) {
+      await this.prisma.user.delete({
+        where: { id: client.serviceAccountUserId },
+      }).catch(() => { /* user may already be deleted */ });
+    }
+
     await this.prisma.client.delete({
       where: {
         realmId_clientId: { realmId: realm.id, clientId },
+      },
+    });
+  }
+
+  async getServiceAccount(realm: Realm, clientId: string) {
+    const client = await this.findByClientId(realm, clientId);
+    if (!client.serviceAccountUserId) {
+      throw new NotFoundException('Client does not have a service account');
+    }
+    return this.prisma.user.findUnique({
+      where: { id: client.serviceAccountUserId },
+      select: {
+        id: true,
+        username: true,
+        enabled: true,
+        createdAt: true,
+        userRoles: { include: { role: true } },
       },
     });
   }
@@ -155,5 +203,39 @@ export class ClientsService {
       clientSecret: rawSecret,
       secretWarning: 'Store this secret securely. It will not be shown again.',
     };
+  }
+
+  private async assignBuiltInScopes(realmId: string, clientDbId: string) {
+    const defaultNames = this.scopeSeedService.getDefaultScopeNames();
+    const optionalNames = this.scopeSeedService.getOptionalScopeNames();
+
+    const allScopes = await this.prisma.clientScope.findMany({
+      where: { realmId, name: { in: [...defaultNames, ...optionalNames] } },
+    });
+
+    const defaultScopeIds = allScopes
+      .filter((s) => defaultNames.includes(s.name))
+      .map((s) => s.id);
+    const optionalScopeIds = allScopes
+      .filter((s) => optionalNames.includes(s.name))
+      .map((s) => s.id);
+
+    if (defaultScopeIds.length > 0) {
+      await this.prisma.clientDefaultScope.createMany({
+        data: defaultScopeIds.map((csId) => ({
+          clientId: clientDbId,
+          clientScopeId: csId,
+        })),
+      });
+    }
+
+    if (optionalScopeIds.length > 0) {
+      await this.prisma.clientOptionalScope.createMany({
+        data: optionalScopeIds.map((csId) => ({
+          clientId: clientDbId,
+          clientScopeId: csId,
+        })),
+      });
+    }
   }
 }
