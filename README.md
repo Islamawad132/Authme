@@ -347,16 +347,16 @@ This starts 2 app instances behind an Nginx load balancer.
 
 ## Client SDK
 
-AuthMe ships with `authme-js` — a zero-dependency TypeScript SDK for integrating frontend apps.
+AuthMe ships with `authme-sdk` — a zero-dependency TypeScript SDK for integrating frontend apps.
 
 ```bash
-npm install authme-js
+npm install authme-sdk
 ```
 
 ### Vanilla JavaScript
 
 ```typescript
-import { AuthmeClient } from 'authme-js';
+import { AuthmeClient } from 'authme-sdk';
 
 const authme = new AuthmeClient({
   url: 'http://localhost:3000',
@@ -374,8 +374,8 @@ if (!authme.isAuthenticated()) {
 ### React
 
 ```tsx
-import { AuthmeClient } from 'authme-js';
-import { AuthmeProvider, useAuthme, useUser } from 'authme-js/react';
+import { AuthmeClient } from 'authme-sdk';
+import { AuthmeProvider, useAuthme, useUser } from 'authme-sdk/react';
 
 const authme = new AuthmeClient({ url: '...', realm: '...', clientId: '...', redirectUri: '...' });
 

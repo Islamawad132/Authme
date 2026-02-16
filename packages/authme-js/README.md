@@ -1,4 +1,4 @@
-# authme-js
+# authme-sdk
 
 Client SDK for [AuthMe](https://github.com/Islamawad132/Authme) — an open-source Identity and Access Management server.
 
@@ -7,7 +7,7 @@ Handles OAuth 2.0 Authorization Code + PKCE flow, token management, auto-refresh
 ## Install
 
 ```bash
-npm install authme-js
+npm install authme-sdk
 ```
 
 ## Quick Start
@@ -15,7 +15,7 @@ npm install authme-js
 ### Vanilla JavaScript / TypeScript
 
 ```typescript
-import { AuthmeClient } from 'authme-js';
+import { AuthmeClient } from 'authme-sdk';
 
 const authme = new AuthmeClient({
   url: 'http://localhost:3000',
@@ -47,8 +47,8 @@ if (success) {
 ### React
 
 ```tsx
-import { AuthmeClient } from 'authme-js';
-import { AuthmeProvider, useAuthme, useUser, useRoles } from 'authme-js/react';
+import { AuthmeClient } from 'authme-sdk';
+import { AuthmeProvider, useAuthme, useUser, useRoles } from 'authme-sdk/react';
 
 const authme = new AuthmeClient({
   url: 'http://localhost:3000',
