@@ -41,7 +41,12 @@ describe('RealmsService', () => {
     jwkService = {
       generateRsaKeyPair: jest.fn(),
     };
-    service = new RealmsService(prisma as any, jwkService as any);
+    const scopeSeedService = {
+      seedDefaultScopes: jest.fn().mockResolvedValue(undefined),
+      getDefaultScopeNames: jest.fn().mockReturnValue(['openid', 'profile', 'email', 'roles']),
+      getOptionalScopeNames: jest.fn().mockReturnValue(['web-origins', 'offline_access']),
+    };
+    service = new RealmsService(prisma as any, jwkService as any, scopeSeedService as any);
   });
 
   describe('create', () => {

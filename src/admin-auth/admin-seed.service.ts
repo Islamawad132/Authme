@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
+import { ScopeSeedService } from '../scopes/scope-seed.service.js';
 
 @Injectable()
 export class AdminSeedService implements OnApplicationBootstrap {
@@ -13,6 +14,7 @@ export class AdminSeedService implements OnApplicationBootstrap {
     private readonly crypto: CryptoService,
     private readonly jwkService: JwkService,
     private readonly config: ConfigService,
+    private readonly scopeSeedService: ScopeSeedService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -83,6 +85,9 @@ export class AdminSeedService implements OnApplicationBootstrap {
     await this.prisma.userRole.create({
       data: { userId: adminUser.id, roleId: superAdmin.id },
     });
+
+    // Seed default scopes for the master realm
+    await this.scopeSeedService.seedDefaultScopes(masterRealm.id);
 
     this.logger.log(`Master realm created. Admin user: ${adminUsername}`);
   }

@@ -185,4 +185,34 @@ export class UsersService {
       userId, realm.id, passwordHash, realm.passwordHistoryCount,
     );
   }
+
+  async getOfflineSessions(realm: Realm, userId: string) {
+    await this.findById(realm, userId);
+    const tokens = await this.prisma.refreshToken.findMany({
+      where: { session: { userId }, isOffline: true, revoked: false },
+      include: { session: { select: { id: true, userId: true, createdAt: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return tokens.map((t) => ({
+      id: t.id,
+      sessionId: t.session.id,
+      sessionStarted: t.session.createdAt,
+      expiresAt: t.expiresAt,
+      createdAt: t.createdAt,
+    }));
+  }
+
+  async revokeOfflineSession(realm: Realm, userId: string, tokenId: string) {
+    await this.findById(realm, userId);
+    const token = await this.prisma.refreshToken.findFirst({
+      where: { id: tokenId, session: { userId }, isOffline: true },
+    });
+    if (!token) {
+      throw new NotFoundException('Offline session not found');
+    }
+    await this.prisma.refreshToken.update({
+      where: { id: tokenId },
+      data: { revoked: true },
+    });
+  }
 }

@@ -1,7 +1,16 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getClientById, updateClient, deleteClient, regenerateSecret } from '../../api/clients';
+import { getClientById, updateClient, deleteClient, regenerateSecret, getServiceAccountUser } from '../../api/clients';
+import {
+  getClientDefaultScopes,
+  getClientOptionalScopes,
+  getClientScopes,
+  assignClientDefaultScope,
+  removeClientDefaultScope,
+  assignClientOptionalScope,
+  removeClientOptionalScope,
+} from '../../api/clientScopes';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
 export default function ClientDetailPage() {
@@ -10,11 +19,39 @@ export default function ClientDetailPage() {
   const queryClient = useQueryClient();
   const [showDelete, setShowDelete] = useState(false);
   const [newSecret, setNewSecret] = useState<string | null>(null);
+  const [selectedDefaultScope, setSelectedDefaultScope] = useState('');
+  const [selectedOptionalScope, setSelectedOptionalScope] = useState('');
 
   const { data: client, isLoading } = useQuery({
     queryKey: ['client', name, id],
     queryFn: () => getClientById(name!, id!),
     enabled: !!name && !!id,
+  });
+
+  const { data: allScopes } = useQuery({
+    queryKey: ['clientScopes', name],
+    queryFn: () => getClientScopes(name!),
+    enabled: !!name,
+  });
+
+  const { data: defaultScopes, refetch: refetchDefaults } = useQuery({
+    queryKey: ['clientDefaultScopes', name, id],
+    queryFn: () => getClientDefaultScopes(name!, id!),
+    enabled: !!name && !!id,
+  });
+
+  const { data: optionalScopes, refetch: refetchOptionals } = useQuery({
+    queryKey: ['clientOptionalScopes', name, id],
+    queryFn: () => getClientOptionalScopes(name!, id!),
+    enabled: !!name && !!id,
+  });
+
+  const hasClientCredentials = client?.grantTypes?.includes('client_credentials');
+
+  const { data: serviceAccount } = useQuery({
+    queryKey: ['serviceAccount', name, id],
+    queryFn: () => getServiceAccountUser(name!, id!),
+    enabled: !!name && !!id && !!hasClientCredentials,
   });
 
   const [form, setForm] = useState({
@@ -88,6 +125,32 @@ export default function ClientDetailPage() {
     },
   });
 
+  const addDefaultScopeMutation = useMutation({
+    mutationFn: (scopeId: string) => assignClientDefaultScope(name!, id!, scopeId),
+    onSuccess: () => {
+      refetchDefaults();
+      setSelectedDefaultScope('');
+    },
+  });
+
+  const removeDefaultScopeMutation = useMutation({
+    mutationFn: (scopeId: string) => removeClientDefaultScope(name!, id!, scopeId),
+    onSuccess: () => refetchDefaults(),
+  });
+
+  const addOptionalScopeMutation = useMutation({
+    mutationFn: (scopeId: string) => assignClientOptionalScope(name!, id!, scopeId),
+    onSuccess: () => {
+      refetchOptionals();
+      setSelectedOptionalScope('');
+    },
+  });
+
+  const removeOptionalScopeMutation = useMutation({
+    mutationFn: (scopeId: string) => removeClientOptionalScope(name!, id!, scopeId),
+    onSuccess: () => refetchOptionals(),
+  });
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     updateMutation.mutate();
@@ -108,6 +171,12 @@ export default function ClientDetailPage() {
       </div>
     );
   }
+
+  const assignedDefaultIds = new Set(defaultScopes?.map((s) => s.id) ?? []);
+  const assignedOptionalIds = new Set(optionalScopes?.map((s) => s.id) ?? []);
+  const assignedAll = new Set([...assignedDefaultIds, ...assignedOptionalIds]);
+  const availableForDefault = allScopes?.filter((s) => !assignedAll.has(s.id)) ?? [];
+  const availableForOptional = allScopes?.filter((s) => !assignedAll.has(s.id)) ?? [];
 
   return (
     <div className="space-y-8">
@@ -332,6 +401,147 @@ export default function ClientDetailPage() {
           >
             {regenerateMutation.isPending ? 'Regenerating...' : 'Regenerate Secret'}
           </button>
+        </div>
+      )}
+
+      {/* Client Scopes */}
+      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900">Client Scopes</h2>
+
+        {/* Default Scopes */}
+        <div>
+          <h3 className="mb-2 text-sm font-medium text-gray-700">Default Scopes</h3>
+          <p className="mb-2 text-xs text-gray-400">Always included in token requests for this client.</p>
+          {defaultScopes && defaultScopes.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {defaultScopes.map((scope) => (
+                <span
+                  key={scope.id}
+                  className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700"
+                >
+                  {scope.name}
+                  <button
+                    type="button"
+                    onClick={() => removeDefaultScopeMutation.mutate(scope.id)}
+                    className="ml-1 text-indigo-400 hover:text-indigo-600"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No default scopes assigned.</p>
+          )}
+        </div>
+
+        {availableForDefault.length > 0 && (
+          <div className="flex items-end gap-3 border-t border-gray-200 pt-4">
+            <div className="flex-1">
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Add Default Scope</label>
+              <select
+                value={selectedDefaultScope}
+                onChange={(e) => setSelectedDefaultScope(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              >
+                <option value="">Select a scope...</option>
+                {availableForDefault.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => selectedDefaultScope && addDefaultScopeMutation.mutate(selectedDefaultScope)}
+              disabled={!selectedDefaultScope || addDefaultScopeMutation.isPending}
+              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              Assign
+            </button>
+          </div>
+        )}
+
+        {/* Optional Scopes */}
+        <div className="border-t border-gray-200 pt-4">
+          <h3 className="mb-2 text-sm font-medium text-gray-700">Optional Scopes</h3>
+          <p className="mb-2 text-xs text-gray-400">Included only when explicitly requested in the scope parameter.</p>
+          {optionalScopes && optionalScopes.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {optionalScopes.map((scope) => (
+                <span
+                  key={scope.id}
+                  className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-700"
+                >
+                  {scope.name}
+                  <button
+                    type="button"
+                    onClick={() => removeOptionalScopeMutation.mutate(scope.id)}
+                    className="ml-1 text-amber-400 hover:text-amber-600"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No optional scopes assigned.</p>
+          )}
+        </div>
+
+        {availableForOptional.length > 0 && (
+          <div className="flex items-end gap-3 border-t border-gray-200 pt-4">
+            <div className="flex-1">
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Add Optional Scope</label>
+              <select
+                value={selectedOptionalScope}
+                onChange={(e) => setSelectedOptionalScope(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              >
+                <option value="">Select a scope...</option>
+                {availableForOptional.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => selectedOptionalScope && addOptionalScopeMutation.mutate(selectedOptionalScope)}
+              disabled={!selectedOptionalScope || addOptionalScopeMutation.isPending}
+              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              Assign
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Service Account (only when client_credentials grant) */}
+      {hasClientCredentials && (
+        <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900">Service Account</h2>
+          <p className="text-sm text-gray-600">
+            This client supports client_credentials grant. A service account user is linked to this client.
+          </p>
+          {serviceAccount ? (
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-900">{serviceAccount.username}</p>
+                <p className="text-xs text-gray-500">ID: {serviceAccount.id}</p>
+              </div>
+              <Link
+                to={`/console/realms/${name}/users/${serviceAccount.id}`}
+                className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                Manage Roles
+              </Link>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No service account user found.</p>
+          )}
         </div>
       )}
 

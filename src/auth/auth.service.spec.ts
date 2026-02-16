@@ -116,6 +116,8 @@ function createMockScopesService() {
     toString: jest
       .fn()
       .mockImplementation((scopes: string[]) => scopes.join(' ')),
+    getClientEffectiveScopes: jest.fn().mockResolvedValue(['openid']),
+    getScopeMappers: jest.fn().mockResolvedValue([]),
   };
 }
 
@@ -153,6 +155,9 @@ describe('AuthService', () => {
       verifyTotp: jest.fn(),
       verifyRecoveryCode: jest.fn(),
     };
+    const protocolMapperExecutor = {
+      executeMappers: jest.fn().mockResolvedValue({}),
+    };
 
     service = new AuthService(
       prisma as any,
@@ -162,6 +167,7 @@ describe('AuthService', () => {
       bruteForceService as any,
       passwordPolicyService as any,
       mfaService as any,
+      protocolMapperExecutor as any,
     );
   });
 

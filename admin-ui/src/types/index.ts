@@ -27,6 +27,8 @@ export interface Realm {
   permanentLockoutAfter: number;
   // MFA
   mfaRequired: boolean;
+  // Offline tokens
+  offlineTokenLifespan: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -59,6 +61,7 @@ export interface Client {
   requireConsent: boolean;
   backchannelLogoutUri: string | null;
   backchannelLogoutSessionRequired: boolean;
+  serviceAccountUserId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -105,4 +108,35 @@ export interface Group {
   updatedAt: string;
   children?: Group[];
   _count?: { userGroups: number; groupRoles: number };
+}
+
+export interface ClientScope {
+  id: string;
+  realmId: string;
+  name: string;
+  description: string | null;
+  protocol: string;
+  builtIn: boolean;
+  createdAt: string;
+  updatedAt: string;
+  protocolMappers?: ProtocolMapper[];
+}
+
+export interface ProtocolMapper {
+  id: string;
+  clientScopeId: string;
+  name: string;
+  protocol: string;
+  mapperType: string;
+  config: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OfflineSession {
+  id: string;
+  sessionId: string;
+  sessionStarted: string;
+  expiresAt: string;
+  createdAt: string;
 }

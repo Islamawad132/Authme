@@ -58,6 +58,7 @@ export default function RealmDetailPage() {
     enabled: true,
     accessTokenLifespan: 300,
     refreshTokenLifespan: 1800,
+    offlineTokenLifespan: 2592000,
     smtpHost: '',
     smtpPort: 587,
     smtpUser: '',
@@ -89,6 +90,7 @@ export default function RealmDetailPage() {
         enabled: realm.enabled,
         accessTokenLifespan: realm.accessTokenLifespan,
         refreshTokenLifespan: realm.refreshTokenLifespan,
+        offlineTokenLifespan: realm.offlineTokenLifespan ?? 2592000,
         smtpHost: realm.smtpHost ?? '',
         smtpPort: realm.smtpPort ?? 587,
         smtpUser: realm.smtpUser ?? '',
@@ -168,6 +170,7 @@ export default function RealmDetailPage() {
     { to: `/console/realms/${name}/clients`, label: 'Clients', count: clients?.length },
     { to: `/console/realms/${name}/roles`, label: 'Roles', count: roles?.length },
     { to: `/console/realms/${name}/groups`, label: 'Groups', count: groups?.length },
+    { to: `/console/realms/${name}/client-scopes`, label: 'Client Scopes', count: undefined },
     { to: `/console/realms/${name}/sessions`, label: 'Sessions', count: undefined },
     { to: `/console/realms/${name}/identity-providers`, label: 'Identity Providers', count: undefined },
   ];
@@ -349,6 +352,30 @@ export default function RealmDetailPage() {
               </div>
               <p className="mt-1 text-xs text-gray-400">
                 How long a refresh token is valid. This also controls session duration.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Offline Token Lifespan
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={60}
+                  value={form.offlineTokenLifespan}
+                  onChange={(e) =>
+                    setForm({ ...form, offlineTokenLifespan: Number(e.target.value) })
+                  }
+                  className="w-40 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+                <span className="text-sm text-gray-500">seconds</span>
+                <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                  {formatDuration(form.offlineTokenLifespan)}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                How long offline refresh tokens are valid. These survive session logout. Default: 30 days.
               </p>
             </div>
           </div>

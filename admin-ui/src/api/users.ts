@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { User } from '../types';
+import type { User, OfflineSession } from '../types';
 
 export async function getUsers(
   realmName: string,
@@ -89,5 +89,25 @@ export async function resetMfa(
 ): Promise<void> {
   await apiClient.delete(
     `/realms/${realmName}/users/${userId}/mfa`,
+  );
+}
+
+export async function getOfflineSessions(
+  realmName: string,
+  userId: string,
+): Promise<OfflineSession[]> {
+  const { data } = await apiClient.get<OfflineSession[]>(
+    `/realms/${realmName}/users/${userId}/offline-sessions`,
+  );
+  return data;
+}
+
+export async function revokeOfflineSession(
+  realmName: string,
+  userId: string,
+  tokenId: string,
+): Promise<void> {
+  await apiClient.delete(
+    `/realms/${realmName}/users/${userId}/offline-sessions/${tokenId}`,
   );
 }

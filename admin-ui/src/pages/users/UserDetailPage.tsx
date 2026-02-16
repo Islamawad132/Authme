@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUserById, updateUser, deleteUser, resetPassword, getMfaStatus, resetMfa } from '../../api/users';
+import { getUserById, updateUser, deleteUser, resetPassword, getMfaStatus, resetMfa, getOfflineSessions, revokeOfflineSession } from '../../api/users';
 import {
   getRealmRoles,
   getUserRealmRoles,
@@ -159,6 +159,18 @@ export default function UserDetailPage() {
   const revokeAllMutation = useMutation({
     mutationFn: () => revokeAllUserSessions(name!, id!),
     onSuccess: () => refetchSessions(),
+  });
+
+  // Offline sessions
+  const { data: offlineSessions, refetch: refetchOffline } = useQuery({
+    queryKey: ['offlineSessions', name, id],
+    queryFn: () => getOfflineSessions(name!, id!),
+    enabled: !!name && !!id,
+  });
+
+  const revokeOfflineMutation = useMutation({
+    mutationFn: (tokenId: string) => revokeOfflineSession(name!, id!, tokenId),
+    onSuccess: () => refetchOffline(),
   });
 
   function handleSubmit(e: FormEvent) {
@@ -571,6 +583,54 @@ export default function UserDetailPage() {
           </div>
         ) : (
           <p className="text-sm text-gray-500">No active sessions.</p>
+        )}
+      </div>
+
+      {/* Offline Sessions */}
+      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900">Offline Sessions</h2>
+        <p className="text-xs text-gray-500">
+          Offline tokens persist beyond regular session logout. Revoke them individually here.
+        </p>
+
+        {offlineSessions && offlineSessions.length > 0 ? (
+          <div className="overflow-hidden rounded-md border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Session</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Expires</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Created</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {offlineSessions.map((session) => (
+                  <tr key={session.id} className="hover:bg-gray-50">
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
+                      {session.sessionId.slice(0, 8)}...
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                      {new Date(session.expiresAt).toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                      {new Date(session.createdAt).toLocaleString()}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      <button
+                        onClick={() => revokeOfflineMutation.mutate(session.id)}
+                        className="text-sm text-red-600 hover:text-red-800"
+                      >
+                        Revoke
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">No offline sessions.</p>
         )}
       </div>
 

@@ -86,4 +86,24 @@ export class UsersController {
     await this.usersService.sendVerificationEmail(realm.name, user.id, user.email);
     return { message: 'Verification email sent' };
   }
+
+  @Get(':userId/offline-sessions')
+  @ApiOperation({ summary: 'List offline sessions for a user' })
+  getOfflineSessions(
+    @CurrentRealm() realm: Realm,
+    @Param('userId') userId: string,
+  ) {
+    return this.usersService.getOfflineSessions(realm, userId);
+  }
+
+  @Delete(':userId/offline-sessions/:tokenId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Revoke an offline session' })
+  revokeOfflineSession(
+    @CurrentRealm() realm: Realm,
+    @Param('userId') userId: string,
+    @Param('tokenId') tokenId: string,
+  ) {
+    return this.usersService.revokeOfflineSession(realm, userId, tokenId);
+  }
 }

@@ -39,6 +39,7 @@ describe('OAuthService', () => {
     requireConsent: false,
     backchannelLogoutUri: null,
     backchannelLogoutSessionRequired: true,
+    serviceAccountUserId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   } as Client;

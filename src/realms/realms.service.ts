@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
+import { ScopeSeedService } from '../scopes/scope-seed.service.js';
 import { CreateRealmDto } from './dto/create-realm.dto.js';
 import { UpdateRealmDto } from './dto/update-realm.dto.js';
 
@@ -13,6 +14,7 @@ export class RealmsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwkService: JwkService,
+    private readonly scopeSeedService: ScopeSeedService,
   ) {}
 
   private redactSmtpPassword(realm: any) {
@@ -58,6 +60,7 @@ export class RealmsService {
         failureResetTime: dto.failureResetTime,
         permanentLockoutAfter: dto.permanentLockoutAfter,
         mfaRequired: dto.mfaRequired,
+        offlineTokenLifespan: dto.offlineTokenLifespan,
         signingKeys: {
           create: {
             kid: keyPair.kid,
@@ -68,6 +71,10 @@ export class RealmsService {
         },
       },
     });
+
+    // Seed default scopes for the new realm
+    await this.scopeSeedService.seedDefaultScopes(realm.id);
+
     return this.redactSmtpPassword(realm);
   }
 
@@ -124,6 +131,7 @@ export class RealmsService {
       failureResetTime: dto.failureResetTime,
       permanentLockoutAfter: dto.permanentLockoutAfter,
       mfaRequired: dto.mfaRequired,
+      offlineTokenLifespan: dto.offlineTokenLifespan,
     };
 
     // Only update password if a real value is provided (not the redacted placeholder)

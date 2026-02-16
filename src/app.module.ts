@@ -29,6 +29,8 @@ import { PasswordPolicyModule } from './password-policy/password-policy.module.j
 import { BruteForceModule } from './brute-force/brute-force.module.js';
 import { MfaModule } from './mfa/mfa.module.js';
 import { AdminAuthModule } from './admin-auth/admin-auth.module.js';
+import { ClientScopesModule } from './client-scopes/client-scopes.module.js';
+import { DeviceModule } from './device/device.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
 
 @Module({
@@ -71,6 +73,8 @@ import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
     IdentityProvidersModule,
     BrokerModule,
     AccountModule,
+    ClientScopesModule,
+    DeviceModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
