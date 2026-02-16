@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createUser } from '../../api/users';
 import { getErrorMessage } from '../../utils/getErrorMessage';
+import PasswordInput from '../../components/PasswordInput';
 
 export default function UserCreatePage() {
   const { name } = useParams<{ name: string }>();
@@ -96,8 +97,7 @@ export default function UserCreatePage() {
           <label className="mb-1.5 block text-sm font-medium text-gray-700">
             Password
           </label>
-          <input
-            type="password"
+          <PasswordInput
             required
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import PasswordInput from '../components/PasswordInput';
 
 export default function LoginPage() {
   const [mode, setMode] = useState<'credentials' | 'apikey'>('credentials');
@@ -96,9 +97,8 @@ export default function LoginPage() {
                   >
                     Password
                   </label>
-                  <input
+                  <PasswordInput
                     id="password"
-                    type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -115,9 +115,8 @@ export default function LoginPage() {
                 >
                   Admin API Key
                 </label>
-                <input
+                <PasswordInput
                   id="apiKey"
-                  type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   required
