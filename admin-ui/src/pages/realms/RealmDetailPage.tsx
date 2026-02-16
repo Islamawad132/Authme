@@ -1,7 +1,8 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getRealmByName, updateRealm, deleteRealm, sendTestEmail, exportRealm } from '../../api/realms';
+import { getRealmByName, updateRealm, deleteRealm, sendTestEmail, exportRealm, getThemes } from '../../api/realms';
+import type { ThemeInfo } from '../../api/realms';
 import { getUsers } from '../../api/users';
 import { getClients } from '../../api/clients';
 import { getRealmRoles } from '../../api/roles';
@@ -54,6 +55,11 @@ export default function RealmDetailPage() {
     enabled: !!name,
   });
 
+  const { data: themes } = useQuery({
+    queryKey: ['themes'],
+    queryFn: () => getThemes(),
+  });
+
   const [form, setForm] = useState({
     displayName: '',
     enabled: true,
@@ -87,6 +93,7 @@ export default function RealmDetailPage() {
     eventsExpiration: 604800,
     adminEventsEnabled: false,
     // Theme
+    themeName: 'authme',
     theme: {
       logoUrl: '',
       faviconUrl: '',
@@ -134,6 +141,7 @@ export default function RealmDetailPage() {
         eventsExpiration: realm.eventsExpiration ?? 604800,
         adminEventsEnabled: realm.adminEventsEnabled ?? false,
         // Theme
+        themeName: (realm as any).themeName ?? 'authme',
         theme: {
           logoUrl: (realm.theme as any)?.logoUrl ?? '',
           faviconUrl: (realm.theme as any)?.faviconUrl ?? '',
@@ -973,6 +981,53 @@ export default function RealmDetailPage() {
             </p>
           </div>
 
+          {/* Theme Preset Selector */}
+          {themes && themes.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Theme Preset</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {themes.map((t: ThemeInfo) => (
+                  <button
+                    key={t.name}
+                    type="button"
+                    onClick={() => {
+                      setForm({
+                        ...form,
+                        themeName: t.name,
+                        theme: {
+                          ...form.theme,
+                          primaryColor: t.colors.primaryColor,
+                          backgroundColor: t.colors.backgroundColor,
+                          cardColor: t.colors.cardColor,
+                          textColor: t.colors.textColor,
+                        },
+                      });
+                    }}
+                    className={`rounded-lg border-2 p-4 text-left transition ${
+                      form.themeName === t.name
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="flex -space-x-1">
+                        <span className="inline-block h-4 w-4 rounded-full border border-white shadow-sm" style={{ backgroundColor: t.colors.primaryColor }} />
+                        <span className="inline-block h-4 w-4 rounded-full border border-white shadow-sm" style={{ backgroundColor: t.colors.backgroundColor }} />
+                        <span className="inline-block h-4 w-4 rounded-full border border-white shadow-sm" style={{ backgroundColor: t.colors.cardColor }} />
+                        <span className="inline-block h-4 w-4 rounded-full border border-white shadow-sm" style={{ backgroundColor: t.colors.textColor }} />
+                      </div>
+                      {form.themeName === t.name && (
+                        <span className="text-xs font-medium text-indigo-600">Active</span>
+                      )}
+                    </div>
+                    <div className="text-sm font-medium text-gray-900">{t.displayName}</div>
+                    <div className="text-xs text-gray-500">{t.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Branding */}
           <div className="space-y-6">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Branding</h3>
@@ -1015,7 +1070,32 @@ export default function RealmDetailPage() {
 
           {/* Colors */}
           <div className="space-y-6 border-t border-gray-200 pt-6">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Colors</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Colors</h3>
+              {themes && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const activeTheme = themes.find((t: ThemeInfo) => t.name === form.themeName);
+                    if (activeTheme) {
+                      setForm({
+                        ...form,
+                        theme: {
+                          ...form.theme,
+                          primaryColor: activeTheme.colors.primaryColor,
+                          backgroundColor: activeTheme.colors.backgroundColor,
+                          cardColor: activeTheme.colors.cardColor,
+                          textColor: activeTheme.colors.textColor,
+                        },
+                      });
+                    }
+                  }}
+                  className="text-xs text-indigo-600 hover:text-indigo-700"
+                >
+                  Reset to theme defaults
+                </button>
+              )}
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
