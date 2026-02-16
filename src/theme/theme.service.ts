@@ -1,0 +1,193 @@
+import { Injectable, type OnModuleInit, Logger } from '@nestjs/common';
+import type { Realm } from '@prisma/client';
+import { join } from 'path';
+import { readdir, readFile } from 'fs/promises';
+import type {
+  ThemeColors,
+  ThemeDefinition,
+  ThemeInfo,
+  ThemeType,
+  ResolvedTheme,
+} from './theme.types.js';
+
+function darkenHex(hex: string, percent: number): string {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = Math.max(0, ((num >> 16) & 0xff) - Math.round(255 * percent / 100));
+  const g = Math.max(0, ((num >> 8) & 0xff) - Math.round(255 * percent / 100));
+  const b = Math.max(0, (num & 0xff) - Math.round(255 * percent / 100));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
+@Injectable()
+export class ThemeService implements OnModuleInit {
+  private readonly logger = new Logger(ThemeService.name);
+  private themes = new Map<string, ThemeDefinition>();
+  private readonly themesDir = join(process.cwd(), 'themes');
+
+  private readonly defaultColors: ThemeColors = {
+    primaryColor: '#2563eb',
+    backgroundColor: '#f0f2f5',
+    cardColor: '#ffffff',
+    textColor: '#1a1a2e',
+    labelColor: '#374151',
+    inputBorderColor: '#d1d5db',
+    inputBgColor: '#ffffff',
+    mutedColor: '#6b7280',
+  };
+
+  async onModuleInit() {
+    await this.loadThemes();
+  }
+
+  getThemesDir(): string {
+    return this.themesDir;
+  }
+
+  private async loadThemes(): Promise<void> {
+    try {
+      const entries = await readdir(this.themesDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+
+        const themeJsonPath = join(this.themesDir, entry.name, 'theme.json');
+        try {
+          const raw = await readFile(themeJsonPath, 'utf-8');
+          const theme = JSON.parse(raw) as ThemeDefinition;
+          // Normalize: ensure parent and types exist
+          if (!('parent' in theme)) {
+            (theme as any).parent = null;
+          }
+          if (!theme.types) {
+            theme.types = {};
+          }
+          this.themes.set(theme.name, theme);
+          this.logger.log(`Loaded theme: ${theme.name} (${theme.displayName})`);
+        } catch {
+          this.logger.warn(`Failed to load theme from ${themeJsonPath}`);
+        }
+      }
+
+      this.logger.log(`Loaded ${this.themes.size} theme(s)`);
+    } catch {
+      this.logger.warn(`Themes directory not found at ${this.themesDir}, using defaults`);
+    }
+  }
+
+  getTheme(name: string): ThemeDefinition | undefined {
+    return this.themes.get(name);
+  }
+
+  getAvailableThemes(): ThemeInfo[] {
+    return Array.from(this.themes.values()).map(({ name, displayName, description, colors }) => ({
+      name,
+      displayName,
+      description,
+      colors,
+    }));
+  }
+
+  /**
+   * Returns the theme inheritance chain from child to root.
+   * E.g., for "dark" with parent "authme": ["dark", "authme"]
+   */
+  getInheritanceChain(themeName: string): string[] {
+    const chain: string[] = [];
+    const visited = new Set<string>();
+    let current: string | null = themeName;
+
+    while (current && !visited.has(current)) {
+      visited.add(current);
+      chain.push(current);
+      const theme = this.themes.get(current);
+      current = theme?.parent ?? null;
+    }
+
+    return chain;
+  }
+
+  /**
+   * Resolves CSS file URLs for a given theme and type.
+   * Walks the inheritance chain base-to-child so base CSS loads first.
+   */
+  resolveCss(themeName: string, themeType: ThemeType): string[] {
+    const chain = this.getInheritanceChain(themeName);
+    const cssFiles: string[] = [];
+
+    // Walk base-to-child so base CSS loads first, child overrides last
+    for (const theme of [...chain].reverse()) {
+      const typeConfig = this.themes.get(theme)?.types?.[themeType];
+      if (typeConfig?.css) {
+        for (const cssFile of typeConfig.css) {
+          cssFiles.push(`/themes/${theme}/${themeType}/resources/${cssFile}`);
+        }
+      }
+    }
+
+    return cssFiles;
+  }
+
+  /**
+   * Resolves colors for a given theme with per-realm overrides.
+   */
+  resolveColors(themeName: string, realm: Realm): ResolvedTheme {
+    const baseTheme = this.themes.get(themeName);
+    const baseColors = baseTheme?.colors ?? this.defaultColors;
+
+    // Per-realm overrides from the theme JSON field
+    const realmTheme = (realm.theme ?? {}) as Record<string, unknown>;
+
+    const getString = (key: string, fallback: string): string => {
+      const realmVal = realmTheme[key];
+      if (typeof realmVal === 'string' && realmVal) return realmVal;
+      return fallback;
+    };
+
+    const primaryColor = getString('primaryColor', baseColors.primaryColor);
+
+    return {
+      primaryColor,
+      primaryHoverColor: getString('primaryHoverColor', darkenHex(primaryColor, 15)),
+      backgroundColor: getString('backgroundColor', baseColors.backgroundColor),
+      cardColor: getString('cardColor', baseColors.cardColor),
+      textColor: getString('textColor', baseColors.textColor),
+      labelColor: getString('labelColor', baseColors.labelColor),
+      inputBorderColor: getString('inputBorderColor', baseColors.inputBorderColor),
+      inputBgColor: getString('inputBgColor', baseColors.inputBgColor),
+      mutedColor: getString('mutedColor', baseColors.mutedColor),
+      logoUrl: getString('logoUrl', ''),
+      faviconUrl: getString('faviconUrl', ''),
+      appTitle: getString('appTitle', 'AuthMe'),
+      customCss: getString('customCss', ''),
+      themeCssFiles: [], // Will be set by ThemeRenderService
+    };
+  }
+
+  /**
+   * Backward-compatible method: resolves theme using the realm's themeName field.
+   * Used during migration before per-type fields are added.
+   */
+  resolveTheme(realm: Realm): ResolvedTheme {
+    const themeName = (realm as any).loginTheme ?? (realm as any).themeName ?? 'authme';
+    const resolved = this.resolveColors(themeName, realm);
+    resolved.themeCssFiles = this.resolveCss(themeName, 'login');
+    return resolved;
+  }
+
+  /**
+   * Get the realm's theme name for a given type.
+   */
+  getRealmThemeName(realm: Realm, themeType: ThemeType): string {
+    const r = realm as any;
+    switch (themeType) {
+      case 'login':
+        return r.loginTheme ?? r.themeName ?? 'authme';
+      case 'account':
+        return r.accountTheme ?? r.themeName ?? 'authme';
+      case 'email':
+        return r.emailTheme ?? r.themeName ?? 'authme';
+      default:
+        return r.themeName ?? 'authme';
+    }
+  }
+}
