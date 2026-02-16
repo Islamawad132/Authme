@@ -94,6 +94,9 @@ export default function RealmDetailPage() {
     adminEventsEnabled: false,
     // Theme
     themeName: 'authme',
+    loginTheme: 'authme',
+    accountTheme: 'authme',
+    emailTheme: 'authme',
     theme: {
       logoUrl: '',
       faviconUrl: '',
@@ -141,7 +144,10 @@ export default function RealmDetailPage() {
         eventsExpiration: realm.eventsExpiration ?? 604800,
         adminEventsEnabled: realm.adminEventsEnabled ?? false,
         // Theme
-        themeName: (realm as any).themeName ?? 'authme',
+        themeName: realm.themeName ?? 'authme',
+        loginTheme: realm.loginTheme ?? 'authme',
+        accountTheme: realm.accountTheme ?? 'authme',
+        emailTheme: realm.emailTheme ?? 'authme',
         theme: {
           logoUrl: (realm.theme as any)?.logoUrl ?? '',
           faviconUrl: (realm.theme as any)?.faviconUrl ?? '',
@@ -975,16 +981,64 @@ export default function RealmDetailPage() {
       {activeTab === 'theme' && (
         <form onSubmit={handleSubmit} className="space-y-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Login Page Theme</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Theme Settings</h2>
             <p className="mt-1 text-sm text-gray-500">
-              Customize the appearance of login and account pages for this realm.
+              Assign themes per page type and customize colors for this realm.
             </p>
           </div>
 
-          {/* Theme Preset Selector */}
+          {/* Per-Type Theme Selectors */}
           {themes && themes.length > 0 && (
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Theme Preset</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Theme Assignment</h3>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Login Theme</label>
+                  <select
+                    value={form.loginTheme}
+                    onChange={(e) => setForm({ ...form, loginTheme: e.target.value, themeName: e.target.value })}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    {themes.map((t: ThemeInfo) => (
+                      <option key={t.name} value={t.name}>{t.displayName}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-400">Applied to login, register, consent, and other auth pages</p>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Account Theme</label>
+                  <select
+                    value={form.accountTheme}
+                    onChange={(e) => setForm({ ...form, accountTheme: e.target.value })}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    {themes.map((t: ThemeInfo) => (
+                      <option key={t.name} value={t.name}>{t.displayName}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-400">Applied to account management and TOTP setup pages</p>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Email Theme</label>
+                  <select
+                    value={form.emailTheme}
+                    onChange={(e) => setForm({ ...form, emailTheme: e.target.value })}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    {themes.map((t: ThemeInfo) => (
+                      <option key={t.name} value={t.name}>{t.displayName}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-400">Applied to verification and password reset emails</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Theme Preset Selector (for color preview) */}
+          {themes && themes.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Color Preset</h3>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {themes.map((t: ThemeInfo) => (
                   <button
@@ -994,6 +1048,9 @@ export default function RealmDetailPage() {
                       setForm({
                         ...form,
                         themeName: t.name,
+                        loginTheme: t.name,
+                        accountTheme: t.name,
+                        emailTheme: t.name,
                         theme: {
                           ...form.theme,
                           primaryColor: t.colors.primaryColor,
