@@ -9,6 +9,7 @@ import {
   syncFederation,
 } from '../../api/userFederation';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import PasswordInput from '../../components/PasswordInput';
 
 export default function FederationDetailPage() {
   const { name, id } = useParams<{ name: string; id: string }>();
@@ -298,8 +299,7 @@ export default function FederationDetailPage() {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Bind Credential *</label>
-              <input
-                type="password"
+              <PasswordInput
                 required
                 value={form.bindCredential}
                 onChange={(e) => set('bindCredential', e.target.value)}

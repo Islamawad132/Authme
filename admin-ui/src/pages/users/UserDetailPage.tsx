@@ -12,6 +12,7 @@ import { getUserGroups, getGroups, addUserToGroup, removeUserFromGroup } from '.
 import { getUserSessions, revokeSession, revokeAllUserSessions } from '../../api/sessions';
 import type { SessionInfo } from '../../api/sessions';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import PasswordInput from '../../components/PasswordInput';
 
 export default function UserDetailPage() {
   const { name, id } = useParams<{ name: string; id: string }>();
@@ -322,8 +323,7 @@ export default function UserDetailPage() {
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">New Password</label>
-          <input
-            type="password"
+          <PasswordInput
             required
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}

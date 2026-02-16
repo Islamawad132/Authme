@@ -7,6 +7,7 @@ import {
   deleteIdentityProvider,
 } from '../../api/identityProviders';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import PasswordInput from '../../components/PasswordInput';
 
 export default function IdpDetailPage() {
   const { name, alias } = useParams<{ name: string; alias: string }>();
@@ -194,8 +195,7 @@ export default function IdpDetailPage() {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Client Secret</label>
-              <input
-                type="password"
+              <PasswordInput
                 required
                 value={form.clientSecret}
                 onChange={(e) => set('clientSecret', e.target.value)}

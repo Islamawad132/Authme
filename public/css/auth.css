@@ -210,3 +210,36 @@ body {
 .consent-buttons button {
   flex: 1;
 }
+
+.password-wrapper {
+  position: relative;
+}
+
+.password-wrapper input {
+  padding-right: 2.5rem;
+  width: 100%;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.625rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.125rem;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-toggle:hover {
+  color: #4b5563;
+}
+
+.password-toggle svg {
+  width: 1rem;
+  height: 1rem;
+}

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createIdentityProvider } from '../../api/identityProviders';
+import PasswordInput from '../../components/PasswordInput';
 
 export default function IdpCreatePage() {
   const { name } = useParams<{ name: string }>();
@@ -137,8 +138,7 @@ export default function IdpCreatePage() {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Client Secret *</label>
-              <input
-                type="password"
+              <PasswordInput
                 required
                 value={form.clientSecret}
                 onChange={(e) => set('clientSecret', e.target.value)}

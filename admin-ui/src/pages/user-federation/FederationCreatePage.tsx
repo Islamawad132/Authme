@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFederation } from '../../api/userFederation';
+import PasswordInput from '../../components/PasswordInput';
 
 export default function FederationCreatePage() {
   const { name } = useParams<{ name: string }>();
@@ -90,8 +91,7 @@ export default function FederationCreatePage() {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Bind Credential *</label>
-              <input
-                type="password"
+              <PasswordInput
                 required
                 value={form.bindCredential}
                 onChange={(e) => set('bindCredential', e.target.value)}

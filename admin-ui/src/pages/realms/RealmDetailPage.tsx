@@ -7,6 +7,7 @@ import { getClients } from '../../api/clients';
 import { getRealmRoles } from '../../api/roles';
 import { getGroups } from '../../api/groups';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import PasswordInput from '../../components/PasswordInput';
 
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
@@ -495,8 +496,7 @@ export default function RealmDetailPage() {
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={form.smtpPassword}
                   onChange={(e) => setForm({ ...form, smtpPassword: e.target.value })}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
