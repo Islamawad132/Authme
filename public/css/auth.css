@@ -50,7 +50,7 @@ body {
 }
 
 .auth-realm {
-  color: #6b7280;
+  color: var(--muted-color, #6b7280);
   font-size: 0.875rem;
   margin-top: 0.25rem;
 }
@@ -77,16 +77,18 @@ body {
 .form-group label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--label-color, #374151);
 }
 
 .form-group input[type="text"],
 .form-group input[type="password"],
 .form-group input[type="email"] {
   padding: 0.625rem 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--input-border-color, #d1d5db);
   border-radius: 6px;
   font-size: 0.9375rem;
+  background: var(--input-bg-color, #ffffff);
+  color: var(--text-color, #1a1a2e);
   transition: border-color 0.15s;
   outline: none;
 }
@@ -104,7 +106,7 @@ body {
 
 .form-checkbox label {
   font-size: 0.8125rem;
-  color: #6b7280;
+  color: var(--muted-color, #6b7280);
 }
 
 .btn-primary {
@@ -125,8 +127,8 @@ body {
 
 .btn-secondary {
   background: var(--card-color, #fff);
-  color: #374151;
-  border: 1px solid #d1d5db;
+  color: var(--label-color, #374151);
+  border: 1px solid var(--input-border-color, #d1d5db);
   border-radius: 6px;
   padding: 0.625rem 1.25rem;
   font-size: 0.9375rem;
@@ -171,12 +173,12 @@ body {
 }
 
 .auth-error-page p {
-  color: #6b7280;
+  color: var(--muted-color, #6b7280);
   margin-bottom: 1.5rem;
 }
 
 .consent-description {
-  color: #6b7280;
+  color: var(--muted-color, #6b7280);
   font-size: 0.875rem;
   text-align: center;
   margin-bottom: 1rem;

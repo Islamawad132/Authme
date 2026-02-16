@@ -1,0 +1,16 @@
+{
+  "name": "dark",
+  "displayName": "Dark",
+  "description": "Modern dark theme with indigo accents",
+  "colors": {
+    "primaryColor": "#6366f1",
+    "backgroundColor": "#0f172a",
+    "cardColor": "#1e293b",
+    "textColor": "#f1f5f9",
+    "labelColor": "#cbd5e1",
+    "inputBorderColor": "#334155",
+    "inputBgColor": "#0f172a",
+    "mutedColor": "#94a3b8"
+  },
+  "css": ["css/overrides.css"]
+}

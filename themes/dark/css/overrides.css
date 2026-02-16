@@ -1,0 +1,53 @@
+/* Dark theme overrides */
+
+.form-group input[type="text"],
+.form-group input[type="password"],
+.form-group input[type="email"] {
+  color: #f1f5f9;
+}
+
+.form-group input:focus {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.form-checkbox label {
+  color: var(--muted-color, #94a3b8);
+}
+
+.btn-secondary {
+  background: #334155;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+
+.btn-secondary:hover {
+  background: #475569;
+}
+
+.auth-success {
+  background: #064e3b;
+  color: #6ee7b7;
+  border-color: #065f46;
+}
+
+.auth-error {
+  background: #450a0a;
+  color: #fca5a5;
+  border-color: #7f1d1d;
+}
+
+.consent-scopes li {
+  background: #334155;
+}
+
+.password-toggle {
+  color: #64748b;
+}
+
+.password-toggle:hover {
+  color: #94a3b8;
+}
+
+.auth-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}

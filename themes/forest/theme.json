@@ -1,0 +1,16 @@
+{
+  "name": "forest",
+  "displayName": "Forest",
+  "description": "Nature-inspired theme with emerald accents",
+  "colors": {
+    "primaryColor": "#059669",
+    "backgroundColor": "#f0fdf4",
+    "cardColor": "#ffffff",
+    "textColor": "#1a2e1a",
+    "labelColor": "#374137",
+    "inputBorderColor": "#d1d5d1",
+    "inputBgColor": "#ffffff",
+    "mutedColor": "#6b7e6b"
+  },
+  "css": ["css/overrides.css"]
+}
