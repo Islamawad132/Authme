@@ -62,6 +62,20 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
+  // SPA fallback: serve index.html for /console/* navigation routes (skip static files)
+  const expressApp = app.getHttpAdapter().getInstance();
+  const adminUiIndex = join(__dirname, 'admin-ui', 'index.html');
+  expressApp.get(
+    '/console/{*path}',
+    (req: { path: string }, res: { sendFile: (path: string) => void }, next: () => void) => {
+      if (/\.\w+$/.test(req.path)) {
+        next();
+        return;
+      }
+      res.sendFile(adminUiIndex);
+    },
+  );
+
   const port = process.env['PORT'] ?? 3000;
   await app.listen(port);
   console.log(`AuthMe is running on http://localhost:${port}`);

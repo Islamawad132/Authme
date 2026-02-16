@@ -54,10 +54,6 @@ import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, 'admin-ui'),
       serveRoot: '/console',
-      serveStaticOptions: {
-        index: ['index.html'],
-        fallthrough: false,
-      },
     }),
     PrismaModule,
     CryptoModule,
