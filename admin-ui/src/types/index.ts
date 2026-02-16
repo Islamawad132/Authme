@@ -34,7 +34,11 @@ export interface Realm {
   eventsExpiration: number;
   adminEventsEnabled: boolean;
   // Theming
+  themeName: string;
   theme: RealmTheme | null;
+  loginTheme: string;
+  accountTheme: string;
+  emailTheme: string;
   createdAt: string;
   updatedAt: string;
 }

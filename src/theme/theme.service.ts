@@ -168,7 +168,7 @@ export class ThemeService implements OnModuleInit {
    * Used during migration before per-type fields are added.
    */
   resolveTheme(realm: Realm): ResolvedTheme {
-    const themeName = (realm as any).loginTheme ?? (realm as any).themeName ?? 'authme';
+    const themeName = realm.loginTheme ?? realm.themeName ?? 'authme';
     const resolved = this.resolveColors(themeName, realm);
     resolved.themeCssFiles = this.resolveCss(themeName, 'login');
     return resolved;
@@ -178,16 +178,15 @@ export class ThemeService implements OnModuleInit {
    * Get the realm's theme name for a given type.
    */
   getRealmThemeName(realm: Realm, themeType: ThemeType): string {
-    const r = realm as any;
     switch (themeType) {
       case 'login':
-        return r.loginTheme ?? r.themeName ?? 'authme';
+        return realm.loginTheme ?? realm.themeName ?? 'authme';
       case 'account':
-        return r.accountTheme ?? r.themeName ?? 'authme';
+        return realm.accountTheme ?? realm.themeName ?? 'authme';
       case 'email':
-        return r.emailTheme ?? r.themeName ?? 'authme';
+        return realm.emailTheme ?? realm.themeName ?? 'authme';
       default:
-        return r.themeName ?? 'authme';
+        return realm.themeName ?? 'authme';
     }
   }
 }

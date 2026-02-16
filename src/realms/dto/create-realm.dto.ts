@@ -176,4 +176,19 @@ export class CreateRealmDto {
   @IsOptional()
   @IsObject()
   theme?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ default: 'authme', description: 'Login page theme' })
+  @IsOptional()
+  @IsString()
+  loginTheme?: string;
+
+  @ApiPropertyOptional({ default: 'authme', description: 'Account page theme' })
+  @IsOptional()
+  @IsString()
+  accountTheme?: string;
+
+  @ApiPropertyOptional({ default: 'authme', description: 'Email template theme' })
+  @IsOptional()
+  @IsString()
+  emailTheme?: string;
 }
