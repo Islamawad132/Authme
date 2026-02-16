@@ -55,7 +55,8 @@ model Realm {
   adminEventsEnabled Boolean @default(false) @map("admin_events_enabled")
 
   // Theming
-  theme Json? @default("{}") @map("theme")
+  themeName String  @default("authme") @map("theme_name") @db.VarChar(50)
+  theme     Json?   @default("{}") @map("theme")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

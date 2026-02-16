@@ -26,7 +26,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { PasswordPolicyService } from '../password-policy/password-policy.service.js';
 import { MfaService } from '../mfa/mfa.service.js';
-import { getThemeVars } from './theme.util.js';
+import { ThemeService } from './theme.service.js';
 
 const SCOPE_DESCRIPTIONS: Record<string, string> = {
   openid: 'Verify your identity',
@@ -51,6 +51,7 @@ export class LoginController {
     private readonly config: ConfigService,
     private readonly passwordPolicyService: PasswordPolicyService,
     private readonly mfaService: MfaService,
+    private readonly themeService: ThemeService,
   ) {}
 
   // ─── LOGIN ──────────────────────────────────────────────
@@ -66,7 +67,7 @@ export class LoginController {
       pageTitle: 'Sign In',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
-      ...getThemeVars(realm),
+      ...this.themeService.resolveTheme(realm),
       client_id: query['client_id'] ?? '',
       redirect_uri: query['redirect_uri'] ?? '',
       response_type: query['response_type'] ?? '',
@@ -239,7 +240,7 @@ export class LoginController {
       pageTitle: 'Two-Factor Authentication',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
-      ...getThemeVars(realm),
+      ...this.themeService.resolveTheme(realm),
       error: error ?? '',
     };
   }
@@ -320,7 +321,7 @@ export class LoginController {
       pageTitle: 'Change Password',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
-      ...getThemeVars(realm),
+      ...this.themeService.resolveTheme(realm),
       token: query['token'] ?? '',
       error: query['error'] ?? '',
       info: query['info'] ?? '',
@@ -430,7 +431,7 @@ export class LoginController {
       pageTitle: 'Grant Access',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
-      ...getThemeVars(realm),
+      ...this.themeService.resolveTheme(realm),
       clientName: consentReq.clientName,
       scopes: scopeDescriptions,
       authReqId: newReqId,
@@ -503,7 +504,7 @@ export class LoginController {
       pageTitle: 'Create Account',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
-      ...getThemeVars(realm),
+      ...this.themeService.resolveTheme(realm),
       passwordMinLength: realm.passwordMinLength || 8,
       passwordHint: hints.length ? `Must contain ${hints.join(', ')}` : '',
       username: query['username'] ?? '',
@@ -645,7 +646,7 @@ export class LoginController {
       pageTitle: 'Email Verification',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
-      ...getThemeVars(realm),
+      ...this.themeService.resolveTheme(realm),
     };
 
     if (!token) {
@@ -678,7 +679,7 @@ export class LoginController {
       pageTitle: 'Forgot Password',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
-      ...getThemeVars(realm),
+      ...this.themeService.resolveTheme(realm),
       info: query['info'] ?? '',
       error: query['error'] ?? '',
     };
@@ -735,7 +736,7 @@ export class LoginController {
       pageTitle: 'Reset Password',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
-      ...getThemeVars(realm),
+      ...this.themeService.resolveTheme(realm),
     };
 
     if (!token) {

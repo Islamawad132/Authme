@@ -167,7 +167,12 @@ export class CreateRealmDto {
   adminEventsEnabled?: boolean;
 
   // Theming
-  @ApiPropertyOptional({ description: 'Realm theme configuration' })
+  @ApiPropertyOptional({ default: 'authme', description: 'Name of the theme preset to use' })
+  @IsOptional()
+  @IsString()
+  themeName?: string;
+
+  @ApiPropertyOptional({ description: 'Realm theme configuration (color overrides)' })
   @IsOptional()
   @IsObject()
   theme?: Record<string, unknown>;

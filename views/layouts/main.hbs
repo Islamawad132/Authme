@@ -8,6 +8,9 @@
   <link rel="icon" href="{{faviconUrl}}">
   {{/if}}
   <link rel="stylesheet" href="/css/auth.css">
+  {{#each themeCssFiles}}
+  <link rel="stylesheet" href="{{this}}">
+  {{/each}}
   <style>
     :root {
       --primary-color: {{primaryColor}};
@@ -15,6 +18,10 @@
       --bg-color: {{backgroundColor}};
       --card-color: {{cardColor}};
       --text-color: {{textColor}};
+      --label-color: {{labelColor}};
+      --input-border-color: {{inputBorderColor}};
+      --input-bg-color: {{inputBgColor}};
+      --muted-color: {{mutedColor}};
     }
   </style>
   {{#if customCss}}
