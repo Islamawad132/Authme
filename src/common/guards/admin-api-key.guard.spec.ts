@@ -3,93 +3,116 @@ import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { AdminApiKeyGuard } from './admin-api-key.guard.js';
 
-function createMockExecutionContext(headers: Record<string, string> = {}) {
+function createMockExecutionContext(
+  headers: Record<string, string> = {},
+  path = '/admin/realms',
+) {
   return {
     getHandler: jest.fn(),
     getClass: jest.fn(),
     switchToHttp: jest.fn().mockReturnValue({
-      getRequest: jest.fn().mockReturnValue({ headers }),
+      getRequest: jest.fn().mockReturnValue({ headers, path }),
     }),
   } as any;
+}
+
+function createMockAdminAuthService() {
+  return {
+    validateAdminToken: jest.fn(),
+  };
 }
 
 describe('AdminApiKeyGuard', () => {
   let guard: AdminApiKeyGuard;
   let configService: { get: jest.Mock };
   let reflector: { getAllAndOverride: jest.Mock };
+  let adminAuthService: ReturnType<typeof createMockAdminAuthService>;
 
   beforeEach(() => {
     configService = { get: jest.fn() };
     reflector = { getAllAndOverride: jest.fn() };
+    adminAuthService = createMockAdminAuthService();
     guard = new AdminApiKeyGuard(
       configService as unknown as ConfigService,
       reflector as unknown as Reflector,
+      adminAuthService as any,
     );
   });
 
-  it('should allow requests to public (non-admin) routes', () => {
+  it('should allow requests to public (non-admin) routes', async () => {
     reflector.getAllAndOverride.mockReturnValue(true);
     const ctx = createMockExecutionContext();
 
-    expect(guard.canActivate(ctx)).toBe(true);
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
 
-  it('should allow requests when no ADMIN_API_KEY is configured', () => {
+  it('should allow non-admin paths without any auth', async () => {
     reflector.getAllAndOverride.mockReturnValue(false);
-    configService.get.mockReturnValue(undefined);
-    const ctx = createMockExecutionContext();
+    const ctx = createMockExecutionContext({}, '/realms/test/protocol/openid-connect/token');
 
-    expect(guard.canActivate(ctx)).toBe(true);
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
 
-  it('should block admin routes when no API key header is provided', () => {
+  it('should block admin routes when no credentials are provided', async () => {
     reflector.getAllAndOverride.mockReturnValue(false);
     configService.get.mockReturnValue('super-secret-key');
     const ctx = createMockExecutionContext({});
 
-    expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
   });
 
-  it('should block admin routes when the wrong API key is provided', () => {
+  it('should block admin routes when the wrong API key is provided', async () => {
     reflector.getAllAndOverride.mockReturnValue(false);
     configService.get.mockReturnValue('super-secret-key');
     const ctx = createMockExecutionContext({
       'x-admin-api-key': 'wrong-key',
     });
 
-    expect(() => guard.canActivate(ctx)).toThrow(UnauthorizedException);
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
   });
 
-  it('should allow admin routes when the correct API key is provided', () => {
+  it('should allow admin routes when the correct API key is provided', async () => {
     reflector.getAllAndOverride.mockReturnValue(false);
     configService.get.mockReturnValue('super-secret-key');
     const ctx = createMockExecutionContext({
       'x-admin-api-key': 'super-secret-key',
     });
 
-    expect(guard.canActivate(ctx)).toBe(true);
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
   });
 
-  it('should read the API key from the x-admin-api-key header', () => {
+  it('should allow admin routes when a valid Bearer token is provided', async () => {
     reflector.getAllAndOverride.mockReturnValue(false);
-    configService.get.mockReturnValue('my-key');
-    const ctx = createMockExecutionContext({ 'x-admin-api-key': 'my-key' });
+    adminAuthService.validateAdminToken.mockResolvedValue({ userId: 'admin-1', roles: ['super-admin'] });
+    const ctx = createMockExecutionContext({
+      authorization: 'Bearer valid-jwt-token',
+    });
 
-    guard.canActivate(ctx);
-
-    const request = ctx.switchToHttp().getRequest();
-    expect(request.headers).toHaveProperty('x-admin-api-key');
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(adminAuthService.validateAdminToken).toHaveBeenCalledWith('valid-jwt-token');
   });
 
-  it('should throw UnauthorizedException with a descriptive message', () => {
+  it('should fall back to API key when Bearer token is invalid', async () => {
+    reflector.getAllAndOverride.mockReturnValue(false);
+    adminAuthService.validateAdminToken.mockRejectedValue(new Error('Invalid token'));
+    configService.get.mockReturnValue('my-key');
+    const ctx = createMockExecutionContext({
+      authorization: 'Bearer bad-token',
+      'x-admin-api-key': 'my-key',
+    });
+
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+  });
+
+  it('should throw UnauthorizedException with a descriptive message', async () => {
     reflector.getAllAndOverride.mockReturnValue(false);
     configService.get.mockReturnValue('correct-key');
     const ctx = createMockExecutionContext({
       'x-admin-api-key': 'bad-key',
     });
 
-    expect(() => guard.canActivate(ctx)).toThrow(
-      'Invalid or missing admin API key',
+    await expect(guard.canActivate(ctx)).rejects.toThrow(
+      'Invalid or missing admin credentials',
     );
   });
 });

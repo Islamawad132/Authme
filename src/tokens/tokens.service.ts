@@ -8,6 +8,8 @@ import { CryptoService } from '../crypto/crypto.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
 import { ScopesService } from '../scopes/scopes.service.js';
 import { resolveUserClaims } from '../scopes/claims.resolver.js';
+import { TokenBlacklistService } from './token-blacklist.service.js';
+import { BackchannelLogoutService } from './backchannel-logout.service.js';
 
 @Injectable()
 export class TokensService {
@@ -16,6 +18,8 @@ export class TokensService {
     private readonly crypto: CryptoService,
     private readonly jwkService: JwkService,
     private readonly scopesService: ScopesService,
+    private readonly blacklist: TokenBlacklistService,
+    private readonly backchannelLogout: BackchannelLogoutService,
   ) {}
 
   async introspect(realm: Realm, token: string) {
@@ -30,6 +34,12 @@ export class TokensService {
       }
 
       const payload = await this.jwkService.verifyJwt(token, signingKey.publicKey);
+
+      // Check token blacklist
+      const jti = payload['jti'] as string | undefined;
+      if (jti && this.blacklist.isBlacklisted(jti)) {
+        return { active: false };
+      }
 
       return {
         active: true,
@@ -65,8 +75,25 @@ export class TokensService {
       }
     }
 
-    // For access tokens (JWTs), we can't truly revoke them since they're stateless.
-    // In production you'd use a blacklist. For MVP, this is a no-op.
+    // For access tokens (JWTs), blacklist them by jti
+    if (tokenTypeHint === 'access_token' || !tokenTypeHint) {
+      try {
+        const signingKey = await this.prisma.realmSigningKey.findFirst({
+          where: { realmId: realm.id, active: true },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (signingKey) {
+          const payload = await this.jwkService.verifyJwt(token, signingKey.publicKey);
+          const jti = payload['jti'] as string | undefined;
+          const exp = payload.exp as number | undefined;
+          if (jti && exp) {
+            this.blacklist.blacklistToken(jti, exp);
+          }
+        }
+      } catch {
+        // Token is already invalid/expired, nothing to blacklist
+      }
+    }
   }
 
   async logout(realm: Realm, refreshToken: string) {
@@ -85,6 +112,13 @@ export class TokensService {
       where: { sessionId: storedToken.sessionId },
       data: { revoked: true },
     });
+
+    // Send backchannel logout notifications
+    await this.backchannelLogout.sendLogoutTokens(
+      realm,
+      storedToken.session.userId,
+      storedToken.sessionId,
+    );
 
     // Delete the session
     await this.prisma.session.delete({
@@ -107,6 +141,12 @@ export class TokensService {
       payload = await this.jwkService.verifyJwt(accessToken, signingKey.publicKey);
     } catch {
       throw new UnauthorizedException('Invalid access token');
+    }
+
+    // Check blacklist
+    const jti = payload['jti'] as string | undefined;
+    if (jti && this.blacklist.isBlacklisted(jti)) {
+      throw new UnauthorizedException('Token has been revoked');
     }
 
     const user = await this.prisma.user.findUnique({

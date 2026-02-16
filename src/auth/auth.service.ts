@@ -7,6 +7,9 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
 import { ScopesService } from '../scopes/scopes.service.js';
+import { BruteForceService } from '../brute-force/brute-force.service.js';
+import { PasswordPolicyService } from '../password-policy/password-policy.service.js';
+import { MfaService } from '../mfa/mfa.service.js';
 import { resolveUserClaims, type UserClaimSource } from '../scopes/claims.resolver.js';
 import type { Realm } from '@prisma/client';
 import type { JWTPayload } from 'jose';
@@ -18,6 +21,8 @@ export interface TokenResponse {
   refresh_token?: string;
   scope?: string;
   id_token?: string;
+  error?: string;
+  mfa_token?: string;
 }
 
 @Injectable()
@@ -27,6 +32,9 @@ export class AuthService {
     private readonly crypto: CryptoService,
     private readonly jwkService: JwkService,
     private readonly scopesService: ScopesService,
+    private readonly bruteForceService: BruteForceService,
+    private readonly passwordPolicyService: PasswordPolicyService,
+    private readonly mfaService: MfaService,
   ) {}
 
   async handleTokenRequest(
@@ -46,6 +54,8 @@ export class AuthService {
         return this.handleRefreshTokenGrant(realm, body);
       case 'authorization_code':
         return this.handleAuthorizationCodeGrant(realm, body, ip, userAgent);
+      case 'mfa_otp':
+        return this.handleMfaOtpGrant(realm, body, ip, userAgent);
       default:
         throw new BadRequestException(`Unsupported grant_type: ${grantType}`);
     }
@@ -72,9 +82,87 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Brute force check
+    const lockStatus = this.bruteForceService.checkLocked(realm, user);
+    if (lockStatus.locked) {
+      throw new UnauthorizedException('Account is temporarily locked. Please try again later.');
+    }
+
     const valid = await this.crypto.verifyPassword(user.passwordHash, password);
     if (!valid) {
+      await this.bruteForceService.recordFailure(realm, user.id, ip);
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Reset brute force failures on success
+    await this.bruteForceService.resetFailures(realm.id, user.id);
+
+    // Check password expiry
+    if (this.passwordPolicyService.isExpired(user, realm)) {
+      throw new BadRequestException('Password has expired. Please change your password.');
+    }
+
+    // Check MFA
+    const mfaRequired = await this.mfaService.isMfaRequired(realm, user.id);
+    const mfaEnabled = await this.mfaService.isMfaEnabled(user.id);
+
+    if (mfaEnabled) {
+      const mfaToken = this.mfaService.createMfaChallenge(user.id, realm.id);
+      return {
+        error: 'mfa_required',
+        mfa_token: mfaToken,
+      } as TokenResponse;
+    }
+
+    if (mfaRequired && !mfaEnabled) {
+      throw new BadRequestException('MFA setup required. Please set up two-factor authentication.');
+    }
+
+    const session = await this.prisma.session.create({
+      data: {
+        userId: user.id,
+        ipAddress: ip,
+        userAgent,
+        expiresAt: new Date(Date.now() + realm.refreshTokenLifespan * 1000),
+      },
+    });
+
+    return this.issueTokens(realm, user, client_id, session.id, scope, undefined, new Date());
+  }
+
+  private async handleMfaOtpGrant(
+    realm: Realm,
+    body: Record<string, string>,
+    ip?: string,
+    userAgent?: string,
+  ): Promise<TokenResponse> {
+    const { client_id, client_secret, mfa_token, otp, scope } = body;
+
+    await this.validateClient(realm, client_id, client_secret, 'password');
+
+    if (!mfa_token || !otp) {
+      throw new BadRequestException('mfa_token and otp are required');
+    }
+
+    const challenge = this.mfaService.validateMfaChallenge(mfa_token);
+    if (!challenge) {
+      throw new UnauthorizedException('Invalid or expired MFA token');
+    }
+
+    const verified = await this.mfaService.verifyTotp(challenge.userId, otp);
+    if (!verified) {
+      // Try as recovery code
+      const recoveryVerified = await this.mfaService.verifyRecoveryCode(challenge.userId, otp);
+      if (!recoveryVerified) {
+        throw new UnauthorizedException('Invalid OTP code');
+      }
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: challenge.userId },
+    });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
     }
 
     const session = await this.prisma.session.create({
@@ -153,8 +241,6 @@ export class AuthService {
       storedToken.revoked ||
       storedToken.expiresAt < new Date()
     ) {
-      // If the token was already used (revoked), this could be token theft.
-      // Revoke the entire session as a precaution.
       if (storedToken?.revoked && storedToken.session) {
         await this.prisma.refreshToken.updateMany({
           where: { sessionId: storedToken.sessionId },
@@ -489,10 +575,6 @@ export class AuthService {
     return `${baseUrl}/realms/${realm.name}`;
   }
 
-  /**
-   * Resolve all roles a user inherits via group memberships,
-   * walking up the parent group hierarchy.
-   */
   private async resolveGroupRoles(userId: string) {
     const memberships = await this.prisma.userGroup.findMany({
       where: { userId },

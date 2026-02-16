@@ -20,7 +20,7 @@ export default function RealmDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showDelete, setShowDelete] = useState(false);
-  const [activeTab, setActiveTab] = useState<'general' | 'tokens' | 'email'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'tokens' | 'email' | 'security'>('general');
   const [testEmailTo, setTestEmailTo] = useState('');
 
   const { data: realm, isLoading } = useQuery({
@@ -64,6 +64,22 @@ export default function RealmDetailPage() {
     smtpPassword: '',
     smtpFrom: '',
     smtpSecure: false,
+    // Security - Password Policy
+    passwordMinLength: 8,
+    passwordRequireUppercase: false,
+    passwordRequireLowercase: false,
+    passwordRequireDigits: false,
+    passwordRequireSpecialChars: false,
+    passwordHistoryCount: 0,
+    passwordMaxAgeDays: 0,
+    // Security - Brute Force Protection
+    bruteForceEnabled: false,
+    maxLoginFailures: 5,
+    lockoutDuration: 300,
+    failureResetTime: 600,
+    permanentLockoutAfter: 0,
+    // Security - MFA
+    mfaRequired: false,
   });
 
   useEffect(() => {
@@ -79,6 +95,22 @@ export default function RealmDetailPage() {
         smtpPassword: realm.smtpPassword ?? '',
         smtpFrom: realm.smtpFrom ?? '',
         smtpSecure: realm.smtpSecure ?? false,
+        // Security - Password Policy
+        passwordMinLength: realm.passwordMinLength ?? 8,
+        passwordRequireUppercase: realm.passwordRequireUppercase ?? false,
+        passwordRequireLowercase: realm.passwordRequireLowercase ?? false,
+        passwordRequireDigits: realm.passwordRequireDigits ?? false,
+        passwordRequireSpecialChars: realm.passwordRequireSpecialChars ?? false,
+        passwordHistoryCount: realm.passwordHistoryCount ?? 0,
+        passwordMaxAgeDays: realm.passwordMaxAgeDays ?? 0,
+        // Security - Brute Force Protection
+        bruteForceEnabled: realm.bruteForceEnabled ?? false,
+        maxLoginFailures: realm.maxLoginFailures ?? 5,
+        lockoutDuration: realm.lockoutDuration ?? 300,
+        failureResetTime: realm.failureResetTime ?? 600,
+        permanentLockoutAfter: realm.permanentLockoutAfter ?? 0,
+        // Security - MFA
+        mfaRequired: realm.mfaRequired ?? false,
       });
     }
   }, [realm]);
@@ -128,6 +160,7 @@ export default function RealmDetailPage() {
     { key: 'general' as const, label: 'General' },
     { key: 'tokens' as const, label: 'Tokens' },
     { key: 'email' as const, label: 'Email' },
+    { key: 'security' as const, label: 'Security' },
   ];
 
   const quickLinks = [
@@ -480,6 +513,287 @@ export default function RealmDetailPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Security Tab */}
+      {activeTab === 'security' && (
+        <form onSubmit={handleSubmit} className="space-y-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          {/* Password Policy */}
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Password Policy</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Define password complexity and rotation requirements for users in this realm.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Minimum Password Length
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={form.passwordMinLength}
+                onChange={(e) =>
+                  setForm({ ...form, passwordMinLength: Number(e.target.value) })
+                }
+                className="w-40 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="passwordRequireUppercase"
+                  checked={form.passwordRequireUppercase}
+                  onChange={(e) =>
+                    setForm({ ...form, passwordRequireUppercase: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="passwordRequireUppercase" className="text-sm font-medium text-gray-700">
+                  Require uppercase letters
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="passwordRequireLowercase"
+                  checked={form.passwordRequireLowercase}
+                  onChange={(e) =>
+                    setForm({ ...form, passwordRequireLowercase: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="passwordRequireLowercase" className="text-sm font-medium text-gray-700">
+                  Require lowercase letters
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="passwordRequireDigits"
+                  checked={form.passwordRequireDigits}
+                  onChange={(e) =>
+                    setForm({ ...form, passwordRequireDigits: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="passwordRequireDigits" className="text-sm font-medium text-gray-700">
+                  Require digits
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="passwordRequireSpecialChars"
+                  checked={form.passwordRequireSpecialChars}
+                  onChange={(e) =>
+                    setForm({ ...form, passwordRequireSpecialChars: e.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="passwordRequireSpecialChars" className="text-sm font-medium text-gray-700">
+                  Require special characters
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Password History Count
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={form.passwordHistoryCount}
+                onChange={(e) =>
+                  setForm({ ...form, passwordHistoryCount: Number(e.target.value) })
+                }
+                className="w-40 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Number of previous passwords to remember. Users cannot reuse these.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Password Max Age (days)
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={form.passwordMaxAgeDays}
+                onChange={(e) =>
+                  setForm({ ...form, passwordMaxAgeDays: Number(e.target.value) })
+                }
+                className="w-40 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                0 = no expiry. Users will be required to change their password after this many days.
+              </p>
+            </div>
+          </div>
+
+          {/* Brute Force Protection */}
+          <div className="space-y-6 border-t border-gray-200 pt-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Brute Force Protection</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Protect user accounts from brute force login attacks.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="bruteForceEnabled"
+                checked={form.bruteForceEnabled}
+                onChange={(e) =>
+                  setForm({ ...form, bruteForceEnabled: e.target.checked })
+                }
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label htmlFor="bruteForceEnabled" className="text-sm font-medium text-gray-700">
+                Enable brute force protection
+              </label>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Max Login Failures
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={form.maxLoginFailures}
+                onChange={(e) =>
+                  setForm({ ...form, maxLoginFailures: Number(e.target.value) })
+                }
+                className="w-40 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Number of consecutive login failures before the account is locked.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Lockout Duration (seconds)
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={1}
+                  value={form.lockoutDuration}
+                  onChange={(e) =>
+                    setForm({ ...form, lockoutDuration: Number(e.target.value) })
+                  }
+                  className="w-40 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+                <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                  {formatDuration(form.lockoutDuration)}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                How long an account is locked after exceeding max failures.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Failure Reset Time (seconds)
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={1}
+                  value={form.failureResetTime}
+                  onChange={(e) =>
+                    setForm({ ...form, failureResetTime: Number(e.target.value) })
+                  }
+                  className="w-40 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                />
+                <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                  {formatDuration(form.failureResetTime)}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                Time after which the failure counter is reset if no new failures occur.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Permanent Lockout After
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={form.permanentLockoutAfter}
+                onChange={(e) =>
+                  setForm({ ...form, permanentLockoutAfter: Number(e.target.value) })
+                }
+                className="w-40 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                0 = disabled. Number of temporary lockouts before the account is permanently locked.
+              </p>
+            </div>
+          </div>
+
+          {/* MFA */}
+          <div className="space-y-6 border-t border-gray-200 pt-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Multi-Factor Authentication</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Configure MFA requirements for this realm.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="mfaRequired"
+                checked={form.mfaRequired}
+                onChange={(e) =>
+                  setForm({ ...form, mfaRequired: e.target.checked })
+                }
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label htmlFor="mfaRequired" className="text-sm font-medium text-gray-700">
+                Require all users to set up TOTP
+              </label>
+            </div>
+          </div>
+
+          {updateMutation.isSuccess && (
+            <div className="rounded-md bg-green-50 p-3 text-sm text-green-700">
+              Security settings updated successfully.
+            </div>
+          )}
+          {updateMutation.isError && (
+            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+              Failed to update security settings.
+            </div>
+          )}
+
+          <div className="flex justify-end border-t border-gray-200 pt-4">
+            <button
+              type="submit"
+              disabled={updateMutation.isPending}
+              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
       )}
 
       <ConfirmDialog

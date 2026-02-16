@@ -5,6 +5,10 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem('adminToken');
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
   const apiKey = sessionStorage.getItem('adminApiKey');
   if (apiKey) {
     config.headers['x-admin-api-key'] = apiKey;
@@ -17,6 +21,7 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       sessionStorage.removeItem('adminApiKey');
+      sessionStorage.removeItem('adminToken');
       window.location.href = '/console/login';
     }
     return Promise.reject(error);

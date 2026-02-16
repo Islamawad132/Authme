@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -24,6 +25,10 @@ import { SessionsModule } from './sessions/sessions.module.js';
 import { EmailModule } from './email/email.module.js';
 import { VerificationModule } from './verification/verification.module.js';
 import { AccountModule } from './account/account.module.js';
+import { PasswordPolicyModule } from './password-policy/password-policy.module.js';
+import { BruteForceModule } from './brute-force/brute-force.module.js';
+import { MfaModule } from './mfa/mfa.module.js';
+import { AdminAuthModule } from './admin-auth/admin-auth.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
 
 @Module({
@@ -33,6 +38,7 @@ import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
       ttl: parseInt(process.env['THROTTLE_TTL'] ?? '60000', 10),
       limit: parseInt(process.env['THROTTLE_LIMIT'] ?? '100', 10),
     }]),
+    ScheduleModule.forRoot(),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, 'admin-ui'),
       serveRoot: '/console',
@@ -45,6 +51,10 @@ import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
     CryptoModule,
     EmailModule,
     VerificationModule,
+    PasswordPolicyModule,
+    BruteForceModule,
+    MfaModule,
+    AdminAuthModule,
     RealmsModule,
     UsersModule,
     ClientsModule,

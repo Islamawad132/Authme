@@ -7,6 +7,7 @@ import {
   Body,
   Req,
   Res,
+  Query,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -17,6 +18,8 @@ import { Public } from '../common/decorators/public.decorator.js';
 import { LoginService } from '../login/login.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
+import { PasswordPolicyService } from '../password-policy/password-policy.service.js';
+import { MfaService } from '../mfa/mfa.service.js';
 
 @ApiExcludeController()
 @Controller('realms/:realmName/account')
@@ -27,6 +30,8 @@ export class AccountController {
     private readonly loginService: LoginService,
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly passwordPolicyService: PasswordPolicyService,
+    private readonly mfaService: MfaService,
   ) {}
 
   private async getSessionUser(realm: Realm, req: Request) {
@@ -48,6 +53,7 @@ export class AccountController {
     }
 
     const query = req.query as Record<string, string>;
+    const mfaEnabled = await this.mfaService.isMfaEnabled(user.id);
 
     return res.render('account', {
       layout: 'layouts/main',
@@ -59,6 +65,7 @@ export class AccountController {
       emailVerified: user.emailVerified,
       firstName: user.firstName ?? '',
       lastName: user.lastName ?? '',
+      mfaEnabled,
       success: query['success'] ?? '',
       error: query['error'] ?? '',
     });
@@ -111,8 +118,10 @@ export class AccountController {
       return res.redirect(`/realms/${realm.name}/account?error=${encodeURIComponent('New passwords do not match.')}`);
     }
 
-    if (newPassword.length < 8) {
-      return res.redirect(`/realms/${realm.name}/account?error=${encodeURIComponent('New password must be at least 8 characters.')}`);
+    // Validate against password policy
+    const validation = this.passwordPolicyService.validate(realm, newPassword);
+    if (!validation.valid) {
+      return res.redirect(`/realms/${realm.name}/account?error=${encodeURIComponent(validation.errors.join('. '))}`);
     }
 
     // Verify current password
@@ -125,12 +134,122 @@ export class AccountController {
       return res.redirect(`/realms/${realm.name}/account?error=${encodeURIComponent('Current password is incorrect.')}`);
     }
 
+    // Check password history
+    if (realm.passwordHistoryCount > 0) {
+      const inHistory = await this.passwordPolicyService.checkHistory(
+        user.id, realm.id, newPassword, realm.passwordHistoryCount,
+      );
+      if (inHistory) {
+        return res.redirect(`/realms/${realm.name}/account?error=${encodeURIComponent('Password was used recently. Choose a different password.')}`);
+      }
+    }
+
     const passwordHash = await this.crypto.hashPassword(newPassword);
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash },
+      data: { passwordHash, passwordChangedAt: new Date() },
     });
 
+    // Record password history
+    await this.passwordPolicyService.recordHistory(
+      user.id, realm.id, passwordHash, realm.passwordHistoryCount,
+    );
+
     res.redirect(`/realms/${realm.name}/account?success=${encodeURIComponent('Password changed successfully.')}`);
+  }
+
+  // ─── TOTP SETUP ─────────────────────────────────────────
+
+  @Get('totp-setup')
+  async showTotpSetup(
+    @CurrentRealm() realm: Realm,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const user = await this.getSessionUser(realm, req);
+    if (!user) {
+      return res.redirect(`/realms/${realm.name}/login`);
+    }
+
+    const query = req.query as Record<string, string>;
+    const mfaEnabled = await this.mfaService.isMfaEnabled(user.id);
+    if (mfaEnabled) {
+      return res.redirect(`/realms/${realm.name}/account?info=${encodeURIComponent('Two-factor authentication is already enabled.')}`);
+    }
+
+    const setup = await this.mfaService.setupTotp(user.id, realm.name, user.username);
+
+    return res.render('totp-setup', {
+      layout: 'layouts/main',
+      pageTitle: 'Set Up Two-Factor Authentication',
+      realmName: realm.name,
+      realmDisplayName: realm.displayName ?? realm.name,
+      qrCodeDataUrl: setup.qrCodeDataUrl,
+      secret: setup.secret,
+      error: query['error'] ?? '',
+      info: query['info'] ?? '',
+    });
+  }
+
+  @Post('totp-setup')
+  async handleTotpSetup(
+    @CurrentRealm() realm: Realm,
+    @Body() body: Record<string, string>,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const user = await this.getSessionUser(realm, req);
+    if (!user) {
+      return res.redirect(`/realms/${realm.name}/login`);
+    }
+
+    const code = body['code'];
+    if (!code) {
+      return res.redirect(`/realms/${realm.name}/account/totp-setup?error=${encodeURIComponent('Please enter the verification code.')}`);
+    }
+
+    const activated = await this.mfaService.verifyAndActivateTotp(user.id, code);
+    if (!activated) {
+      return res.redirect(`/realms/${realm.name}/account/totp-setup?error=${encodeURIComponent('Invalid code. Please try again.')}`);
+    }
+
+    // Fetch recovery codes to display
+    const recoveryCodes = await this.mfaService.generateRecoveryCodes(user.id);
+
+    return res.render('totp-setup', {
+      layout: 'layouts/main',
+      pageTitle: 'Two-Factor Authentication Enabled',
+      realmName: realm.name,
+      realmDisplayName: realm.displayName ?? realm.name,
+      activated: true,
+      recoveryCodes,
+    });
+  }
+
+  @Post('totp-disable')
+  async handleTotpDisable(
+    @CurrentRealm() realm: Realm,
+    @Body() body: Record<string, string>,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const user = await this.getSessionUser(realm, req);
+    if (!user) {
+      return res.redirect(`/realms/${realm.name}/login`);
+    }
+
+    const currentPassword = body['currentPassword'];
+    if (!currentPassword || !user.passwordHash) {
+      return res.redirect(`/realms/${realm.name}/account?error=${encodeURIComponent('Password is required to disable two-factor authentication.')}`);
+    }
+
+    const valid = await this.crypto.verifyPassword(user.passwordHash, currentPassword);
+    if (!valid) {
+      return res.redirect(`/realms/${realm.name}/account?error=${encodeURIComponent('Password is incorrect.')}`);
+    }
+
+    await this.mfaService.disableTotp(user.id);
+
+    res.redirect(`/realms/${realm.name}/account?success=${encodeURIComponent('Two-factor authentication has been disabled.')}`);
   }
 }

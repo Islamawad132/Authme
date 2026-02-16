@@ -60,12 +60,19 @@ describe('UsersService', () => {
     configService = {
       get: jest.fn().mockReturnValue('http://localhost:3000'),
     };
+    const passwordPolicyService = {
+      validate: jest.fn().mockReturnValue({ valid: true, errors: [] }),
+      checkHistory: jest.fn().mockResolvedValue(false),
+      recordHistory: jest.fn().mockResolvedValue(undefined),
+      isExpired: jest.fn().mockReturnValue(false),
+    };
     service = new UsersService(
       prisma as any,
       cryptoService as any,
       verificationService as any,
       emailService as any,
       configService as any,
+      passwordPolicyService as any,
     );
   });
 
@@ -240,7 +247,7 @@ describe('UsersService', () => {
       expect(cryptoService.hashPassword).toHaveBeenCalledWith('newpassword');
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { passwordHash: 'new-hashed-password' },
+        data: { passwordHash: 'new-hashed-password', passwordChangedAt: expect.any(Date) },
       });
     });
 

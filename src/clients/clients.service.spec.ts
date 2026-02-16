@@ -69,7 +69,7 @@ describe('ClientsService', () => {
         clientType: 'CONFIDENTIAL',
       });
 
-      expect(result.secret).toBe('raw-secret-hex');
+      expect(result.clientSecret).toBe('raw-secret-hex');
       expect(result.secretWarning).toBeDefined();
       expect(cryptoService.generateSecret).toHaveBeenCalled();
       expect(cryptoService.hashPassword).toHaveBeenCalledWith('raw-secret-hex');
@@ -96,7 +96,7 @@ describe('ClientsService', () => {
         clientType: 'PUBLIC',
       });
 
-      expect(result.secret).toBeUndefined();
+      expect(result.clientSecret).toBeUndefined();
       expect(cryptoService.generateSecret).not.toHaveBeenCalled();
       expect(prisma.client.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -208,6 +208,9 @@ describe('ClientsService', () => {
           redirectUris: undefined,
           webOrigins: undefined,
           grantTypes: undefined,
+          requireConsent: undefined,
+          backchannelLogoutUri: undefined,
+          backchannelLogoutSessionRequired: undefined,
         },
         select: expect.any(Object),
       });
@@ -255,7 +258,7 @@ describe('ClientsService', () => {
       const result = await service.regenerateSecret(mockRealm, 'my-app');
 
       expect(result.clientId).toBe('my-app');
-      expect(result.secret).toBe('new-raw-secret');
+      expect(result.clientSecret).toBe('new-raw-secret');
       expect(result.secretWarning).toBeDefined();
       expect(cryptoService.generateSecret).toHaveBeenCalled();
       expect(cryptoService.hashPassword).toHaveBeenCalledWith('new-raw-secret');

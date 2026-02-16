@@ -2,18 +2,21 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Realm, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
+import { BruteForceService } from '../brute-force/brute-force.service.js';
 
 @Injectable()
 export class LoginService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly bruteForceService: BruteForceService,
   ) {}
 
   async validateCredentials(
     realm: Realm,
     username: string,
     password: string,
+    ip?: string,
   ): Promise<User> {
     const user = await this.prisma.user.findUnique({
       where: { realmId_username: { realmId: realm.id, username } },
@@ -23,10 +26,20 @@ export class LoginService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Check brute force lockout
+    const lockStatus = this.bruteForceService.checkLocked(realm, user);
+    if (lockStatus.locked) {
+      throw new UnauthorizedException('Account is temporarily locked. Please try again later.');
+    }
+
     const valid = await this.crypto.verifyPassword(user.passwordHash, password);
     if (!valid) {
+      await this.bruteForceService.recordFailure(realm, user.id, ip);
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    // Reset failures on successful login
+    await this.bruteForceService.resetFailures(realm.id, user.id);
 
     return user;
   }
