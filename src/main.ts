@@ -25,6 +25,7 @@ async function bootstrap() {
           styleSrc: ["'self'", "'unsafe-inline'"],
           imgSrc: ["'self'", 'data:', 'blob:'],
           connectSrc: ["'self'"],
+          formAction: ["'self'"],
           upgradeInsecureRequests: null,
         },
       },
