@@ -20,7 +20,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { PasswordPolicyService } from '../password-policy/password-policy.service.js';
 import { MfaService } from '../mfa/mfa.service.js';
-import { getThemeVars } from '../login/theme.util.js';
+import { ThemeService } from '../login/theme.service.js';
 
 @ApiExcludeController()
 @Controller('realms/:realmName/account')
@@ -33,6 +33,7 @@ export class AccountController {
     private readonly crypto: CryptoService,
     private readonly passwordPolicyService: PasswordPolicyService,
     private readonly mfaService: MfaService,
+    private readonly themeService: ThemeService,
   ) {}
 
   private async getSessionUser(realm: Realm, req: Request) {
@@ -61,7 +62,7 @@ export class AccountController {
       pageTitle: 'My Account',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
-      ...getThemeVars(realm),
+      ...this.themeService.resolveTheme(realm),
       username: user.username,
       email: user.email ?? '',
       emailVerified: user.emailVerified,
@@ -186,7 +187,7 @@ export class AccountController {
       pageTitle: 'Set Up Two-Factor Authentication',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
-      ...getThemeVars(realm),
+      ...this.themeService.resolveTheme(realm),
       qrCodeDataUrl: setup.qrCodeDataUrl,
       secret: setup.secret,
       error: query['error'] ?? '',
@@ -224,7 +225,7 @@ export class AccountController {
       pageTitle: 'Two-Factor Authentication Enabled',
       realmName: realm.name,
       realmDisplayName: realm.displayName ?? realm.name,
-      ...getThemeVars(realm),
+      ...this.themeService.resolveTheme(realm),
       activated: true,
       recoveryCodes,
     });

@@ -41,6 +41,7 @@ async function bootstrap() {
   app.setBaseViewsDir(join(__dirname, '..', 'views'));
   app.setViewEngine('hbs');
   app.useStaticAssets(join(__dirname, '..', 'public'));
+  app.useStaticAssets(join(__dirname, '..', 'themes'), { prefix: '/themes' });
 
   app.useGlobalPipes(
     new ValidationPipe({

@@ -14,6 +14,7 @@ import { RealmsService } from './realms.service.js';
 import { RealmExportService } from './realm-export.service.js';
 import { RealmImportService } from './realm-import.service.js';
 import { EmailService } from '../email/email.service.js';
+import { ThemeService } from '../login/theme.service.js';
 import { CreateRealmDto } from './dto/create-realm.dto.js';
 import { UpdateRealmDto } from './dto/update-realm.dto.js';
 
@@ -25,6 +26,7 @@ export class RealmsController {
     private readonly exportService: RealmExportService,
     private readonly importService: RealmImportService,
     private readonly emailService: EmailService,
+    private readonly themeService: ThemeService,
   ) {}
 
   @Post()
@@ -37,6 +39,12 @@ export class RealmsController {
   @ApiOperation({ summary: 'List all realms' })
   findAll() {
     return this.realmsService.findAll();
+  }
+
+  @Get('themes')
+  @ApiOperation({ summary: 'List available themes' })
+  getThemes() {
+    return this.themeService.getAvailableThemes();
   }
 
   @Get(':realmName')
