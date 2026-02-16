@@ -1,29 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as OTPAuth from 'otpauth';
 import * as QRCode from 'qrcode';
+import { Interval } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import type { Realm } from '@prisma/client';
 
-interface MfaChallenge {
-  userId: string;
-  realmId: string;
-  oauthParams?: Record<string, string>;
-  expiresAt: number;
-}
-
 @Injectable()
 export class MfaService {
   private readonly logger = new Logger(MfaService.name);
-  private readonly challenges = new Map<string, MfaChallenge>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
-  ) {
-    // Cleanup expired challenges every 60s
-    setInterval(() => this.cleanupChallenges(), 60_000);
-  }
+  ) {}
 
   async setupTotp(userId: string, realmName: string, username: string) {
     // Delete any existing unverified credential
@@ -163,38 +153,55 @@ export class MfaService {
     return this.isMfaEnabled(userId);
   }
 
-  createMfaChallenge(
+  async createMfaChallenge(
     userId: string,
     realmId: string,
     oauthParams?: Record<string, string>,
-  ): string {
+  ): Promise<string> {
     const token = this.crypto.generateSecret(32);
-    this.challenges.set(token, {
-      userId,
-      realmId,
-      oauthParams,
-      expiresAt: Date.now() + 5 * 60 * 1000, // 5 min TTL
+    const tokenHash = this.crypto.sha256(token);
+
+    await this.prisma.pendingAction.create({
+      data: {
+        tokenHash,
+        type: 'mfa_challenge',
+        data: { userId, realmId, oauthParams } as any,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 min TTL
+      },
     });
+
     return token;
   }
 
-  validateMfaChallenge(
+  async validateMfaChallenge(
     challengeToken: string,
-  ): { userId: string; realmId: string; oauthParams?: Record<string, string> } | null {
-    const challenge = this.challenges.get(challengeToken);
-    if (!challenge) return null;
-    if (challenge.expiresAt < Date.now()) {
-      this.challenges.delete(challengeToken);
+  ): Promise<{ userId: string; realmId: string; oauthParams?: Record<string, string> } | null> {
+    const tokenHash = this.crypto.sha256(challengeToken);
+
+    const action = await this.prisma.pendingAction.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!action || action.type !== 'mfa_challenge') return null;
+    if (action.expiresAt < new Date()) {
+      await this.prisma.pendingAction.delete({ where: { id: action.id } });
       return null;
     }
-    this.challenges.delete(challengeToken);
-    return { userId: challenge.userId, realmId: challenge.realmId, oauthParams: challenge.oauthParams };
+
+    // Consume the challenge (one-time use)
+    await this.prisma.pendingAction.delete({ where: { id: action.id } });
+
+    const data = action.data as any;
+    return { userId: data.userId, realmId: data.realmId, oauthParams: data.oauthParams };
   }
 
-  private cleanupChallenges(): void {
-    const now = Date.now();
-    for (const [key, val] of this.challenges) {
-      if (val.expiresAt < now) this.challenges.delete(key);
+  @Interval(60_000)
+  async cleanupExpiredActions(): Promise<void> {
+    const { count } = await this.prisma.pendingAction.deleteMany({
+      where: { type: 'mfa_challenge', expiresAt: { lt: new Date() } },
+    });
+    if (count > 0) {
+      this.logger.debug(`Cleaned up ${count} expired MFA challenges`);
     }
   }
 }

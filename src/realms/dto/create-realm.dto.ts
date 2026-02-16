@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsInt, Min, Matches } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, IsObject, Min, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateRealmDto {
@@ -159,4 +159,10 @@ export class CreateRealmDto {
   @IsOptional()
   @IsBoolean()
   adminEventsEnabled?: boolean;
+
+  // Theming
+  @ApiPropertyOptional({ description: 'Realm theme configuration' })
+  @IsOptional()
+  @IsObject()
+  theme?: Record<string, unknown>;
 }

@@ -64,6 +64,7 @@ export class RealmsService {
         eventsEnabled: dto.eventsEnabled,
         eventsExpiration: dto.eventsExpiration,
         adminEventsEnabled: dto.adminEventsEnabled,
+        theme: dto.theme as any,
         signingKeys: {
           create: {
             kid: keyPair.kid,
@@ -138,6 +139,7 @@ export class RealmsService {
       eventsEnabled: dto.eventsEnabled,
       eventsExpiration: dto.eventsExpiration,
       adminEventsEnabled: dto.adminEventsEnabled,
+      theme: dto.theme as any,
     };
 
     // Only update password if a real value is provided (not the redacted placeholder)

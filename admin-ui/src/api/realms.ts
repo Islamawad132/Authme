@@ -30,6 +30,27 @@ export async function deleteRealm(name: string): Promise<void> {
   await apiClient.delete(`/realms/${name}`);
 }
 
+export async function exportRealm(
+  name: string,
+  options?: { includeUsers?: boolean; includeSecrets?: boolean },
+): Promise<Record<string, unknown>> {
+  const params = new URLSearchParams();
+  if (options?.includeUsers) params.set('includeUsers', 'true');
+  if (options?.includeSecrets) params.set('includeSecrets', 'true');
+  const { data } = await apiClient.get(`/realms/${name}/export?${params.toString()}`);
+  return data;
+}
+
+export async function importRealm(
+  payload: Record<string, unknown>,
+  options?: { overwrite?: boolean },
+): Promise<Record<string, unknown>> {
+  const params = new URLSearchParams();
+  if (options?.overwrite) params.set('overwrite', 'true');
+  const { data } = await apiClient.post(`/realms/import?${params.toString()}`, payload);
+  return data;
+}
+
 export async function sendTestEmail(
   name: string,
   to: string,

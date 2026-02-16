@@ -6,10 +6,13 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { RealmsService } from './realms.service.js';
+import { RealmExportService } from './realm-export.service.js';
+import { RealmImportService } from './realm-import.service.js';
 import { EmailService } from '../email/email.service.js';
 import { CreateRealmDto } from './dto/create-realm.dto.js';
 import { UpdateRealmDto } from './dto/update-realm.dto.js';
@@ -19,6 +22,8 @@ import { UpdateRealmDto } from './dto/update-realm.dto.js';
 export class RealmsController {
   constructor(
     private readonly realmsService: RealmsService,
+    private readonly exportService: RealmExportService,
+    private readonly importService: RealmImportService,
     private readonly emailService: EmailService,
   ) {}
 
@@ -53,6 +58,30 @@ export class RealmsController {
   @ApiOperation({ summary: 'Delete a realm' })
   remove(@Param('realmName') realmName: string) {
     return this.realmsService.remove(realmName);
+  }
+
+  @Get(':realmName/export')
+  @ApiOperation({ summary: 'Export a realm to JSON' })
+  exportRealm(
+    @Param('realmName') realmName: string,
+    @Query('includeUsers') includeUsers?: string,
+    @Query('includeSecrets') includeSecrets?: string,
+  ) {
+    return this.exportService.exportRealm(realmName, {
+      includeUsers: includeUsers === 'true',
+      includeSecrets: includeSecrets === 'true',
+    });
+  }
+
+  @Post('import')
+  @ApiOperation({ summary: 'Import a realm from JSON' })
+  importRealm(
+    @Body() body: Record<string, unknown>,
+    @Query('overwrite') overwrite?: string,
+  ) {
+    return this.importService.importRealm(body, {
+      overwrite: overwrite === 'true',
+    });
   }
 
   @Post(':realmName/email/test')

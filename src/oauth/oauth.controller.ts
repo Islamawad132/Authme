@@ -49,7 +49,7 @@ export class OAuthController {
           const hasConsent = await this.consentService.hasConsent(user.id, client.id, scopes);
 
           if (!hasConsent) {
-            const reqId = this.consentService.storeConsentRequest({
+            const reqId = await this.consentService.storeConsentRequest({
               userId: user.id,
               clientId: client.id,
               clientName: client.name ?? client.clientId,

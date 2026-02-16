@@ -51,6 +51,9 @@ model Realm {
   eventsExpiration   Int     @default(604800) @map("events_expiration")
   adminEventsEnabled Boolean @default(false) @map("admin_events_enabled")
 
+  // Theming
+  theme Json? @default("{}") @map("theme")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -66,6 +69,8 @@ model Realm {
   clientScopes       ClientScope[]
   loginEvents        LoginEvent[]
   adminEvents        AdminEvent[]
+  userFederations    UserFederation[]
+  samlServiceProviders SamlServiceProvider[]
 
   @@map("realms")
 }
@@ -82,6 +87,8 @@ model User {
   lastName      String? @map("last_name")
   enabled       Boolean @default(true)
   passwordHash  String? @map("password_hash")
+
+  federationLink String? @map("federation_link")
 
   passwordChangedAt DateTime? @map("password_changed_at")
   lockedUntil       DateTime? @map("locked_until")
@@ -449,6 +456,9 @@ model IdentityProvider {
   linkOnly         Boolean @default(false) @map("link_only")
   syncUserProfile  Boolean @default(true)  @map("sync_user_profile")
 
+  // SAML broker config (for providerType="saml")
+  samlConfig Json? @map("saml_config")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -478,6 +488,33 @@ model FederatedIdentity {
   @@unique([identityProviderId, externalUserId])
   @@unique([userId, identityProviderId])
   @@map("federated_identities")
+}
+
+// ─── SAML SERVICE PROVIDERS (IdP mode) ──────────────────
+
+model SamlServiceProvider {
+  id          String  @id @default(uuid())
+  realmId     String  @map("realm_id")
+  entityId    String  @map("entity_id")
+  name        String
+  enabled     Boolean @default(true)
+
+  acsUrl              String   @map("acs_url")
+  sloUrl              String?  @map("slo_url")
+  certificate         String?
+  nameIdFormat        String   @default("urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress") @map("name_id_format")
+  signAssertions      Boolean  @default(true) @map("sign_assertions")
+  signResponses       Boolean  @default(true) @map("sign_responses")
+  attributeStatements Json     @default("{}") @map("attribute_statements")
+  validRedirectUris   String[] @map("valid_redirect_uris")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@unique([realmId, entityId])
+  @@map("saml_service_providers")
 }
 
 // ─── CLIENT SCOPES & PROTOCOL MAPPERS ──────────────────
@@ -584,6 +621,80 @@ model LoginEvent {
   @@index([realmId, type])
   @@index([realmId, userId])
   @@map("login_events")
+}
+
+// ─── USER FEDERATION ─────────────────────────────────────
+
+model UserFederation {
+  id              String  @id @default(uuid())
+  realmId         String  @map("realm_id")
+  name            String
+  providerType    String  @default("ldap") @map("provider_type")
+  enabled         Boolean @default(true)
+  priority        Int     @default(0)
+
+  // LDAP connection
+  connectionUrl      String  @map("connection_url")
+  bindDn             String  @map("bind_dn")
+  bindCredential     String  @map("bind_credential")
+  startTls           Boolean @default(false) @map("start_tls")
+  connectionTimeout  Int     @default(5000) @map("connection_timeout")
+
+  // LDAP search
+  usersDn            String  @map("users_dn")
+  userObjectClass    String  @default("inetOrgPerson") @map("user_object_class")
+  usernameLdapAttr   String  @default("uid") @map("username_ldap_attr")
+  rdnLdapAttr        String  @default("uid") @map("rdn_ldap_attr")
+  uuidLdapAttr       String  @default("entryUUID") @map("uuid_ldap_attr")
+  searchFilter       String? @map("search_filter")
+
+  // Sync
+  syncMode       String  @default("on_demand") @map("sync_mode")
+  syncPeriod     Int     @default(3600) @map("sync_period")
+  lastSyncAt     DateTime? @map("last_sync_at")
+  lastSyncStatus String?   @map("last_sync_status")
+  importEnabled  Boolean @default(true)  @map("import_enabled")
+  editMode       String  @default("READ_ONLY") @map("edit_mode")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  realm   Realm                  @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  mappers UserFederationMapper[]
+
+  @@unique([realmId, name])
+  @@map("user_federations")
+}
+
+model UserFederationMapper {
+  id            String  @id @default(uuid())
+  federationId  String  @map("federation_id")
+  name          String
+  mapperType    String  @map("mapper_type")
+  ldapAttribute String  @map("ldap_attribute")
+  userAttribute String  @map("user_attribute")
+  config        Json    @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  federation UserFederation @relation(fields: [federationId], references: [id], onDelete: Cascade)
+
+  @@unique([federationId, name])
+  @@map("user_federation_mappers")
+}
+
+// ─── PENDING ACTIONS (cluster-safe ephemeral state) ─────
+
+model PendingAction {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique @map("token_hash")
+  type      String   // "mfa_challenge" | "consent_request"
+  data      Json
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([expiresAt])
+  @@map("pending_actions")
 }
 
 // ─── ADMIN EVENTS ────────────────────────────────────────
