@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-unit-tests:
+    name: Lint & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit Tests
+        run: npm test -- --coverage --no-cache
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: authme_test
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: authme_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: postgresql://authme_test:test_password@localhost:5432/authme_test
+        run: npx prisma migrate deploy
+
+      - name: E2E Tests
+        env:
+          DATABASE_URL: postgresql://authme_test:test_password@localhost:5432/authme_test
+          ADMIN_API_KEY: test-admin-key
+          BASE_URL: http://localhost:3000
+          NODE_ENV: test
+        run: npm run test:e2e -- --no-cache
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint-and-unit-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - name: Build
+        run: npm run build
