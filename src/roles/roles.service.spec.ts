@@ -48,7 +48,7 @@ describe('RolesService', () => {
 
   describe('createRealmRole', () => {
     it('should create a realm role', async () => {
-      prisma.role.findUnique.mockResolvedValue(null);
+      prisma.role.findFirst.mockResolvedValue(null);
       prisma.role.create.mockResolvedValue(mockRole);
 
       const result = await service.createRealmRole(
@@ -68,7 +68,7 @@ describe('RolesService', () => {
     });
 
     it('should create a realm role without a description', async () => {
-      prisma.role.findUnique.mockResolvedValue(null);
+      prisma.role.findFirst.mockResolvedValue(null);
       prisma.role.create.mockResolvedValue({ ...mockRole, description: undefined });
 
       await service.createRealmRole(mockRealm, 'viewer');
@@ -83,7 +83,7 @@ describe('RolesService', () => {
     });
 
     it('should throw ConflictException when role already exists', async () => {
-      prisma.role.findUnique.mockResolvedValue(mockRole);
+      prisma.role.findFirst.mockResolvedValue(mockRole);
 
       await expect(
         service.createRealmRole(mockRealm, 'admin'),

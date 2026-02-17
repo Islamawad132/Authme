@@ -45,8 +45,10 @@ export function createMockPrismaService(): MockPrismaService {
       deleteMany: jest.fn(),
     },
     session: {
+      findMany: jest.fn(),
       create: jest.fn(),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
     },
     refreshToken: {
       findUnique: jest.fn(),
@@ -65,8 +67,10 @@ export function createMockPrismaService(): MockPrismaService {
     },
     loginSession: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
     },
     userConsent: {
       findUnique: jest.fn(),
@@ -90,9 +94,12 @@ export function createMockPrismaService(): MockPrismaService {
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
     },
     recoveryCode: {
+      findFirst: jest.fn(),
       findMany: jest.fn(),
+      create: jest.fn(),
       createMany: jest.fn(),
       deleteMany: jest.fn(),
       update: jest.fn(),
@@ -112,10 +119,24 @@ export function createMockPrismaService(): MockPrismaService {
     },
     group: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+    },
+    userGroup: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      createMany: jest.fn(),
+      upsert: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    groupRole: {
+      findMany: jest.fn(),
+      createMany: jest.fn(),
+      deleteMany: jest.fn(),
     },
     clientScope: {
       findUnique: jest.fn(),
@@ -136,13 +157,17 @@ export function createMockPrismaService(): MockPrismaService {
       findUnique: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
+      createMany: jest.fn(),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
     },
     clientOptionalScope: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
+      createMany: jest.fn(),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
     },
     deviceCode: {
       findUnique: jest.fn(),

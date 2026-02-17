@@ -70,6 +70,10 @@ describe('TokensService', () => {
     const backchannelLogoutService = {
       sendLogoutTokens: jest.fn().mockResolvedValue(undefined),
     };
+    const eventsService = {
+      recordLoginEvent: jest.fn().mockResolvedValue(undefined),
+      recordAdminEvent: jest.fn().mockResolvedValue(undefined),
+    };
     service = new TokensService(
       prisma as any,
       cryptoService as any,
@@ -77,6 +81,7 @@ describe('TokensService', () => {
       scopesService as any,
       blacklistService as any,
       backchannelLogoutService as any,
+      eventsService as any,
     );
   });
 
@@ -312,7 +317,7 @@ describe('TokensService', () => {
         tokenHash,
         sessionId: 'session-1',
         revoked: false,
-        session: { id: 'session-1' },
+        session: { id: 'session-1', userId: 'user-1' },
       });
       prisma.refreshToken.updateMany.mockResolvedValue({ count: 2 });
       prisma.session.delete.mockResolvedValue({});
@@ -325,7 +330,7 @@ describe('TokensService', () => {
         include: { session: true },
       });
       expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
-        where: { sessionId: 'session-1' },
+        where: { sessionId: 'session-1', isOffline: false },
         data: { revoked: true },
       });
       expect(prisma.session.delete).toHaveBeenCalledWith({

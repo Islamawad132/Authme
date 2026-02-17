@@ -139,9 +139,9 @@ describe('AuthService', () => {
     scopesService = createMockScopesService();
 
     const bruteForceService = {
-      checkLocked: jest.fn(),
-      recordFailure: jest.fn(),
-      resetFailures: jest.fn(),
+      checkLocked: jest.fn().mockReturnValue({ locked: false }),
+      recordFailure: jest.fn().mockResolvedValue(undefined),
+      resetFailures: jest.fn().mockResolvedValue(undefined),
     };
     const passwordPolicyService = {
       isExpired: jest.fn().mockReturnValue(false),
@@ -201,6 +201,7 @@ describe('AuthService', () => {
   /** Set up roles query to return empty arrays. */
   function setupEmptyRoles() {
     prisma.userRole.findMany.mockResolvedValue([]);
+    (prisma as any).userGroup.findMany.mockResolvedValue([]);
   }
 
   /** Set up session creation. */

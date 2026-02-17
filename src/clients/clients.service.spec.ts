@@ -64,6 +64,16 @@ describe('ClientsService', () => {
       seedDefaultScopes: jest.fn().mockResolvedValue(undefined),
     };
     prisma.clientScope.findFirst.mockResolvedValue(null);
+    prisma.clientScope.findMany.mockResolvedValue([
+      { id: 'scope-1', name: 'openid', realmId: 'realm-1' },
+      { id: 'scope-2', name: 'profile', realmId: 'realm-1' },
+      { id: 'scope-3', name: 'email', realmId: 'realm-1' },
+      { id: 'scope-4', name: 'roles', realmId: 'realm-1' },
+      { id: 'scope-5', name: 'web-origins', realmId: 'realm-1' },
+      { id: 'scope-6', name: 'offline_access', realmId: 'realm-1' },
+    ]);
+    (prisma.clientDefaultScope as any).createMany = jest.fn().mockResolvedValue({ count: 4 });
+    (prisma.clientOptionalScope as any).createMany = jest.fn().mockResolvedValue({ count: 2 });
     prisma.user.create.mockResolvedValue({ id: 'sa-user-1' });
     prisma.clientDefaultScope.create.mockResolvedValue({});
     prisma.clientOptionalScope.create.mockResolvedValue({});
