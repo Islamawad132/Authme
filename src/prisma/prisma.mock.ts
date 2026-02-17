@@ -193,6 +193,25 @@ export function createMockPrismaService(): MockPrismaService {
       delete: jest.fn(),
       deleteMany: jest.fn(),
     },
+    federatedIdentity: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
+    samlServiceProvider: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    userFederation: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
     $connect: jest.fn(),
     $disconnect: jest.fn(),
   } as any;
