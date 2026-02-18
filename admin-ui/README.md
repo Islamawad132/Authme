@@ -1,27 +1,38 @@
-# AuthMe Admin Console
+<p align="center">
+  <img src="https://authme.dev/logo.svg" alt="AuthMe" width="60" />
+</p>
 
-The web-based administration dashboard for AuthMe. Built with React 19, Vite 7, Tailwind CSS 4, and React Query.
+<h2 align="center">AuthMe Admin Console</h2>
+
+<p align="center">
+  <strong>Full-featured web dashboard for managing your AuthMe instance.</strong><br />
+  <sub>Built with React 19, Vite 7, Tailwind CSS 4, and React Query.</sub>
+</p>
+
+---
 
 ## Overview
 
-The Admin Console is a single-page application served at `/console` that provides full management of all AuthMe resources. It communicates with the backend via REST API using either an admin API key or credential-based JWT authentication.
+The Admin Console is a single-page application served at `/console` that provides complete management of all AuthMe resources. It communicates with the backend via REST API using either an admin API key or credential-based JWT authentication.
 
-### Pages
+### Capabilities
 
-| Area | Capabilities |
-|------|-------------|
+| Area | What You Can Do |
+|------|----------------|
 | **Dashboard** | Overview of realms, users, clients, and recent activity |
-| **Realms** | Create, configure, theme, import/export realms. Tabs: General, Tokens, Login, Email, Brute Force, Theme |
-| **Users** | CRUD, password reset, MFA management, role/group assignments, session viewer |
-| **Clients** | OAuth2 client management with settings, credentials, scope assignments, service account config |
-| **Roles** | Realm and client-level role management |
+| **Realms** | Create, configure, theme, import/export realms (General, Tokens, Login, Email, Brute Force, Theme) |
+| **Users** | Full CRUD, password reset, MFA management, role/group assignments, session viewer |
+| **Clients** | OAuth2 client management — settings, credentials, scope assignments, service account config |
+| **Roles** | Realm-level and client-level role management |
 | **Groups** | Hierarchical groups with member and role management |
 | **Client Scopes** | Scope definitions with protocol mapper configuration |
-| **Sessions** | View and revoke active user sessions |
-| **Events** | Login event log and admin action audit trail |
-| **Identity Providers** | Configure OIDC and SAML social login providers |
-| **User Federation** | LDAP directory sync configuration with test connection and sync triggers |
+| **Sessions** | View and revoke active user sessions across all clients |
+| **Events** | Login event log and admin action audit trail with filtering |
+| **Identity Providers** | Configure OIDC and SAML social login providers (Google, GitHub, Azure AD, etc.) |
+| **User Federation** | LDAP/AD directory sync configuration with test connection and sync triggers |
 | **SAML Providers** | SAML Service Provider registration for IdP mode |
+
+---
 
 ## Development
 
@@ -44,17 +55,21 @@ npm run build
 
 The dev server runs on `http://localhost:5173` and proxies `/admin`, `/auth`, `/realms`, `/health`, and `/metrics` to the backend at `http://localhost:3000`.
 
+---
+
 ## Tech Stack
 
 | Library | Purpose |
 |---------|---------|
 | **React 19** | UI framework |
 | **React Router 7** | Client-side routing |
-| **React Query (TanStack)** | Server state management, caching, mutations |
+| **TanStack React Query** | Server state management, caching, and mutations |
 | **Axios** | HTTP client with interceptors for auth headers |
 | **Tailwind CSS 4** | Utility-first styling |
 | **Vite 7** | Build tool and dev server |
 | **TypeScript 5.9** | Type safety |
+
+---
 
 ## Project Structure
 
@@ -100,15 +115,27 @@ admin-ui/src/
 └── index.css               # Tailwind imports
 ```
 
+---
+
 ## Authentication
 
 The console supports two login methods:
 
-1. **Admin API Key** — Stored in `sessionStorage` as `adminApiKey`, sent via `x-admin-api-key` header
-2. **Credentials** — Posts to `/auth/login` on the master realm, stores JWT in `sessionStorage` as `adminToken`, sent via `Authorization: Bearer` header
+1. **Admin API Key** — Stored in `sessionStorage` as `adminApiKey`, sent via the `x-admin-api-key` header
+2. **Admin Credentials** — Posts to `/auth/login` on the master realm, stores JWT in `sessionStorage` as `adminToken`, sent via `Authorization: Bearer` header
 
-Both are configured in [useAuth.ts](src/hooks/useAuth.ts) and applied to all requests via Axios interceptors in the API client files.
+Both methods are configured in `useAuth.ts` and applied to all requests via Axios interceptors.
 
-## Build Output
+---
 
-Running `npm run build` outputs to `dist/`, which is copied to the backend's `dist/admin-ui/` directory during the full project build. The NestJS server then serves it as a static SPA at `/console`.
+## Build & Deployment
+
+Running `npm run build` outputs to `dist/`. During the full project build (`npm run build:all` from the root), this directory is copied to `dist/admin-ui/` in the backend. The NestJS server then serves it as a static SPA at `/console`.
+
+In Docker, the multi-stage build handles this automatically — the admin console is built and bundled into the final production image.
+
+---
+
+<p align="center">
+  Part of <a href="https://authme.dev">AuthMe</a> — Open-source Identity & Access Management
+</p>

@@ -1,8 +1,15 @@
-# authme-sdk
+<p align="center">
+  <img src="https://authme.dev/logo.svg" alt="AuthMe" width="60" />
+</p>
 
-Client SDK for [AuthMe](https://github.com/Islamawad132/Authme) — an open-source Identity and Access Management server.
+<h2 align="center">authme-sdk</h2>
 
-Handles OAuth 2.0 Authorization Code + PKCE flow, token management, auto-refresh, and provides React bindings. Zero runtime dependencies.
+<p align="center">
+  <strong>Official client SDK for <a href="https://authme.dev">AuthMe</a></strong><br />
+  <sub>Zero-dependency TypeScript SDK with OAuth 2.0 PKCE, token management, and React bindings.</sub>
+</p>
+
+---
 
 ## Install
 
@@ -86,6 +93,8 @@ function Main() {
 }
 ```
 
+---
+
 ## API Reference
 
 ### `AuthmeClient`
@@ -102,43 +111,45 @@ new AuthmeClient(config: AuthmeConfig)
 | `realm` | `string` | *required* | Realm name |
 | `clientId` | `string` | *required* | OAuth2 client ID (PUBLIC client) |
 | `redirectUri` | `string` | *required* | Callback URL after login |
-| `scopes` | `string[]` | `['openid', 'profile', 'email']` | OAuth2 scopes |
-| `storage` | `'sessionStorage' \| 'localStorage' \| 'memory'` | `'sessionStorage'` | Token storage |
-| `autoRefresh` | `boolean` | `true` | Auto-refresh tokens before expiry |
-| `refreshBuffer` | `number` | `30` | Seconds before expiry to refresh |
+| `scopes` | `string[]` | `['openid', 'profile', 'email']` | OAuth2 scopes to request |
+| `storage` | `'sessionStorage' \| 'localStorage' \| 'memory'` | `'sessionStorage'` | Where to persist tokens |
+| `autoRefresh` | `boolean` | `true` | Automatically refresh tokens before expiry |
+| `refreshBuffer` | `number` | `30` | Seconds before expiry to trigger refresh |
 | `postLogoutRedirectUri` | `string` | — | URL to redirect after logout |
 
 #### Methods
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `init()` | `Promise<boolean>` | Initialize client, restore session. Returns `true` if authenticated. |
+| `init()` | `Promise<boolean>` | Initialize client, restore session. Returns `true` if authenticated |
 | `login(options?)` | `Promise<void>` | Redirect to AuthMe login page |
 | `handleCallback(url?)` | `Promise<boolean>` | Exchange authorization code for tokens |
-| `logout()` | `Promise<void>` | Clear tokens and call server logout |
+| `logout()` | `Promise<void>` | Clear tokens and call server logout endpoint |
 | `getAccessToken()` | `string \| null` | Current access token (null if expired) |
 | `getTokenClaims()` | `TokenClaims \| null` | Parsed access token JWT payload |
 | `getIdTokenClaims()` | `TokenClaims \| null` | Parsed ID token JWT payload |
-| `isAuthenticated()` | `boolean` | Whether user has a valid access token |
-| `fetchUserInfo()` | `Promise<UserInfo \| null>` | Fetch user info from server |
+| `isAuthenticated()` | `boolean` | Whether user has a valid, non-expired access token |
+| `fetchUserInfo()` | `Promise<UserInfo \| null>` | Fetch user info from the server UserInfo endpoint |
 | `getUserInfo()` | `UserInfo \| null` | Cached user info (from ID token or last fetch) |
-| `hasRealmRole(role)` | `boolean` | Check realm role |
-| `hasClientRole(clientId, role)` | `boolean` | Check client role |
-| `getRealmRoles()` | `string[]` | All realm roles |
-| `getClientRoles(clientId)` | `string[]` | All client roles |
-| `refreshTokens()` | `Promise<TokenResponse>` | Manually refresh tokens |
-| `on(event, handler)` | `void` | Subscribe to events |
-| `off(event, handler)` | `void` | Unsubscribe from events |
+| `hasRealmRole(role)` | `boolean` | Check if user has a realm-level role |
+| `hasClientRole(clientId, role)` | `boolean` | Check if user has a client-level role |
+| `getRealmRoles()` | `string[]` | All realm roles for the current user |
+| `getClientRoles(clientId)` | `string[]` | All client roles for a specific client |
+| `refreshTokens()` | `Promise<TokenResponse>` | Manually trigger a token refresh |
+| `on(event, handler)` | `void` | Subscribe to SDK events |
+| `off(event, handler)` | `void` | Unsubscribe from SDK events |
 
 #### Events
 
-| Event | Payload | When |
-|-------|---------|------|
+| Event | Payload | Fires When |
+|-------|---------|------------|
 | `authenticated` | `TokenResponse` | After successful login or callback |
-| `logout` | — | After logout |
-| `tokenRefreshed` | `TokenResponse` | After silent token refresh |
-| `error` | `Error` | On any auth error |
-| `ready` | `boolean` | After `init()` completes (true if authenticated) |
+| `logout` | — | After logout completes |
+| `tokenRefreshed` | `TokenResponse` | After a silent token refresh |
+| `error` | `Error` | On any authentication error |
+| `ready` | `boolean` | After `init()` completes (`true` if authenticated) |
+
+---
 
 ### React Hooks
 
@@ -148,12 +159,23 @@ new AuthmeClient(config: AuthmeConfig)
 const { isAuthenticated, isLoading, login, logout, token, client } = useAuthme();
 ```
 
+| Property | Type | Description |
+|----------|------|-------------|
+| `isAuthenticated` | `boolean` | Whether the user is logged in |
+| `isLoading` | `boolean` | `true` during initialization |
+| `login` | `(options?) => Promise<void>` | Trigger login redirect |
+| `logout` | `() => Promise<void>` | Trigger logout |
+| `token` | `string \| null` | Current access token |
+| `client` | `AuthmeClient` | Underlying SDK client instance |
+
 #### `useUser()`
 
 ```typescript
 const user = useUser();
 // user?.sub, user?.name, user?.email, user?.preferred_username, etc.
 ```
+
+Returns the current user's profile information parsed from the ID token, or `null` if not authenticated.
 
 #### `useRoles()`
 
@@ -166,20 +188,24 @@ realmRoles;                      // string[]
 getClientRoles('my-app');        // string[]
 ```
 
+---
+
 ## AuthMe Client Setup
 
 For the SDK to work, you need a **PUBLIC** client registered in AuthMe:
 
-1. Open the AuthMe Admin Console
-2. Go to your realm > Clients > Create
+1. Open the AuthMe Admin Console at `/console`
+2. Navigate to your realm > **Clients** > **Create**
 3. Set **Client Type** to `PUBLIC`
-4. Add your app's URL to **Redirect URIs** (e.g. `http://localhost:5173/callback`)
-5. Add your app's origin to **Web Origins** (e.g. `http://localhost:5173`)
+4. Add your app's URL to **Redirect URIs** (e.g., `http://localhost:5173/callback`)
+5. Add your app's origin to **Web Origins** (e.g., `http://localhost:5173`)
 6. Enable the `authorization_code` and `refresh_token` grant types
 
-## Using Generic OIDC Libraries
+---
 
-Since AuthMe implements standard OpenID Connect, you can also use generic OIDC client libraries:
+## Works with Any OIDC Library
+
+AuthMe implements standard OpenID Connect, so it works out of the box with any compliant client library.
 
 ### With `oidc-client-ts` + `react-oidc-context`
 
@@ -240,6 +266,14 @@ export const { handlers, auth } = NextAuth({
 });
 ```
 
+---
+
 ## License
 
 MIT
+
+---
+
+<p align="center">
+  Part of <a href="https://authme.dev">AuthMe</a> — Open-source Identity & Access Management
+</p>
