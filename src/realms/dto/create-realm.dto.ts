@@ -130,6 +130,12 @@ export class CreateRealmDto {
   @Min(0)
   permanentLockoutAfter?: number;
 
+  // Registration
+  @ApiPropertyOptional({ default: true, description: 'Allow self-service user registration' })
+  @IsOptional()
+  @IsBoolean()
+  registrationAllowed?: boolean;
+
   // Email verification
   @ApiPropertyOptional({ default: false, description: 'Require email verification before login' })
   @IsOptional()

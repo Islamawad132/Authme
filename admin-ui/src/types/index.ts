@@ -25,6 +25,8 @@ export interface Realm {
   lockoutDuration: number;
   failureResetTime: number;
   permanentLockoutAfter: number;
+  // Registration
+  registrationAllowed: boolean;
   // MFA
   mfaRequired: boolean;
   // Offline tokens

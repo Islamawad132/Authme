@@ -68,6 +68,7 @@ export class LoginController {
   ) {
     this.themeRender.render(res, realm, 'login', 'login', {
       pageTitle: 'Sign In',
+      registrationAllowed: realm.registrationAllowed,
       client_id: query['client_id'] ?? '',
       redirect_uri: query['redirect_uri'] ?? '',
       response_type: query['response_type'] ?? '',
@@ -494,6 +495,12 @@ export class LoginController {
     @Query() query: Record<string, string>,
     @Res() res: Response,
   ) {
+    if (!realm.registrationAllowed) {
+      return res.redirect(
+        `/realms/${realm.name}/login?error=${encodeURIComponent('Registration is not allowed for this realm.')}`,
+      );
+    }
+
     const hints: string[] = [];
     if (realm.passwordMinLength > 1) hints.push(`at least ${realm.passwordMinLength} characters`);
     if (realm.passwordRequireUppercase) hints.push('an uppercase letter');
@@ -520,6 +527,12 @@ export class LoginController {
     @Body() body: Record<string, string>,
     @Res() res: Response,
   ) {
+    if (!realm.registrationAllowed) {
+      return res.redirect(
+        `/realms/${realm.name}/login?error=${encodeURIComponent('Registration is not allowed for this realm.')}`,
+      );
+    }
+
     const username = (body['username'] ?? '').trim();
     const email = (body['email'] ?? '').trim();
     const firstName = (body['firstName'] ?? '').trim();

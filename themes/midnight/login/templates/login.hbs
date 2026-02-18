@@ -37,6 +37,8 @@
   <button type="submit" class="btn-primary">{{msg "loginSignIn"}}</button>
 </form>
 
+{{#if registrationAllowed}}
 <div class="auth-footer-link">
   <a href="/realms/{{realmName}}/register">{{msg "loginNoAccount"}}</a>
 </div>
+{{/if}}

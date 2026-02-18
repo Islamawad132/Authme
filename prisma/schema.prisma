@@ -40,6 +40,9 @@ model Realm {
   failureResetTime      Int     @default(600)   @map("failure_reset_time")
   permanentLockoutAfter Int     @default(0)     @map("permanent_lockout_after")
 
+  // Registration
+  registrationAllowed Boolean @default(true) @map("registration_allowed")
+
   // Email verification
   requireEmailVerification Boolean @default(false) @map("require_email_verification")
 
