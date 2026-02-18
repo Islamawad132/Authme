@@ -201,13 +201,10 @@ export class AccountController {
       return res.redirect(`/realms/${realm.name}/account/totp-setup?error=${encodeURIComponent('Please enter the verification code.')}`);
     }
 
-    const activated = await this.mfaService.verifyAndActivateTotp(user.id, code);
-    if (!activated) {
+    const recoveryCodes = await this.mfaService.verifyAndActivateTotp(user.id, code);
+    if (!recoveryCodes) {
       return res.redirect(`/realms/${realm.name}/account/totp-setup?error=${encodeURIComponent('Invalid code. Please try again.')}`);
     }
-
-    // Fetch recovery codes to display
-    const recoveryCodes = await this.mfaService.generateRecoveryCodes(user.id);
 
     this.themeRender.render(res, realm, 'account', 'totp-setup', {
       pageTitle: 'Two-Factor Authentication Enabled',

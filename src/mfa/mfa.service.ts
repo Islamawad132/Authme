@@ -54,12 +54,12 @@ export class MfaService {
     };
   }
 
-  async verifyAndActivateTotp(userId: string, code: string): Promise<boolean> {
+  async verifyAndActivateTotp(userId: string, code: string): Promise<string[] | null> {
     const credential = await this.prisma.userCredential.findUnique({
       where: { userId_type: { userId, type: 'totp' } },
     });
 
-    if (!credential || credential.verified) return false;
+    if (!credential || credential.verified) return null;
 
     const totp = new OTPAuth.TOTP({
       secret: OTPAuth.Secret.fromBase32(credential.secretKey),
@@ -69,16 +69,15 @@ export class MfaService {
     });
 
     const delta = totp.validate({ token: code, window: 1 });
-    if (delta === null) return false;
+    if (delta === null) return null;
 
     await this.prisma.userCredential.update({
       where: { id: credential.id },
       data: { verified: true },
     });
 
-    // Generate recovery codes
-    const recoveryCodes = await this.generateRecoveryCodes(userId);
-    return true;
+    // Generate and return recovery codes (single generation point)
+    return this.generateRecoveryCodes(userId);
   }
 
   async verifyTotp(userId: string, code: string): Promise<boolean> {
@@ -153,6 +152,8 @@ export class MfaService {
     return this.isMfaEnabled(userId);
   }
 
+  private static readonly MAX_MFA_ATTEMPTS = 5;
+
   async createMfaChallenge(
     userId: string,
     realmId: string,
@@ -165,7 +166,7 @@ export class MfaService {
       data: {
         tokenHash,
         type: 'mfa_challenge',
-        data: { userId, realmId, oauthParams } as any,
+        data: { userId, realmId, oauthParams, attempts: 0 } as any,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 min TTL
       },
     });
@@ -193,6 +194,52 @@ export class MfaService {
 
     const data = action.data as any;
     return { userId: data.userId, realmId: data.realmId, oauthParams: data.oauthParams };
+  }
+
+  /**
+   * Validates the challenge without consuming it, increments attempt counter.
+   * Returns null if challenge is invalid, expired, or max attempts exceeded.
+   */
+  async validateMfaChallengeWithAttemptCheck(
+    challengeToken: string,
+  ): Promise<{ userId: string; realmId: string; oauthParams?: Record<string, string> } | null> {
+    const tokenHash = this.crypto.sha256(challengeToken);
+
+    const action = await this.prisma.pendingAction.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!action || action.type !== 'mfa_challenge') return null;
+    if (action.expiresAt < new Date()) {
+      await this.prisma.pendingAction.delete({ where: { id: action.id } });
+      return null;
+    }
+
+    const data = action.data as any;
+    const attempts = (data.attempts ?? 0) + 1;
+
+    if (attempts > MfaService.MAX_MFA_ATTEMPTS) {
+      // Too many attempts — delete challenge and force re-authentication
+      await this.prisma.pendingAction.delete({ where: { id: action.id } });
+      this.logger.warn(`MFA challenge exceeded max attempts for user ${data.userId}`);
+      return null;
+    }
+
+    // Update attempt counter (keep the challenge alive for retries)
+    await this.prisma.pendingAction.update({
+      where: { id: action.id },
+      data: { data: { ...data, attempts } as any },
+    });
+
+    return { userId: data.userId, realmId: data.realmId, oauthParams: data.oauthParams };
+  }
+
+  /**
+   * Consumes (deletes) a challenge token after successful verification.
+   */
+  async consumeMfaChallenge(challengeToken: string): Promise<void> {
+    const tokenHash = this.crypto.sha256(challengeToken);
+    await this.prisma.pendingAction.delete({ where: { tokenHash } }).catch(() => {});
   }
 
   @Interval(60_000)

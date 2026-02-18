@@ -269,13 +269,12 @@ export class LoginController {
       return res.redirect(`/realms/${realm.name}/login?error=${encodeURIComponent('MFA session expired. Please login again.')}`);
     }
 
-    const challenge = await this.mfaService.validateMfaChallenge(challengeToken);
+    // Validate challenge and track attempt count (does not consume the challenge)
+    const challenge = await this.mfaService.validateMfaChallengeWithAttemptCheck(challengeToken);
     if (!challenge) {
-      return res.redirect(`/realms/${realm.name}/login?error=${encodeURIComponent('MFA session expired. Please login again.')}`);
+      res.clearCookie('AUTHME_MFA_CHALLENGE', { path: `/realms/${realm.name}` });
+      return res.redirect(`/realms/${realm.name}/login?error=${encodeURIComponent('MFA session expired or too many failed attempts. Please login again.')}`);
     }
-
-    // Clear the MFA challenge cookie
-    res.clearCookie('AUTHME_MFA_CHALLENGE', { path: `/realms/${realm.name}` });
 
     const code = body['code'];
     const recoveryCode = body['recoveryCode'];
@@ -295,21 +294,13 @@ export class LoginController {
         ipAddress: req.ip,
         error: 'Invalid MFA code',
       });
-      // Re-create challenge for retry
-      const newToken = await this.mfaService.createMfaChallenge(
-        challenge.userId,
-        challenge.realmId,
-        challenge.oauthParams,
-      );
-      res.cookie('AUTHME_MFA_CHALLENGE', newToken, {
-        httpOnly: true,
-        secure: process.env['NODE_ENV'] === 'production',
-        sameSite: 'lax',
-        maxAge: 5 * 60 * 1000,
-        path: `/realms/${realm.name}`,
-      });
+      // Same challenge token is reused — attempt counter was already incremented
       return res.redirect(`/realms/${realm.name}/totp?error=${encodeURIComponent('Invalid code. Please try again.')}`);
     }
+
+    // MFA verified — consume the challenge and clear the cookie
+    await this.mfaService.consumeMfaChallenge(challengeToken);
+    res.clearCookie('AUTHME_MFA_CHALLENGE', { path: `/realms/${realm.name}` });
 
     // MFA verified — complete login
     const user = await this.loginService.findUserById(challenge.userId);
