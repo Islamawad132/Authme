@@ -137,15 +137,15 @@ describe('MfaService', () => {
       verified: false,
     };
 
-    it('should return false when credential is not found', async () => {
+    it('should return null when credential is not found', async () => {
       prisma.userCredential.findUnique.mockResolvedValue(null);
 
       const result = await service.verifyAndActivateTotp('user-1', '123456');
 
-      expect(result).toBe(false);
+      expect(result).toBeNull();
     });
 
-    it('should return false when credential is already verified', async () => {
+    it('should return null when credential is already verified', async () => {
       prisma.userCredential.findUnique.mockResolvedValue({
         ...unverifiedCredential,
         verified: true,
@@ -153,10 +153,10 @@ describe('MfaService', () => {
 
       const result = await service.verifyAndActivateTotp('user-1', '123456');
 
-      expect(result).toBe(false);
+      expect(result).toBeNull();
     });
 
-    it('should return false when TOTP code is invalid', async () => {
+    it('should return null when TOTP code is invalid', async () => {
       prisma.userCredential.findUnique.mockResolvedValue(unverifiedCredential as any);
 
       // Make validate return null (invalid token)
@@ -167,11 +167,11 @@ describe('MfaService', () => {
 
       const result = await service.verifyAndActivateTotp('user-1', 'bad-code');
 
-      expect(result).toBe(false);
+      expect(result).toBeNull();
       expect(prisma.userCredential.update).not.toHaveBeenCalled();
     });
 
-    it('should mark credential as verified when code is valid', async () => {
+    it('should mark credential as verified and return recovery codes when code is valid', async () => {
       prisma.userCredential.findUnique.mockResolvedValue(unverifiedCredential as any);
       prisma.userCredential.update.mockResolvedValue({} as any);
       (prisma.recoveryCode as any).deleteMany.mockResolvedValue({} as any);
@@ -185,7 +185,8 @@ describe('MfaService', () => {
 
       const result = await service.verifyAndActivateTotp('user-1', '123456');
 
-      expect(result).toBe(true);
+      expect(result).toBeInstanceOf(Array);
+      expect(result).toHaveLength(10);
       expect(prisma.userCredential.update).toHaveBeenCalledWith({
         where: { id: 'cred-1' },
         data: { verified: true },
@@ -577,14 +578,14 @@ describe('MfaService', () => {
       });
     });
 
-    it('should store userId, realmId, and oauthParams in data field', async () => {
+    it('should store userId, realmId, oauthParams, and attempts=0 in data field', async () => {
       const oauthParams = { redirect_uri: 'http://localhost', state: 'abc' };
 
       await service.createMfaChallenge('user-1', 'realm-1', oauthParams);
 
       expect(prisma.pendingAction.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          data: { userId: 'user-1', realmId: 'realm-1', oauthParams },
+          data: { userId: 'user-1', realmId: 'realm-1', oauthParams, attempts: 0 },
         }),
       });
     });
@@ -625,7 +626,7 @@ describe('MfaService', () => {
 
       expect(prisma.pendingAction.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          data: { userId: 'user-1', realmId: 'realm-1', oauthParams: undefined },
+          data: { userId: 'user-1', realmId: 'realm-1', oauthParams: undefined, attempts: 0 },
         }),
       });
     });
@@ -726,6 +727,107 @@ describe('MfaService', () => {
         realmId: 'realm-1',
         oauthParams: undefined,
       });
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────────────
+  // validateMfaChallengeWithAttemptCheck
+  // ────────────────────────────────────────────────────────────────────
+  describe('validateMfaChallengeWithAttemptCheck', () => {
+    it('should return null when no action is found', async () => {
+      prisma.pendingAction.findUnique.mockResolvedValue(null);
+
+      const result = await service.validateMfaChallengeWithAttemptCheck('some-token');
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null and delete when expired', async () => {
+      prisma.pendingAction.findUnique.mockResolvedValue({
+        id: 'action-1',
+        type: 'mfa_challenge',
+        data: { userId: 'user-1', realmId: 'realm-1', attempts: 0 },
+        expiresAt: new Date(Date.now() - 60_000),
+      } as any);
+      prisma.pendingAction.delete.mockResolvedValue({} as any);
+
+      const result = await service.validateMfaChallengeWithAttemptCheck('some-token');
+
+      expect(result).toBeNull();
+      expect(prisma.pendingAction.delete).toHaveBeenCalledWith({ where: { id: 'action-1' } });
+    });
+
+    it('should increment attempt counter and return challenge data', async () => {
+      prisma.pendingAction.findUnique.mockResolvedValue({
+        id: 'action-1',
+        type: 'mfa_challenge',
+        data: { userId: 'user-1', realmId: 'realm-1', attempts: 2 },
+        expiresAt: new Date(Date.now() + 60_000),
+      } as any);
+      prisma.pendingAction.update.mockResolvedValue({} as any);
+
+      const result = await service.validateMfaChallengeWithAttemptCheck('some-token');
+
+      expect(result).toEqual({
+        userId: 'user-1',
+        realmId: 'realm-1',
+        oauthParams: undefined,
+      });
+      expect(prisma.pendingAction.update).toHaveBeenCalledWith({
+        where: { id: 'action-1' },
+        data: { data: { userId: 'user-1', realmId: 'realm-1', attempts: 3 } },
+      });
+    });
+
+    it('should return null and delete when attempts exceed max (5)', async () => {
+      prisma.pendingAction.findUnique.mockResolvedValue({
+        id: 'action-1',
+        type: 'mfa_challenge',
+        data: { userId: 'user-1', realmId: 'realm-1', attempts: 5 },
+        expiresAt: new Date(Date.now() + 60_000),
+      } as any);
+      prisma.pendingAction.delete.mockResolvedValue({} as any);
+
+      const result = await service.validateMfaChallengeWithAttemptCheck('some-token');
+
+      expect(result).toBeNull();
+      expect(prisma.pendingAction.delete).toHaveBeenCalledWith({ where: { id: 'action-1' } });
+    });
+
+    it('should allow up to 5 attempts (attempt 5 succeeds, 6 fails)', async () => {
+      // Attempt 5 (incremented from 4 to 5) should still work
+      prisma.pendingAction.findUnique.mockResolvedValue({
+        id: 'action-1',
+        type: 'mfa_challenge',
+        data: { userId: 'user-1', realmId: 'realm-1', attempts: 4 },
+        expiresAt: new Date(Date.now() + 60_000),
+      } as any);
+      prisma.pendingAction.update.mockResolvedValue({} as any);
+
+      const result = await service.validateMfaChallengeWithAttemptCheck('some-token');
+
+      expect(result).not.toBeNull();
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────────────
+  // consumeMfaChallenge
+  // ────────────────────────────────────────────────────────────────────
+  describe('consumeMfaChallenge', () => {
+    it('should delete the pending action by tokenHash', async () => {
+      prisma.pendingAction.delete.mockResolvedValue({} as any);
+
+      await service.consumeMfaChallenge('some-token');
+
+      expect(prisma.pendingAction.delete).toHaveBeenCalledWith({
+        where: { tokenHash: 'hashed_some-token' },
+      });
+    });
+
+    it('should not throw when action does not exist', async () => {
+      prisma.pendingAction.delete.mockRejectedValue(new Error('Not found'));
+
+      await expect(service.consumeMfaChallenge('nonexistent')).resolves.toBeUndefined();
     });
   });
 

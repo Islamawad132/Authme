@@ -159,9 +159,10 @@ export class AuthService {
       throw new BadRequestException('mfa_token and otp are required');
     }
 
-    const challenge = await this.mfaService.validateMfaChallenge(mfa_token);
+    // Validate with attempt tracking (does not consume the challenge)
+    const challenge = await this.mfaService.validateMfaChallengeWithAttemptCheck(mfa_token);
     if (!challenge) {
-      throw new UnauthorizedException('Invalid or expired MFA token');
+      throw new UnauthorizedException('Invalid or expired MFA token, or too many failed attempts');
     }
 
     const verified = await this.mfaService.verifyTotp(challenge.userId, otp);
@@ -173,6 +174,9 @@ export class AuthService {
         throw new UnauthorizedException('Invalid OTP code');
       }
     }
+
+    // MFA verified — consume the challenge
+    await this.mfaService.consumeMfaChallenge(mfa_token);
 
     const user = await this.prisma.user.findUnique({
       where: { id: challenge.userId },
@@ -466,6 +470,20 @@ export class AuthService {
     });
     if (!user) {
       throw new UnauthorizedException('User not found');
+    }
+
+    // Check MFA — device code flow does not support interactive MFA
+    const mfaEnabled = await this.mfaService.isMfaEnabled(user.id);
+    if (mfaEnabled) {
+      throw new BadRequestException(
+        'MFA verification required. Device code grant does not support MFA. Use authorization_code grant instead.',
+      );
+    }
+    const mfaRequired = await this.mfaService.isMfaRequired(realm, user.id);
+    if (mfaRequired) {
+      throw new BadRequestException(
+        'MFA setup required. Use authorization_code grant to complete MFA setup.',
+      );
     }
 
     // Clean up the device code

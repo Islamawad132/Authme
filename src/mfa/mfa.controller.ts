@@ -21,7 +21,7 @@ export class MfaController {
   @ApiOperation({ summary: 'Check if user has MFA enabled' })
   async getMfaStatus(@Param('userId') userId: string) {
     const enabled = await this.mfaService.isMfaEnabled(userId);
-    return { mfaEnabled: enabled };
+    return { enabled };
   }
 
   @Delete()

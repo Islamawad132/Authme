@@ -27,20 +27,20 @@ describe('MfaController', () => {
       expect(mockMfaService.isMfaEnabled).toHaveBeenCalledWith('user-1');
     });
 
-    it('should return { mfaEnabled: true } when MFA is enabled', async () => {
+    it('should return { enabled: true } when MFA is enabled', async () => {
       mockMfaService.isMfaEnabled.mockResolvedValue(true);
 
       const result = await controller.getMfaStatus('user-1');
 
-      expect(result).toEqual({ mfaEnabled: true });
+      expect(result).toEqual({ enabled: true });
     });
 
-    it('should return { mfaEnabled: false } when MFA is disabled', async () => {
+    it('should return { enabled: false } when MFA is disabled', async () => {
       mockMfaService.isMfaEnabled.mockResolvedValue(false);
 
       const result = await controller.getMfaStatus('user-2');
 
-      expect(result).toEqual({ mfaEnabled: false });
+      expect(result).toEqual({ enabled: false });
     });
   });
 
