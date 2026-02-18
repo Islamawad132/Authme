@@ -35,7 +35,7 @@
   <code style="font-size: 0.9rem; font-weight: 600; letter-spacing: 0.1rem; color: #06b6d4;">{{secret}}</code>
 </div>
 
-<form method="POST" action="/realms/{{realmName}}/account/totp-verify" class="auth-form">
+<form method="POST" action="/realms/{{realmName}}/account/totp-setup" class="auth-form">
   <div class="form-group">
     <label for="code">{{msg "totpSetupVerifyLabel"}}</label>
     <input type="text" id="code" name="code" pattern="[0-9]{6}" maxlength="6" inputmode="numeric" required autofocus
