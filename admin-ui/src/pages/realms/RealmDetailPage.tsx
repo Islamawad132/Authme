@@ -63,6 +63,7 @@ export default function RealmDetailPage() {
   const [form, setForm] = useState({
     displayName: '',
     enabled: true,
+    registrationAllowed: true,
     accessTokenLifespan: 300,
     refreshTokenLifespan: 1800,
     offlineTokenLifespan: 2592000,
@@ -104,6 +105,7 @@ export default function RealmDetailPage() {
       setForm({
         displayName: realm.displayName ?? '',
         enabled: realm.enabled,
+        registrationAllowed: realm.registrationAllowed ?? true,
         accessTokenLifespan: realm.accessTokenLifespan,
         refreshTokenLifespan: realm.refreshTokenLifespan,
         offlineTokenLifespan: realm.offlineTokenLifespan ?? 2592000,
@@ -316,6 +318,22 @@ export default function RealmDetailPage() {
               <label htmlFor="enabled" className="text-sm font-medium text-gray-700">
                 Enabled
               </label>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="registrationAllowed"
+                  checked={form.registrationAllowed}
+                  onChange={(e) => setForm({ ...form, registrationAllowed: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="registrationAllowed" className="text-sm font-medium text-gray-700">
+                  User Registration
+                </label>
+              </div>
+              <p className="mt-1 ml-6 text-xs text-gray-400">When disabled, users cannot self-register. Only admins can create accounts.</p>
             </div>
 
             {updateMutation.isSuccess && (

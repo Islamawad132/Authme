@@ -38,6 +38,8 @@
   <button type="submit" class="btn-primary">{{msg "loginSignIn"}}</button>
 </form>
 
+{{#if registrationAllowed}}
 <div style="text-align: center; margin-top: 1rem;">
   <a href="/realms/{{realmName}}/register" style="color: var(--primary-color); text-decoration: none; font-size: 0.85rem;">{{msg "loginNoAccount"}}</a>
 </div>
+{{/if}}
