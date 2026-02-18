@@ -157,7 +157,7 @@ export async function createTestApp(): Promise<TestContext> {
         clients: {
           create: {
             clientId: 'test-client',
-            clientSecret: 'test-client-secret',
+            clientSecret: clientSecretHash,
             clientType: 'CONFIDENTIAL',
             name: 'Test Client',
             enabled: true,
@@ -173,8 +173,9 @@ export async function createTestApp(): Promise<TestContext> {
       },
     });
 
-    // Hash the password with argon2 for the test user
+    // Hash secrets with argon2
     const argon2 = await import('argon2');
+    const clientSecretHash = await argon2.hash('test-client-secret');
     const passwordHash = await argon2.hash('TestPassword123!');
 
     const user = await prisma.user.create({
