@@ -88,12 +88,50 @@ Most identity solutions are either too complex to self-host (Keycloak — 1GB+ R
 
 ## Quick Start
 
-### Docker Compose (Recommended)
+### Docker Hub (Recommended)
 
 ```bash
-git clone https://github.com/Islamawad132/Authme.git
-cd Authme
-cp .env.example .env
+docker pull islamawad/authme:latest
+```
+
+Create a `docker-compose.yml`:
+
+```yaml
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: authme
+      POSTGRES_PASSWORD: authme
+      POSTGRES_DB: authme
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authme"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    image: islamawad/authme:latest
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://authme:authme@db:5432/authme
+      ADMIN_API_KEY: change-me-in-production
+      BASE_URL: http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+```
+
+```bash
 docker compose up -d
 ```
 
@@ -375,7 +413,8 @@ Authme/
 ├── themes/                 # Login/account page themes (Handlebars)
 ├── prisma/                 # Database schema & migrations
 ├── test/                   # E2E tests
-├── docker-compose.yml      # Production deployment
+├── docker-compose.yml      # Production (pulls from Docker Hub)
+├── docker-compose.dev.yml  # Development (builds from source)
 ├── docker-compose.cluster.yml  # Multi-instance with Nginx LB
 └── Dockerfile              # Multi-stage production build
 ```
@@ -412,10 +451,16 @@ npm run db:setup          # Generate + migrate + seed
 
 ## Deployment
 
-### Docker (Production)
+### Docker Hub
 
 ```bash
-docker compose up -d --build
+docker compose up -d
+```
+
+### Build from Source (Docker)
+
+```bash
+docker compose -f docker-compose.dev.yml up -d --build
 ```
 
 ### Horizontal Scaling
