@@ -91,47 +91,7 @@ Most identity solutions are either too complex to self-host (Keycloak — 1GB+ R
 ### Docker Hub (Recommended)
 
 ```bash
-docker pull islamawad/authme:latest
-```
-
-Create a `docker-compose.yml`:
-
-```yaml
-version: "3.8"
-
-services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: authme
-      POSTGRES_PASSWORD: authme
-      POSTGRES_DB: authme
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U authme"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-  app:
-    image: islamawad/authme:latest
-    ports:
-      - "3000:3000"
-    environment:
-      DATABASE_URL: postgresql://authme:authme@db:5432/authme
-      ADMIN_API_KEY: change-me-in-production
-      BASE_URL: http://localhost:3000
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-
-volumes:
-  pgdata:
-```
-
-```bash
+curl -o docker-compose.yml https://raw.githubusercontent.com/Islamawad132/Authme/main/docker-compose.yml
 docker compose up -d
 ```
 
