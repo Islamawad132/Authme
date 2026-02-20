@@ -190,6 +190,257 @@ getClientRoles('my-app');        // string[]
 
 ---
 
+## Backend Integration
+
+The SDK handles frontend authentication. To **protect your backend API routes**, you need to validate the access tokens issued by AuthMe.
+
+### NestJS Guard
+
+```typescript
+// auth/authme.guard.ts
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+
+const AUTHME_URL = 'http://localhost:3000';
+const REALM = 'my-realm';
+
+const JWKS = createRemoteJWKSet(
+  new URL(`${AUTHME_URL}/realms/${REALM}/protocol/openid-connect/certs`),
+);
+
+@Injectable()
+export class AuthmeGuard implements CanActivate {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const token = request.headers.authorization?.replace('Bearer ', '');
+
+    if (!token) throw new UnauthorizedException('Missing token');
+
+    try {
+      const { payload } = await jwtVerify(token, JWKS, {
+        issuer: `${AUTHME_URL}/realms/${REALM}`,
+      });
+      request.user = payload;
+      return true;
+    } catch {
+      throw new UnauthorizedException('Invalid token');
+    }
+  }
+}
+```
+
+Usage:
+
+```typescript
+@Controller('api')
+export class AppController {
+  @Get('profile')
+  @UseGuards(AuthmeGuard)
+  getProfile(@Req() req) {
+    return req.user; // JWT payload: { sub, preferred_username, realm_access, ... }
+  }
+}
+```
+
+> **Note:** Install `jose` with `npm install jose`
+
+### Express Middleware
+
+```typescript
+// middleware/authme.ts
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+import type { Request, Response, NextFunction } from 'express';
+
+const AUTHME_URL = 'http://localhost:3000';
+const REALM = 'my-realm';
+
+const JWKS = createRemoteJWKSet(
+  new URL(`${AUTHME_URL}/realms/${REALM}/protocol/openid-connect/certs`),
+);
+
+export async function authmeMiddleware(req: Request, res: Response, next: NextFunction) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+
+  if (!token) {
+    return res.status(401).json({ error: 'Missing token' });
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: `${AUTHME_URL}/realms/${REALM}`,
+    });
+    (req as any).user = payload;
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+}
+```
+
+Usage:
+
+```typescript
+import express from 'express';
+import { authmeMiddleware } from './middleware/authme';
+
+const app = express();
+
+app.get('/api/profile', authmeMiddleware, (req, res) => {
+  res.json((req as any).user);
+});
+```
+
+---
+
+## Attaching Tokens to API Requests
+
+When calling your backend from the frontend, attach the access token as a `Bearer` header:
+
+### With `fetch`
+
+```typescript
+const res = await fetch('/api/profile', {
+  headers: {
+    Authorization: `Bearer ${authme.getAccessToken()}`,
+  },
+});
+const data = await res.json();
+```
+
+### With Axios
+
+```typescript
+import axios from 'axios';
+
+const api = axios.create({ baseURL: '/api' });
+
+api.interceptors.request.use((config) => {
+  const token = authme.getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+const { data } = await api.get('/profile');
+```
+
+---
+
+## Full SPA Callback Flow
+
+### React Router
+
+```tsx
+// main.tsx
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthmeClient } from 'authme-sdk';
+import { AuthmeProvider } from 'authme-sdk/react';
+import App from './App';
+import Callback from './Callback';
+
+const authme = new AuthmeClient({
+  url: 'http://localhost:3000',
+  realm: 'my-realm',
+  clientId: 'my-app',
+  redirectUri: 'http://localhost:5173/callback',
+});
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <AuthmeProvider client={authme}>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="/callback" element={<Callback />} />
+      </Routes>
+    </BrowserRouter>
+  </AuthmeProvider>,
+);
+```
+
+```tsx
+// Callback.tsx
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthme } from 'authme-sdk/react';
+
+export default function Callback() {
+  const { client } = useAuthme();
+  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    client.handleCallback()
+      .then((success) => {
+        if (success) navigate('/', { replace: true });
+        else setError('Authentication failed');
+      })
+      .catch((err) => setError(err.message));
+  }, []);
+
+  if (error) return <div>Error: {error}</div>;
+  return <div>Signing in...</div>;
+}
+```
+
+---
+
+## Error Handling
+
+Subscribe to the `error` event to handle authentication errors:
+
+```typescript
+authme.on('error', (error) => {
+  console.error('Auth error:', error.message);
+
+  // Common errors:
+  // - "Token refresh failed" — refresh token expired, user needs to re-login
+  // - "OIDC discovery failed" — AuthMe server unreachable
+  // - "Token exchange failed" — authorization code invalid or expired
+});
+```
+
+### Handling Token Expiry
+
+When auto-refresh fails (e.g., refresh token expired), the user needs to re-login:
+
+```typescript
+authme.on('error', (error) => {
+  if (error.message.includes('refresh')) {
+    // Redirect to login
+    authme.login();
+  }
+});
+```
+
+### React Error Boundary
+
+```tsx
+function AuthWrapper({ children }) {
+  const { client, isAuthenticated } = useAuthme();
+  const [authError, setAuthError] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setAuthError(true);
+    client.on('error', handler);
+    return () => client.off('error', handler);
+  }, [client]);
+
+  if (authError) {
+    return (
+      <div>
+        <p>Session expired. Please sign in again.</p>
+        <button onClick={() => client.login()}>Sign In</button>
+      </div>
+    );
+  }
+
+  return children;
+}
+```
+
+---
+
 ## AuthMe Client Setup
 
 For the SDK to work, you need a **PUBLIC** client registered in AuthMe:
