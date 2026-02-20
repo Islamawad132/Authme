@@ -9,7 +9,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { RolesService } from './roles.service.js';
 import { CreateRoleDto } from './dto/create-role.dto.js';
@@ -20,6 +20,7 @@ import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 @ApiTags('Roles')
 @Controller('admin/realms/:realmName')
 @UseGuards(RealmGuard)
+@ApiSecurity('admin-api-key')
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 

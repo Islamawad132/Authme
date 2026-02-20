@@ -10,7 +10,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { ClientScopesService } from './client-scopes.service.js';
 import { CreateClientScopeDto } from './dto/create-client-scope.dto.js';
@@ -22,6 +22,7 @@ import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 @ApiTags('Client Scopes')
 @Controller('admin/realms/:realmName')
 @UseGuards(RealmGuard)
+@ApiSecurity('admin-api-key')
 export class ClientScopesController {
   constructor(private readonly service: ClientScopesService) {}
 

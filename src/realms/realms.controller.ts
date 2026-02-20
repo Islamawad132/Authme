@@ -9,7 +9,7 @@ import {
   Query,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import { RealmsService } from './realms.service.js';
 import { RealmExportService } from './realm-export.service.js';
 import { RealmImportService } from './realm-import.service.js';
@@ -21,6 +21,7 @@ import { UpdateRealmDto } from './dto/update-realm.dto.js';
 
 @ApiTags('Realms')
 @Controller('admin/realms')
+@ApiSecurity('admin-api-key')
 export class RealmsController {
   constructor(
     private readonly realmsService: RealmsService,

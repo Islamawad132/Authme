@@ -11,7 +11,7 @@ import {
   UseGuards,
   NotFoundException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
@@ -22,6 +22,7 @@ import { UpdateSamlSpDto } from './dto/update-saml-sp.dto.js';
 @ApiTags('SAML Service Providers')
 @Controller('admin/realms/:realmName/saml-service-providers')
 @UseGuards(RealmGuard)
+@ApiSecurity('admin-api-key')
 export class SamlSpAdminController {
   constructor(private readonly samlIdpService: SamlIdpService) {}
 
