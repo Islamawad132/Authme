@@ -5,6 +5,8 @@ import {
   Param,
   Req,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import type { Request } from 'express';
@@ -22,6 +24,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('token')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Token endpoint (password, client_credentials, refresh_token, authorization_code)' })
   @ApiConsumes('application/x-www-form-urlencoded', 'application/json')
   token(
