@@ -40,7 +40,7 @@ describe('OAuth2 / OIDC Token Flows (e2e)', () => {
           client_id: 'test-client',
           client_secret: 'test-client-secret',
         })
-        .expect(201);
+        .expect(200);
 
       expect(res.body).toHaveProperty('access_token');
       expect(res.body).toHaveProperty('token_type', 'Bearer');
@@ -65,7 +65,7 @@ describe('OAuth2 / OIDC Token Flows (e2e)', () => {
           password: 'TestPassword123!',
           scope: 'openid',
         })
-        .expect(201);
+        .expect(200);
 
       expect(res.body).toHaveProperty('access_token');
       expect(res.body).toHaveProperty('refresh_token');
@@ -133,7 +133,7 @@ describe('OAuth2 / OIDC Token Flows (e2e)', () => {
           password: 'TestPassword123!',
           scope: 'openid',
         })
-        .expect(201);
+        .expect(200);
 
       const originalRefreshToken = tokenRes.body.refresh_token;
       expect(originalRefreshToken).toBeDefined();
@@ -148,7 +148,7 @@ describe('OAuth2 / OIDC Token Flows (e2e)', () => {
           client_id: 'test-client',
           client_secret: 'test-client-secret',
         })
-        .expect(201);
+        .expect(200);
 
       expect(refreshRes.body).toHaveProperty('access_token');
       expect(refreshRes.body).toHaveProperty('refresh_token');
@@ -175,7 +175,7 @@ describe('OAuth2 / OIDC Token Flows (e2e)', () => {
           password: 'TestPassword123!',
           scope: 'openid',
         })
-        .expect(201);
+        .expect(200);
 
       const accessToken = tokenRes.body.access_token;
 
@@ -183,7 +183,7 @@ describe('OAuth2 / OIDC Token Flows (e2e)', () => {
       const introspectRes = await request(app.getHttpServer())
         .post(INTROSPECT_URL)
         .send({ token: accessToken })
-        .expect(201);
+        .expect(200);
 
       expect(introspectRes.body).toHaveProperty('active', true);
       expect(introspectRes.body).toHaveProperty('sub');
@@ -207,7 +207,7 @@ describe('OAuth2 / OIDC Token Flows (e2e)', () => {
           password: 'TestPassword123!',
           scope: 'openid',
         })
-        .expect(201);
+        .expect(200);
 
       const accessToken = tokenRes.body.access_token;
 
@@ -221,7 +221,7 @@ describe('OAuth2 / OIDC Token Flows (e2e)', () => {
       const introspectRes = await request(app.getHttpServer())
         .post(INTROSPECT_URL)
         .send({ token: accessToken })
-        .expect(201);
+        .expect(200);
 
       expect(introspectRes.body).toHaveProperty('active', false);
     });
@@ -243,7 +243,7 @@ describe('OAuth2 / OIDC Token Flows (e2e)', () => {
           password: 'TestPassword123!',
           scope: 'openid',
         })
-        .expect(201);
+        .expect(200);
 
       const accessToken = tokenRes.body.access_token;
 

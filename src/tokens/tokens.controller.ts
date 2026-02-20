@@ -24,6 +24,7 @@ export class TokensController {
   constructor(private readonly tokensService: TokensService) {}
 
   @Post('token/introspect')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Token introspection (RFC 7662)' })
   introspect(
     @CurrentRealm() realm: Realm,
