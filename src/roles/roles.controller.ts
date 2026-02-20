@@ -139,4 +139,21 @@ export class RolesController {
   ) {
     return this.rolesService.getUserClientRoles(realm, userId, clientId);
   }
+
+  @Delete('users/:userId/role-mappings/clients/:clientId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove client roles from a user' })
+  removeUserClientRoles(
+    @CurrentRealm() realm: Realm,
+    @Param('userId') userId: string,
+    @Param('clientId') clientId: string,
+    @Body() dto: AssignRolesDto,
+  ) {
+    return this.rolesService.removeUserClientRoles(
+      realm,
+      userId,
+      clientId,
+      dto.roleNames,
+    );
+  }
 }

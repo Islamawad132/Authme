@@ -165,6 +165,37 @@ export class RolesService {
     return { assigned: roles.map((r) => r.name) };
   }
 
+  async removeUserClientRoles(
+    realm: Realm,
+    userId: string,
+    clientId: string,
+    roleNames: string[],
+  ) {
+    const client = await this.prisma.client.findUnique({
+      where: { realmId_clientId: { realmId: realm.id, clientId } },
+    });
+    if (!client) {
+      throw new NotFoundException(`Client '${clientId}' not found`);
+    }
+
+    const roles = await this.prisma.role.findMany({
+      where: {
+        realmId: realm.id,
+        clientId: client.id,
+        name: { in: roleNames },
+      },
+    });
+
+    await this.prisma.userRole.deleteMany({
+      where: {
+        userId,
+        roleId: { in: roles.map((r) => r.id) },
+      },
+    });
+
+    return { removed: roleNames };
+  }
+
   async getUserClientRoles(realm: Realm, userId: string, clientId: string) {
     const client = await this.prisma.client.findUnique({
       where: { realmId_clientId: { realmId: realm.id, clientId } },
