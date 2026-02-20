@@ -57,3 +57,50 @@ export async function removeUserRealmRoles(
     { data: { roleNames } },
   );
 }
+
+// ─── Client Roles ────────────────────────────────────────
+
+export async function getClientRoles(
+  realmName: string,
+  clientId: string,
+): Promise<Role[]> {
+  const { data } = await apiClient.get<Role[]>(
+    `/realms/${realmName}/clients/${clientId}/roles`,
+  );
+  return data;
+}
+
+export async function getUserClientRoles(
+  realmName: string,
+  userId: string,
+  clientId: string,
+): Promise<Role[]> {
+  const { data } = await apiClient.get<Role[]>(
+    `/realms/${realmName}/users/${userId}/role-mappings/clients/${clientId}`,
+  );
+  return data;
+}
+
+export async function assignUserClientRoles(
+  realmName: string,
+  userId: string,
+  clientId: string,
+  roleNames: string[],
+): Promise<void> {
+  await apiClient.post(
+    `/realms/${realmName}/users/${userId}/role-mappings/clients/${clientId}`,
+    { roleNames },
+  );
+}
+
+export async function removeUserClientRoles(
+  realmName: string,
+  userId: string,
+  clientId: string,
+  roleNames: string[],
+): Promise<void> {
+  await apiClient.delete(
+    `/realms/${realmName}/users/${userId}/role-mappings/clients/${clientId}`,
+    { data: { roleNames } },
+  );
+}
