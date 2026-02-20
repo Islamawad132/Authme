@@ -7,7 +7,12 @@ import {
   getUserRealmRoles,
   assignUserRealmRoles,
   removeUserRealmRoles,
+  getClientRoles,
+  getUserClientRoles,
+  assignUserClientRoles,
+  removeUserClientRoles,
 } from '../../api/roles';
+import { getClients } from '../../api/clients';
 import { getUserGroups, getGroups, addUserToGroup, removeUserFromGroup } from '../../api/groups';
 import { getUserSessions, revokeSession, revokeAllUserSessions } from '../../api/sessions';
 import type { SessionInfo } from '../../api/sessions';
@@ -23,6 +28,8 @@ export default function UserDetailPage() {
   const [newPassword, setNewPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
+  const [selectedClientId, setSelectedClientId] = useState('');
+  const [selectedClientRole, setSelectedClientRole] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('');
 
   const { data: user, isLoading } = useQuery({
@@ -117,6 +124,40 @@ export default function UserDetailPage() {
     onSuccess: () => {
       refetchUserRoles();
     },
+  });
+
+  // Client Roles
+  const { data: allClients } = useQuery({
+    queryKey: ['clients', name],
+    queryFn: () => getClients(name!),
+    enabled: !!name,
+  });
+
+  const { data: clientRoles } = useQuery({
+    queryKey: ['clientRoles', name, selectedClientId],
+    queryFn: () => getClientRoles(name!, selectedClientId),
+    enabled: !!name && !!selectedClientId,
+  });
+
+  const { data: userClientRoles, refetch: refetchUserClientRoles } = useQuery({
+    queryKey: ['userClientRoles', name, id, selectedClientId],
+    queryFn: () => getUserClientRoles(name!, id!, selectedClientId),
+    enabled: !!name && !!id && !!selectedClientId,
+  });
+
+  const assignClientRoleMutation = useMutation({
+    mutationFn: (roleName: string) =>
+      assignUserClientRoles(name!, id!, selectedClientId, [roleName]),
+    onSuccess: () => {
+      refetchUserClientRoles();
+      setSelectedClientRole('');
+    },
+  });
+
+  const removeClientRoleMutation = useMutation({
+    mutationFn: (roleName: string) =>
+      removeUserClientRoles(name!, id!, selectedClientId, [roleName]),
+    onSuccess: () => refetchUserClientRoles(),
   });
 
   // Groups
@@ -455,6 +496,100 @@ export default function UserDetailPage() {
               Assign
             </button>
           </div>
+        )}
+      </div>
+
+      {/* Client Role Mappings */}
+      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900">Client Role Mappings</h2>
+
+        {/* Client selector */}
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">Client</label>
+          <select
+            value={selectedClientId}
+            onChange={(e) => {
+              setSelectedClientId(e.target.value);
+              setSelectedClientRole('');
+            }}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+          >
+            <option value="">Select a client...</option>
+            {allClients?.map((client) => (
+              <option key={client.id} value={client.clientId}>
+                {client.clientId}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Client roles (shown when a client is selected) */}
+        {selectedClientId && (
+          <>
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-gray-700">
+                Assigned Roles for <span className="font-semibold text-gray-900">{selectedClientId}</span>
+              </h3>
+              {userClientRoles && userClientRoles.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {userClientRoles.map((role) => (
+                    <span
+                      key={role.id}
+                      className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-3 py-1 text-sm font-medium text-violet-700"
+                    >
+                      {role.name}
+                      <button
+                        type="button"
+                        onClick={() => removeClientRoleMutation.mutate(role.name)}
+                        className="ml-1 text-violet-400 hover:text-violet-600"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No client roles assigned.</p>
+              )}
+            </div>
+
+            {/* Add client role */}
+            {(() => {
+              const assignedClientRoleNames = new Set(userClientRoles?.map((r) => r.name) ?? []);
+              const availableClientRoles = clientRoles?.filter((r) => !assignedClientRoleNames.has(r.name)) ?? [];
+              return availableClientRoles.length > 0 ? (
+                <div className="flex items-end gap-3 border-t border-gray-200 pt-4">
+                  <div className="flex-1">
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Add Client Role
+                    </label>
+                    <select
+                      value={selectedClientRole}
+                      onChange={(e) => setSelectedClientRole(e.target.value)}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                    >
+                      <option value="">Select a role...</option>
+                      {availableClientRoles.map((role) => (
+                        <option key={role.id} value={role.name}>
+                          {role.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => selectedClientRole && assignClientRoleMutation.mutate(selectedClientRole)}
+                    disabled={!selectedClientRole || assignClientRoleMutation.isPending}
+                    className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                  >
+                    Assign
+                  </button>
+                </div>
+              ) : null;
+            })()}
+          </>
         )}
       </div>
 
