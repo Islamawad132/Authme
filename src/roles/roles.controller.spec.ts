@@ -16,6 +16,7 @@ describe('RolesController', () => {
     removeUserRealmRoles: jest.Mock;
     assignClientRoles: jest.Mock;
     getUserClientRoles: jest.Mock;
+    removeUserClientRoles: jest.Mock;
   };
 
   const realm = {
@@ -36,6 +37,7 @@ describe('RolesController', () => {
       removeUserRealmRoles: jest.fn(),
       assignClientRoles: jest.fn(),
       getUserClientRoles: jest.fn(),
+      removeUserClientRoles: jest.fn(),
     };
 
     controller = new RolesController(mockRolesService as any);
@@ -159,6 +161,18 @@ describe('RolesController', () => {
 
       expect(mockRolesService.getUserClientRoles).toHaveBeenCalledWith(realm, 'user-1', 'client-1');
       expect(result).toEqual(expected);
+    });
+  });
+
+  describe('removeUserClientRoles', () => {
+    it('should call rolesService.removeUserClientRoles with realm, userId, clientId, and roleNames', () => {
+      const dto = { roleNames: ['editor'] };
+      mockRolesService.removeUserClientRoles.mockReturnValue(undefined);
+
+      const result = controller.removeUserClientRoles(realm, 'user-1', 'client-1', dto as any);
+
+      expect(mockRolesService.removeUserClientRoles).toHaveBeenCalledWith(realm, 'user-1', 'client-1', ['editor']);
+      expect(result).toBeUndefined();
     });
   });
 });

@@ -381,4 +381,54 @@ describe('RolesService', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe('removeUserClientRoles', () => {
+    it('should remove client roles from a user', async () => {
+      prisma.client.findUnique.mockResolvedValue(mockClient);
+      prisma.role.findMany.mockResolvedValue([
+        { id: 'crole-1', name: 'editor' },
+      ]);
+      prisma.userRole.deleteMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.removeUserClientRoles(
+        mockRealm,
+        'user-1',
+        'my-app',
+        ['editor'],
+      );
+
+      expect(result).toEqual({ removed: ['editor'] });
+      expect(prisma.userRole.deleteMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          roleId: { in: ['crole-1'] },
+        },
+      });
+    });
+
+    it('should throw NotFoundException when client does not exist', async () => {
+      prisma.client.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.removeUserClientRoles(mockRealm, 'user-1', 'nonexistent', [
+          'editor',
+        ]),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should handle removal of non-existent roles gracefully', async () => {
+      prisma.client.findUnique.mockResolvedValue(mockClient);
+      prisma.role.findMany.mockResolvedValue([]);
+      prisma.userRole.deleteMany.mockResolvedValue({ count: 0 });
+
+      const result = await service.removeUserClientRoles(
+        mockRealm,
+        'user-1',
+        'my-app',
+        ['nonexistent'],
+      );
+
+      expect(result).toEqual({ removed: ['nonexistent'] });
+    });
+  });
 });
