@@ -98,6 +98,7 @@ export class RolesController {
   }
 
   @Delete('users/:userId/role-mappings/realm')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove realm roles from a user' })
   removeUserRealmRoles(
     @CurrentRealm() realm: Realm,
