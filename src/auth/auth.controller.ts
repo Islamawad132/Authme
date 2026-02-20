@@ -8,10 +8,11 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { Realm } from '@prisma/client';
 import { AuthService } from './auth.service.js';
+import { TokenRequestDto } from './dto/token-request.dto.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
@@ -27,6 +28,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Token endpoint (password, client_credentials, refresh_token, authorization_code)' })
   @ApiConsumes('application/x-www-form-urlencoded', 'application/json')
+  @ApiBody({ type: TokenRequestDto })
   token(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
