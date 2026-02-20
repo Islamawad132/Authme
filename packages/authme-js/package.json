@@ -26,13 +26,27 @@
         "types": "./dist/react.d.cts",
         "default": "./dist/react.cjs"
       }
+    },
+    "./server": {
+      "import": {
+        "types": "./dist/server.d.ts",
+        "default": "./dist/server.js"
+      },
+      "require": {
+        "types": "./dist/server.d.cts",
+        "default": "./dist/server.cjs"
+      }
     }
   },
   "peerDependencies": {
+    "jose": ">=5.0.0",
     "react": ">=18.0.0"
   },
   "peerDependenciesMeta": {
     "react": {
+      "optional": true
+    },
+    "jose": {
       "optional": true
     }
   },
@@ -45,6 +59,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
+    "jose": "^6.1.3",
     "react": "^19.0.0",
     "tsup": "^8.4.0",
     "typescript": "^5.7.0",
