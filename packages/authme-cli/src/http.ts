@@ -1,0 +1,71 @@
+import chalk from 'chalk';
+import { requireAuth } from './config.js';
+
+export class HttpClient {
+  private serverUrl: string;
+  private headers: Record<string, string>;
+
+  constructor() {
+    const auth = requireAuth();
+    this.serverUrl = auth.serverUrl.replace(/\/$/, '');
+    this.headers = {
+      'Content-Type': 'application/json',
+      ...auth.headers,
+    };
+  }
+
+  private url(path: string): string {
+    return `${this.serverUrl}${path}`;
+  }
+
+  async get<T>(path: string, query?: Record<string, string>): Promise<T> {
+    const url = new URL(this.url(path));
+    if (query) {
+      for (const [k, v] of Object.entries(query)) {
+        if (v !== undefined) url.searchParams.set(k, v);
+      }
+    }
+    return this.request<T>('GET', url.toString());
+  }
+
+  async post<T>(path: string, body?: unknown, query?: Record<string, string>): Promise<T> {
+    let fullUrl = this.url(path);
+    if (query) {
+      const url = new URL(fullUrl);
+      for (const [k, v] of Object.entries(query)) {
+        if (v !== undefined) url.searchParams.set(k, v);
+      }
+      fullUrl = url.toString();
+    }
+    return this.request<T>('POST', fullUrl, body);
+  }
+
+  async put<T>(path: string, body?: unknown): Promise<T> {
+    return this.request<T>('PUT', this.url(path), body);
+  }
+
+  async delete<T>(path: string, body?: unknown): Promise<T | void> {
+    return this.request<T>('DELETE', this.url(path), body);
+  }
+
+  private async request<T>(method: string, url: string, body?: unknown): Promise<T> {
+    const res = await fetch(url, {
+      method,
+      headers: this.headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (res.status === 204) return undefined as T;
+
+    const json = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      const msg = json?.message ?? json?.error ?? res.statusText;
+      const display = Array.isArray(msg) ? msg.join(', ') : msg;
+      console.error(chalk.red(`Error ${res.status}: ${display}`));
+      process.exit(1);
+    }
+
+    return json as T;
+  }
+}
