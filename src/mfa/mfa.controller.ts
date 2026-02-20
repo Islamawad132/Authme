@@ -7,13 +7,14 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import { MfaService } from './mfa.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 
 @ApiTags('MFA')
 @Controller('admin/realms/:realmName/users/:userId/mfa')
 @UseGuards(RealmGuard)
+@ApiSecurity('admin-api-key')
 export class MfaController {
   constructor(private readonly mfaService: MfaService) {}
 

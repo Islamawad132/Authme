@@ -6,7 +6,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { SessionsService } from './sessions.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
@@ -15,6 +15,7 @@ import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 @ApiTags('Sessions')
 @Controller('admin/realms/:realmName')
 @UseGuards(RealmGuard)
+@ApiSecurity('admin-api-key')
 export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
 

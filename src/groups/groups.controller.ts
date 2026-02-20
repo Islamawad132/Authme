@@ -8,7 +8,7 @@ import {
   Param,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { GroupsService } from './groups.service.js';
 import { CreateGroupDto } from './dto/create-group.dto.js';
@@ -19,6 +19,7 @@ import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 @ApiTags('Groups')
 @Controller('admin/realms/:realmName')
 @UseGuards(RealmGuard)
+@ApiSecurity('admin-api-key')
 export class GroupsController {
   constructor(private readonly groupsService: GroupsService) {}
 

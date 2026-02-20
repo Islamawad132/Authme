@@ -11,7 +11,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -24,6 +24,7 @@ import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 @ApiTags('Users')
 @Controller('admin/realms/:realmName/users')
 @UseGuards(RealmGuard)
+@ApiSecurity('admin-api-key')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

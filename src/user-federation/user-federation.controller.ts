@@ -7,13 +7,14 @@ import {
   Body,
   Param,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import { UserFederationService } from './user-federation.service.js';
 import { CreateUserFederationDto } from './dto/create-user-federation.dto.js';
 import { UpdateUserFederationDto } from './dto/update-user-federation.dto.js';
 
 @ApiTags('User Federation')
 @Controller('admin/realms/:realmName/user-federation')
+@ApiSecurity('admin-api-key')
 export class UserFederationController {
   constructor(private readonly service: UserFederationService) {}
 

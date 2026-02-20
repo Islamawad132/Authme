@@ -1,11 +1,12 @@
 import { Controller, Post, Get, Body, Req, UnauthorizedException } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { Public } from '../common/decorators/public.decorator.js';
 import { AdminAuthService } from './admin-auth.service.js';
 
 @ApiTags('Admin Auth')
 @Controller('admin/auth')
+@ApiSecurity('admin-api-key')
 export class AdminAuthController {
   constructor(private readonly adminAuthService: AdminAuthService) {}
 
