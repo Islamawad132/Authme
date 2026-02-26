@@ -32,7 +32,7 @@ export default function LoginPage() {
     }
 
     if (success) {
-      navigate('/console');
+      navigate('/console/');
     }
     setLoading(false);
   }

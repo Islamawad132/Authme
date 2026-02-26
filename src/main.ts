@@ -68,8 +68,13 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  // SPA fallback: serve index.html for /console/* navigation routes (skip static files)
+  // Redirect /console → /console/ to match Vite's base URL
   const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.get('/console', (_req: unknown, res: { redirect: (url: string) => void }) => {
+    res.redirect('/console/');
+  });
+
+  // SPA fallback: serve index.html for /console/* navigation routes (skip static files)
   const adminUiIndex = join(__dirname, 'admin-ui', 'index.html');
   expressApp.get(
     '/console/{*path}',

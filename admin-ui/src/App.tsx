@@ -81,7 +81,7 @@ export default function App() {
       </Route>
 
       {/* Catch-all: redirect to console */}
-      <Route path="*" element={<Navigate to="/console" replace />} />
+      <Route path="*" element={<Navigate to="/console/" replace />} />
     </Routes>
   );
 }
