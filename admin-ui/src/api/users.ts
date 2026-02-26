@@ -4,13 +4,13 @@ import type { User, OfflineSession } from '../types';
 export async function getUsers(
   realmName: string,
   page = 1,
-  limit = 50,
-): Promise<User[]> {
+  limit = 20,
+): Promise<{ users: User[]; total: number }> {
   const { data } = await apiClient.get<{ users: User[]; total: number }>(
     `/realms/${realmName}/users`,
     { params: { page, limit } },
   );
-  return data.users;
+  return data;
 }
 
 export async function getUserById(

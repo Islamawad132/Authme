@@ -1,16 +1,25 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getUsers } from '../../api/users';
+
+const PAGE_SIZE = 20;
 
 export default function UserListPage() {
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
+  const [page, setPage] = useState(1);
 
-  const { data: users, isLoading, error } = useQuery({
-    queryKey: ['users', name],
-    queryFn: () => getUsers(name!),
+  const { data, isLoading, error, isPlaceholderData } = useQuery({
+    queryKey: ['users', name, page],
+    queryFn: () => getUsers(name!, page, PAGE_SIZE),
     enabled: !!name,
+    placeholderData: keepPreviousData,
   });
+
+  const users = data?.users ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   if (isLoading) {
     return (
@@ -35,6 +44,9 @@ export default function UserListPage() {
           <h1 className="text-2xl font-bold text-gray-900">Users</h1>
           <p className="mt-1 text-sm text-gray-500">
             Manage users in <span className="font-medium">{name}</span>
+            {total > 0 && (
+              <span className="ml-1 text-gray-400">({total} total)</span>
+            )}
           </p>
         </div>
         <button
@@ -66,8 +78,8 @@ export default function UserListPage() {
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
-            {users && users.length > 0 ? (
+          <tbody className={`divide-y divide-gray-200${isPlaceholderData ? ' opacity-60' : ''}`}>
+            {users.length > 0 ? (
               users.map((user) => (
                 <tr
                   key={user.id}
@@ -108,6 +120,36 @@ export default function UserListPage() {
             )}
           </tbody>
         </table>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-6 py-3">
+            <p className="text-sm text-gray-700">
+              Showing{' '}
+              <span className="font-medium">{(page - 1) * PAGE_SIZE + 1}</span>
+              {' '}&ndash;{' '}
+              <span className="font-medium">{Math.min(page * PAGE_SIZE, total)}</span>
+              {' '}of{' '}
+              <span className="font-medium">{total}</span> users
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
