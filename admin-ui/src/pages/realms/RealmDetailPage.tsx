@@ -164,6 +164,13 @@ export default function RealmDetailPage() {
     mutationFn: () => sendTestEmail(name!, testEmailTo),
   });
 
+  // Clear toast messages when switching tabs
+  useEffect(() => {
+    updateMutation.reset();
+    testEmailMutation.reset();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     updateMutation.mutate();
