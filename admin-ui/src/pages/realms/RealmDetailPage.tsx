@@ -34,25 +34,25 @@ export default function RealmDetailPage() {
   const { data: users } = useQuery({
     queryKey: ['users', name],
     queryFn: () => getUsers(name!),
-    enabled: !!name,
+    enabled: !!name && !!realm,
   });
 
   const { data: clients } = useQuery({
     queryKey: ['clients', name],
     queryFn: () => getClients(name!),
-    enabled: !!name,
+    enabled: !!name && !!realm,
   });
 
   const { data: roles } = useQuery({
     queryKey: ['roles', name],
     queryFn: () => getRealmRoles(name!),
-    enabled: !!name,
+    enabled: !!name && !!realm,
   });
 
   const { data: groups } = useQuery({
     queryKey: ['groups', name],
     queryFn: () => getGroups(name!),
-    enabled: !!name,
+    enabled: !!name && !!realm,
   });
 
   const { data: themes } = useQuery({

@@ -88,7 +88,7 @@ export default function Layout() {
             </NavLink>
           ))}
 
-          {currentRealm && (
+          {currentRealm && realms?.some((r) => r.name === currentRealm) && (
             <>
               <div className="mt-6 mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
                 {currentRealm}
