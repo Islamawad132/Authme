@@ -10,9 +10,14 @@ export function useAuth() {
     !!sessionStorage.getItem('adminApiKey') ||
     !!sessionStorage.getItem('adminToken');
 
+  const clearAuthState = useCallback(() => {
+    sessionStorage.removeItem('adminApiKey');
+    sessionStorage.removeItem('adminToken');
+  }, []);
+
   const login = useCallback(
     async (apiKey: string): Promise<boolean> => {
-      sessionStorage.removeItem('adminToken');
+      clearAuthState();
       sessionStorage.setItem('adminApiKey', apiKey);
       try {
         await getAllRealms();
@@ -22,13 +27,12 @@ export function useAuth() {
         return false;
       }
     },
-    [],
+    [clearAuthState],
   );
 
   const loginWithCredentials = useCallback(
     async (username: string, password: string): Promise<boolean> => {
-      sessionStorage.removeItem('adminApiKey');
-      sessionStorage.removeItem('adminToken');
+      clearAuthState();
       try {
         const { data } = await apiClient.post('/auth/login', { username, password });
         if (data.access_token) {
@@ -40,7 +44,7 @@ export function useAuth() {
         return false;
       }
     },
-    [],
+    [clearAuthState],
   );
 
   const logout = useCallback(async () => {
@@ -49,10 +53,9 @@ export function useAuth() {
     } catch {
       // Best-effort: clear locally even if server call fails
     }
-    sessionStorage.removeItem('adminApiKey');
-    sessionStorage.removeItem('adminToken');
+    clearAuthState();
     navigate('/console/login');
-  }, [navigate]);
+  }, [clearAuthState, navigate]);
 
-  return { isAuthenticated, login, loginWithCredentials, logout };
+  return { isAuthenticated, login, loginWithCredentials, logout, clearAuthState };
 }
