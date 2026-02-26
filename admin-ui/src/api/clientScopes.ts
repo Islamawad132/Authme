@@ -86,14 +86,25 @@ export async function deleteMapper(
 }
 
 // Client scope assignments
+
+// The API returns join records { id, clientScopeId, clientScope: { ... } }.
+// Flatten them into ClientScope objects so the UI can use scope.id / scope.name directly.
+function flattenScopeAssignments(data: any[]): ClientScope[] {
+  return data.map((entry) =>
+    entry.clientScope
+      ? { ...entry.clientScope, assignmentId: entry.id }
+      : entry,
+  );
+}
+
 export async function getClientDefaultScopes(
   realmName: string,
   clientId: string,
 ): Promise<ClientScope[]> {
-  const { data } = await apiClient.get<ClientScope[]>(
+  const { data } = await apiClient.get(
     `/realms/${realmName}/clients/${clientId}/default-client-scopes`,
   );
-  return data;
+  return flattenScopeAssignments(data);
 }
 
 export async function assignClientDefaultScope(
@@ -121,10 +132,10 @@ export async function getClientOptionalScopes(
   realmName: string,
   clientId: string,
 ): Promise<ClientScope[]> {
-  const { data } = await apiClient.get<ClientScope[]>(
+  const { data } = await apiClient.get(
     `/realms/${realmName}/clients/${clientId}/optional-client-scopes`,
   );
-  return data;
+  return flattenScopeAssignments(data);
 }
 
 export async function assignClientOptionalScope(
