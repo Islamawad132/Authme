@@ -23,6 +23,11 @@ export class CreateSamlSpDto {
   @IsUrl({ require_tld: false })
   acsUrl!: string;
 
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+
   @ApiPropertyOptional({ example: 'https://sp.example.com/slo' })
   @IsOptional()
   @IsUrl({ require_tld: false })
