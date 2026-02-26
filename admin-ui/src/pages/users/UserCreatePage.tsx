@@ -20,7 +20,15 @@ export default function UserCreatePage() {
   });
 
   const mutation = useMutation({
-    mutationFn: () => createUser(name!, form),
+    mutationFn: () => {
+      const payload = {
+        ...form,
+        email: form.email.trim() || undefined,
+        firstName: form.firstName.trim() || undefined,
+        lastName: form.lastName.trim() || undefined,
+      };
+      return createUser(name!, payload);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users', name] });
       navigate(`/console/realms/${name}/users`);
