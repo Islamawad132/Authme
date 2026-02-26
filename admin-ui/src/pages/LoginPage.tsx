@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [apiKey, setApiKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, loginWithCredentials } = useAuth();
+  const { login, loginWithCredentials, clearAuthState } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e: FormEvent) {
@@ -39,6 +39,7 @@ export default function LoginPage() {
 
   function toggleMode() {
     setError('');
+    clearAuthState();
     setMode(mode === 'credentials' ? 'apikey' : 'credentials');
   }
 
