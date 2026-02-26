@@ -195,7 +195,7 @@ export default function RealmDetailPage() {
   ];
 
   const quickLinks = [
-    { to: `/console/realms/${name}/users`, label: 'Users', count: users?.length },
+    { to: `/console/realms/${name}/users`, label: 'Users', count: users?.total },
     { to: `/console/realms/${name}/clients`, label: 'Clients', count: clients?.length },
     { to: `/console/realms/${name}/roles`, label: 'Roles', count: roles?.length },
     { to: `/console/realms/${name}/groups`, label: 'Groups', count: groups?.length },
