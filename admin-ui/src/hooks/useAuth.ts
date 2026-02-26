@@ -12,6 +12,7 @@ export function useAuth() {
 
   const login = useCallback(
     async (apiKey: string): Promise<boolean> => {
+      sessionStorage.removeItem('adminToken');
       sessionStorage.setItem('adminApiKey', apiKey);
       try {
         await getAllRealms();
@@ -26,6 +27,8 @@ export function useAuth() {
 
   const loginWithCredentials = useCallback(
     async (username: string, password: string): Promise<boolean> => {
+      sessionStorage.removeItem('adminApiKey');
+      sessionStorage.removeItem('adminToken');
       try {
         const { data } = await apiClient.post('/auth/login', { username, password });
         if (data.access_token) {

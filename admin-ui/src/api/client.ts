@@ -19,7 +19,8 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const isOnLoginPage = window.location.pathname === '/console/login';
+    if (error.response?.status === 401 && !isOnLoginPage) {
       sessionStorage.removeItem('adminApiKey');
       sessionStorage.removeItem('adminToken');
       window.location.href = '/console/login';
