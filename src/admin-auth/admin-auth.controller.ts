@@ -17,6 +17,16 @@ export class AdminAuthController {
     return this.adminAuthService.login(body.username, body.password);
   }
 
+  @Post('logout')
+  @ApiOperation({ summary: 'Admin logout – revoke current token' })
+  async logout(@Req() req: Request) {
+    const authHeader = req.headers['authorization'];
+    if (authHeader?.startsWith('Bearer ')) {
+      this.adminAuthService.revokeToken(authHeader.slice(7));
+    }
+    return { message: 'Logged out' };
+  }
+
   @Get('me')
   @ApiOperation({ summary: 'Get current admin user info' })
   async getMe(@Req() req: Request) {

@@ -43,7 +43,12 @@ export function useAuth() {
     [],
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch {
+      // Best-effort: clear locally even if server call fails
+    }
     sessionStorage.removeItem('adminApiKey');
     sessionStorage.removeItem('adminToken');
     navigate('/console/login');
