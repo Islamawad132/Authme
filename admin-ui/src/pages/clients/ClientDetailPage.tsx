@@ -51,7 +51,7 @@ export default function ClientDetailPage() {
   const { data: serviceAccount } = useQuery({
     queryKey: ['serviceAccount', name, id],
     queryFn: () => getServiceAccountUser(name!, id!),
-    enabled: !!name && !!id && !!hasClientCredentials,
+    enabled: !!name && !!id && !!client?.serviceAccountUserId,
   });
 
   const [form, setForm] = useState({
