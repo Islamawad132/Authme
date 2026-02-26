@@ -245,7 +245,7 @@ export default function ClientScopeDetailPage() {
                       {mapper.name}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      {mapper.protocol}
+                      {mapper.mapperType}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right text-sm">
                       <button
