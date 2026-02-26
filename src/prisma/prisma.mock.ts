@@ -41,6 +41,7 @@ export function createMockPrismaService(): MockPrismaService {
     },
     userRole: {
       findMany: jest.fn(),
+      create: jest.fn(),
       createMany: jest.fn(),
       deleteMany: jest.fn(),
     },
