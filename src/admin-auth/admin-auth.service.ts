@@ -6,6 +6,7 @@ import { JwkService } from '../crypto/jwk.service.js';
 @Injectable()
 export class AdminAuthService {
   private readonly logger = new Logger(AdminAuthService.name);
+  private readonly revokedTokens = new Set<string>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -79,9 +80,21 @@ export class AdminAuthService {
     };
   }
 
+  revokeToken(token: string): void {
+    this.revokedTokens.add(token);
+    // Clean up expired tokens periodically to prevent unbounded growth
+    if (this.revokedTokens.size > 1000) {
+      this.revokedTokens.clear();
+    }
+  }
+
   async validateAdminToken(
     token: string,
   ): Promise<{ userId: string; roles: string[] }> {
+    if (this.revokedTokens.has(token)) {
+      throw new UnauthorizedException('Token has been revoked');
+    }
+
     const masterRealm = await this.prisma.realm.findUnique({
       where: { name: 'master' },
     });
