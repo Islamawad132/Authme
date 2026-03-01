@@ -663,7 +663,10 @@ export class LoginController {
       }
     }
 
-    const info = encodeURIComponent('Account created successfully! Please check your email to verify your account, then sign in.');
+    const message = realm.requireEmailVerification
+      ? 'Account created successfully! Please check your email to verify your account, then sign in.'
+      : 'Account created successfully! You can now sign in.';
+    const info = encodeURIComponent(message);
     res.redirect(`/realms/${realm.name}/login?info=${info}${oauthSuffix}`);
   }
 
