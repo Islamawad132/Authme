@@ -12,7 +12,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiExcludeController } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import type { Realm } from '@prisma/client';
+import { Prisma, type Realm } from '@prisma/client';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
@@ -616,18 +616,28 @@ export class LoginController {
 
     // Create user
     const passwordHash = await this.crypto.hashPassword(password);
-    const user = await this.prisma.user.create({
-      data: {
-        realmId: realm.id,
-        username,
-        email,
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
-        enabled: true,
-        passwordHash,
-        passwordChangedAt: new Date(),
-      },
-    });
+    let user;
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          realmId: realm.id,
+          username,
+          email,
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
+          enabled: true,
+          passwordHash,
+          passwordChangedAt: new Date(),
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return res.redirect(
+          `/realms/${realm.name}/register?error=${encodeURIComponent('An account with that username or email already exists.')}${preserveFields}`,
+        );
+      }
+      throw error;
+    }
 
     // Record password history
     if (realm.passwordHistoryCount > 0) {
