@@ -40,10 +40,12 @@ export default function RealmCreatePage() {
 
       <form onSubmit={handleSubmit} className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="realmName" className="mb-1.5 block text-sm font-medium text-gray-700">
             Name
           </label>
           <input
+            id="realmName"
+            name="name"
             type="text"
             required
             value={form.name}
@@ -57,10 +59,12 @@ export default function RealmCreatePage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="displayName" className="mb-1.5 block text-sm font-medium text-gray-700">
             Display Name
           </label>
           <input
+            id="displayName"
+            name="displayName"
             type="text"
             value={form.displayName}
             onChange={(e) => setForm({ ...form, displayName: e.target.value })}
@@ -71,10 +75,12 @@ export default function RealmCreatePage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="accessTokenLifespan" className="mb-1.5 block text-sm font-medium text-gray-700">
               Access Token Lifespan (seconds)
             </label>
             <input
+              id="accessTokenLifespan"
+              name="accessTokenLifespan"
               type="number"
               min={1}
               value={form.accessTokenLifespan}
@@ -85,10 +91,12 @@ export default function RealmCreatePage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="refreshTokenLifespan" className="mb-1.5 block text-sm font-medium text-gray-700">
               Refresh Token Lifespan (seconds)
             </label>
             <input
+              id="refreshTokenLifespan"
+              name="refreshTokenLifespan"
               type="number"
               min={1}
               value={form.refreshTokenLifespan}
