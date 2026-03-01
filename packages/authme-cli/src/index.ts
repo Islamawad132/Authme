@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import { createRequire } from 'module';
 import { registerAuthCommands } from './commands/auth.js';
 import { registerRealmCommands } from './commands/realm.js';
 import { registerUserCommands } from './commands/user.js';
@@ -6,12 +7,15 @@ import { registerClientCommands } from './commands/client.js';
 import { registerRoleCommands } from './commands/role.js';
 import { registerInitCommand } from './commands/init.js';
 
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json');
+
 const program = new Command();
 
 program
   .name('authme')
   .description('CLI for managing an AuthMe IAM server')
-  .version('0.1.0');
+  .version(version);
 
 registerAuthCommands(program);
 registerRealmCommands(program);
