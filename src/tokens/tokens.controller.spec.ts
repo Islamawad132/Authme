@@ -72,7 +72,7 @@ describe('TokensController', () => {
   });
 
   describe('logout', () => {
-    it('should call tokensService.logout with realm, refresh_token, and req.ip', () => {
+    it('should call tokensService.logout with realm, ip, and refresh_token', () => {
       const body = { refresh_token: 'rt-123' };
       const req = { ip: '127.0.0.1', headers: {} };
 
@@ -80,8 +80,8 @@ describe('TokensController', () => {
 
       expect(mockTokensService.logout).toHaveBeenCalledWith(
         realm,
-        'rt-123',
         '127.0.0.1',
+        'rt-123',
       );
     });
   });

@@ -99,7 +99,12 @@ export class TokensService {
     }
   }
 
-  async logout(realm: Realm, refreshToken: string, ip?: string) {
+  async logout(realm: Realm, ip?: string, refreshToken?: string) {
+    if (!refreshToken) {
+      // No refresh token provided — nothing to revoke, return gracefully
+      return;
+    }
+
     const tokenHash = this.crypto.sha256(refreshToken);
     const storedToken = await this.prisma.refreshToken.findUnique({
       where: { tokenHash },
@@ -110,31 +115,70 @@ export class TokensService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    await this.endSession(realm, storedToken.sessionId, storedToken.session.userId, ip);
+  }
+
+  async logoutByIdToken(realm: Realm, ip?: string, idTokenHint?: string) {
+    if (!idTokenHint) {
+      // No id_token_hint — best-effort logout, nothing to revoke
+      return;
+    }
+
+    try {
+      const signingKey = await this.prisma.realmSigningKey.findFirst({
+        where: { realmId: realm.id, active: true },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!signingKey) return;
+
+      const payload = await this.jwkService.verifyJwt(idTokenHint, signingKey.publicKey);
+      const sid = (payload as Record<string, unknown>)['sid'] as string | undefined;
+      const sub = (payload as Record<string, unknown>)['sub'] as string | undefined;
+
+      if (sid) {
+        await this.endSession(realm, sid, sub, ip);
+      } else if (sub) {
+        // No session ID in token, end all sessions for this user
+        const sessions = await this.prisma.session.findMany({
+          where: { userId: sub },
+          select: { id: true },
+        });
+        for (const session of sessions) {
+          await this.endSession(realm, session.id, sub, ip);
+        }
+      }
+    } catch {
+      // Invalid or expired id_token — best-effort logout, don't throw
+    }
+  }
+
+  private async endSession(realm: Realm, sessionId: string, userId?: string | null, ip?: string) {
     // Revoke all non-offline refresh tokens in this session
     await this.prisma.refreshToken.updateMany({
-      where: { sessionId: storedToken.sessionId, isOffline: false },
+      where: { sessionId, isOffline: false },
       data: { revoked: true },
     });
 
     // Send backchannel logout notifications
-    await this.backchannelLogout.sendLogoutTokens(
-      realm,
-      storedToken.session.userId,
-      storedToken.sessionId,
-    );
+    if (userId) {
+      await this.backchannelLogout.sendLogoutTokens(realm, userId, sessionId);
+    }
 
     // Record logout event before deleting session
     this.eventsService.recordLoginEvent({
       realmId: realm.id,
       type: LoginEventType.LOGOUT,
-      userId: storedToken.session.userId,
-      sessionId: storedToken.sessionId,
+      userId: userId ?? undefined,
+      sessionId,
       ipAddress: ip,
     });
 
     // Delete the session
     await this.prisma.session.delete({
-      where: { id: storedToken.sessionId },
+      where: { id: sessionId },
+    }).catch(() => {
+      // Session may already be deleted
     });
   }
 
