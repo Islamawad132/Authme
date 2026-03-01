@@ -18,6 +18,10 @@ describe('AuthController', () => {
     headers: { 'user-agent': 'test-agent' },
   };
 
+  const res = {
+    set: jest.fn(),
+  };
+
   beforeEach(() => {
     mockAuthService = {
       handleTokenRequest: jest.fn(),
@@ -30,7 +34,7 @@ describe('AuthController', () => {
     it('should call authService.handleTokenRequest with correct arguments', () => {
       const body = { grant_type: 'password', username: 'user', password: 'pass' };
 
-      controller.token(realm, body, req as any);
+      controller.token(realm, body, req as any, res as any);
 
       expect(mockAuthService.handleTokenRequest).toHaveBeenCalledWith(
         realm,
@@ -44,7 +48,7 @@ describe('AuthController', () => {
       const expected = { access_token: 'tok', token_type: 'Bearer' };
       mockAuthService.handleTokenRequest.mockResolvedValue(expected);
 
-      const result = await controller.token(realm, {}, req as any);
+      const result = await controller.token(realm, {}, req as any, res as any);
 
       expect(result).toEqual(expected);
     });
@@ -52,7 +56,7 @@ describe('AuthController', () => {
     it('should pass the exact body object without modification', () => {
       const body = { grant_type: 'client_credentials', client_id: 'my-client', client_secret: 's3cret' };
 
-      controller.token(realm, body, req as any);
+      controller.token(realm, body, req as any, res as any);
 
       expect(mockAuthService.handleTokenRequest).toHaveBeenCalledTimes(1);
       const [passedRealm, passedBody] = mockAuthService.handleTokenRequest.mock.calls[0];
