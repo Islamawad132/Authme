@@ -7,6 +7,7 @@ import { randomBytes } from 'crypto';
 import type { Realm, User, Client } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ScopesService } from '../scopes/scopes.service.js';
+import { matchesRedirectUri } from '../common/redirect-uri.utils.js';
 
 export interface AuthorizeParams {
   response_type: string;
@@ -52,7 +53,7 @@ export class OAuthService {
       throw new NotFoundException('Client not found');
     }
 
-    if (!client.redirectUris.includes(params.redirect_uri)) {
+    if (!matchesRedirectUri(params.redirect_uri, client.redirectUris)) {
       throw new BadRequestException('Invalid redirect_uri');
     }
 

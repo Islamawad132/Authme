@@ -8,6 +8,7 @@ import type { Realm, IdentityProvider } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
 import { IdentityProvidersService } from '../identity-providers/identity-providers.service.js';
+import { matchesRedirectUri } from '../common/redirect-uri.utils.js';
 
 interface BrokerState {
   realmId: string;
@@ -58,7 +59,7 @@ export class BrokerService {
     if (!client || !client.enabled) {
       throw new BadRequestException('Invalid client_id');
     }
-    if (!client.redirectUris.includes(params.redirect_uri)) {
+    if (!matchesRedirectUri(params.redirect_uri, client.redirectUris)) {
       throw new BadRequestException('Invalid redirect_uri');
     }
 
