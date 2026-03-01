@@ -3,11 +3,14 @@ import {
   Post,
   Get,
   Body,
+  Query,
   Req,
+  Res,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { Realm } from '@prisma/client';
@@ -45,13 +48,36 @@ export class TokensController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'End session / logout' })
+  @ApiOperation({ summary: 'End session / logout (POST)' })
   logout(
     @CurrentRealm() realm: Realm,
-    @Body() body: { refresh_token: string },
+    @Body() body: { refresh_token?: string },
     @Req() req: Request,
   ) {
-    return this.tokensService.logout(realm, body.refresh_token, req.ip);
+    return this.tokensService.logout(realm, req.ip, body.refresh_token);
+  }
+
+  @Get('logout')
+  @ApiOperation({ summary: 'RP-Initiated Logout (GET, OIDC spec)' })
+  async logoutGet(
+    @CurrentRealm() realm: Realm,
+    @Query('id_token_hint') idTokenHint: string | undefined,
+    @Query('post_logout_redirect_uri') postLogoutRedirectUri: string | undefined,
+    @Query('state') state: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    await this.tokensService.logoutByIdToken(realm, req.ip, idTokenHint);
+
+    if (postLogoutRedirectUri) {
+      const redirectUrl = new URL(postLogoutRedirectUri);
+      if (state) {
+        redirectUrl.searchParams.set('state', state);
+      }
+      res.redirect(redirectUrl.toString());
+    } else {
+      res.status(HttpStatus.NO_CONTENT).send();
+    }
   }
 
   @Get('userinfo')
