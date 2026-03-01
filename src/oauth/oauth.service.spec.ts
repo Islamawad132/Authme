@@ -181,6 +181,37 @@ describe('OAuthService', () => {
       const result = await service.validateAuthRequest(mockRealm, params);
       expect(result).toBe(mockClient);
     });
+
+    it('should throw BadRequestException when public client omits code_challenge', async () => {
+      prisma.client.findUnique.mockResolvedValue({
+        ...mockClient,
+        clientType: 'PUBLIC',
+      });
+
+      await expect(
+        service.validateAuthRequest(mockRealm, validParams),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should accept public client with code_challenge', async () => {
+      const publicClient = { ...mockClient, clientType: 'PUBLIC' };
+      prisma.client.findUnique.mockResolvedValue(publicClient);
+      const params = {
+        ...validParams,
+        code_challenge: 'challenge',
+        code_challenge_method: 'S256',
+      };
+
+      const result = await service.validateAuthRequest(mockRealm, params);
+      expect(result).toEqual(publicClient);
+    });
+
+    it('should allow confidential client without code_challenge', async () => {
+      prisma.client.findUnique.mockResolvedValue(mockClient);
+
+      const result = await service.validateAuthRequest(mockRealm, validParams);
+      expect(result).toBe(mockClient);
+    });
   });
 
   describe('authorizeWithUser', () => {

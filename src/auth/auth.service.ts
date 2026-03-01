@@ -359,6 +359,13 @@ export class AuthService {
       throw new BadRequestException('redirect_uri mismatch');
     }
 
+    // PKCE enforcement: public clients must always use PKCE (OAuth 2.1 / RFC 7636)
+    if (client.clientType === 'PUBLIC' && !authCode.codeChallenge) {
+      throw new BadRequestException(
+        'PKCE (code_challenge) is required for public clients',
+      );
+    }
+
     // PKCE verification
     if (authCode.codeChallenge) {
       if (!code_verifier) {
