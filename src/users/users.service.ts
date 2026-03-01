@@ -213,13 +213,15 @@ export class UsersService {
       include: { session: { select: { id: true, userId: true, createdAt: true } } },
       orderBy: { createdAt: 'desc' },
     });
-    return tokens.map((t) => ({
-      id: t.id,
-      sessionId: t.session.id,
-      sessionStarted: t.session.createdAt,
-      expiresAt: t.expiresAt,
-      createdAt: t.createdAt,
-    }));
+    return tokens
+      .filter((t) => t.session !== null)
+      .map((t) => ({
+        id: t.id,
+        sessionId: t.session.id,
+        sessionStarted: t.session.createdAt,
+        expiresAt: t.expiresAt,
+        createdAt: t.createdAt,
+      }));
   }
 
   async revokeOfflineSession(realm: Realm, userId: string, tokenId: string) {
