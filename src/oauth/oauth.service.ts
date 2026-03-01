@@ -6,6 +6,7 @@ import {
 import { randomBytes } from 'crypto';
 import type { Realm, User, Client } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ScopesService } from '../scopes/scopes.service.js';
 
 export interface AuthorizeParams {
   response_type: string;
@@ -20,7 +21,10 @@ export interface AuthorizeParams {
 
 @Injectable()
 export class OAuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly scopesService: ScopesService,
+  ) {}
 
   /**
    * Validate the OAuth authorization request parameters and return the client.
@@ -76,6 +80,17 @@ export class OAuthService {
   ): Promise<{ redirectUrl: string }> {
     const client = await this.validateAuthRequest(realm, params);
 
+    // Resolve effective scopes: merge client default scopes with requested scopes
+    const requestedScopes = this.scopesService.parseAndValidate(params.scope);
+    const effectiveScopes = await this.scopesService.getClientEffectiveScopes(
+      client.id,
+      realm.id,
+      requestedScopes,
+    );
+    const effectiveScope = effectiveScopes.length > 0
+      ? this.scopesService.toString(effectiveScopes)
+      : params.scope;
+
     const code = randomBytes(32).toString('hex');
 
     await this.prisma.authorizationCode.create({
@@ -84,7 +99,7 @@ export class OAuthService {
         clientId: client.id,
         userId: user.id,
         redirectUri: params.redirect_uri,
-        scope: params.scope,
+        scope: effectiveScope,
         codeChallenge: params.code_challenge,
         codeChallengeMethod: params.code_challenge_method,
         nonce: params.nonce,
