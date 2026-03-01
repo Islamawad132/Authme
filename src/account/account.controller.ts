@@ -79,11 +79,19 @@ export class AccountController {
       return res.redirect(`/realms/${realm.name}/login`);
     }
 
+    const firstName = (body['firstName'] ?? '').trim();
+    const lastName = (body['lastName'] ?? '').trim();
+
+    const htmlPattern = /[<>]/;
+    if (htmlPattern.test(firstName) || htmlPattern.test(lastName)) {
+      return res.redirect(`/realms/${realm.name}/account?error=${encodeURIComponent('Fields must not contain HTML tags or angle brackets.')}`);
+    }
+
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        firstName: body['firstName'] || null,
-        lastName: body['lastName'] || null,
+        firstName: firstName || null,
+        lastName: lastName || null,
       },
     });
 
