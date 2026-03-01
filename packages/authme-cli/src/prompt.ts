@@ -32,7 +32,11 @@ export async function askPassword(question: string): Promise<string> {
         }
       } else if (ch === '\u0003') {
         // Ctrl+C
-        process.exit(0);
+        if (stdin.setRawMode) stdin.setRawMode(false);
+        stdin.pause();
+        stdin.removeListener('data', onData);
+        console.log();
+        throw new Error('Interrupted');
       } else {
         password += ch;
         process.stdout.write('*');
@@ -53,8 +57,7 @@ export async function select(question: string, options: string[]): Promise<strin
   const answer = await ask('Choice: ');
   const idx = parseInt(answer, 10) - 1;
   if (idx < 0 || idx >= options.length) {
-    console.error('Invalid selection.');
-    process.exit(1);
+    throw new Error('Invalid selection');
   }
   return options[idx];
 }
