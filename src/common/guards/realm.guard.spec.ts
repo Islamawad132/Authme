@@ -1,12 +1,12 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { RealmGuard } from './realm.guard.js';
 import {
   createMockPrismaService,
   MockPrismaService,
 } from '../../prisma/prisma.mock.js';
 
-function createMockExecutionContext(params: Record<string, string> = {}) {
-  const request: Record<string, any> = { params };
+function createMockExecutionContext(params: Record<string, string> = {}, path = '/realms/test') {
+  const request: Record<string, any> = { params, path };
   return {
     switchToHttp: jest.fn().mockReturnValue({
       getRequest: jest.fn().mockReturnValue(request),
@@ -108,20 +108,32 @@ describe('RealmGuard', () => {
     );
   });
 
-  it('should still set a disabled realm on the request (guard does not filter by enabled)', async () => {
+  it('should throw ForbiddenException for disabled realm on non-admin path', async () => {
     const disabledRealm = {
       id: '3',
       name: 'disabled-realm',
       enabled: false,
     };
     prisma.realm.findUnique.mockResolvedValue(disabledRealm);
-    const ctx = createMockExecutionContext({ realmName: 'disabled-realm' });
+    const ctx = createMockExecutionContext({ realmName: 'disabled-realm' }, '/realms/disabled-realm/login');
+
+    await expect(guard.canActivate(ctx)).rejects.toThrow(ForbiddenException);
+    await expect(guard.canActivate(ctx)).rejects.toThrow('Realm is disabled');
+  });
+
+  it('should allow disabled realm on admin path', async () => {
+    const disabledRealm = {
+      id: '3',
+      name: 'disabled-realm',
+      enabled: false,
+    };
+    prisma.realm.findUnique.mockResolvedValue(disabledRealm);
+    const ctx = createMockExecutionContext({ realmName: 'disabled-realm' }, '/admin/realms/disabled-realm/users');
 
     const result = await guard.canActivate(ctx);
 
     expect(result).toBe(true);
     const request = ctx.switchToHttp().getRequest();
     expect(request.realm).toEqual(disabledRealm);
-    expect(request.realm.enabled).toBe(false);
   });
 });

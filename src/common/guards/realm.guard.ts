@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -26,6 +27,11 @@ export class RealmGuard implements CanActivate {
 
     if (!realm) {
       throw new NotFoundException(`Realm '${realmName}' not found`);
+    }
+
+    // Block disabled realms for non-admin endpoints
+    if (!realm.enabled && !request.path.startsWith('/admin/')) {
+      throw new ForbiddenException('Realm is disabled');
     }
 
     (request as any).realm = realm;
