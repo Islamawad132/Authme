@@ -152,9 +152,9 @@ export class AuthmeClient {
       return false;
     }
 
-    // Verify state
+    // Verify state — fail-closed: reject if stored state is missing or mismatched
     const storedState = this.storage.get('auth_state');
-    if (storedState && state !== storedState) {
+    if (!storedState || state !== storedState) {
       this.events.emit('error', new Error('State mismatch — possible CSRF attack'));
       return false;
     }
