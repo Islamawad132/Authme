@@ -66,9 +66,15 @@ describe('OAuthService', () => {
     state: 'abc123',
   };
 
+  const mockScopesService = {
+    parseAndValidate: jest.fn((s?: string) => s ? s.split(' ').filter(Boolean) : []),
+    getClientEffectiveScopes: jest.fn(async () => ['openid']),
+    toString: jest.fn((scopes: string[]) => scopes.join(' ')),
+  };
+
   beforeEach(() => {
     prisma = createMockPrismaService();
-    service = new OAuthService(prisma as any);
+    service = new OAuthService(prisma as any, mockScopesService as any);
   });
 
   describe('validateAuthRequest', () => {
