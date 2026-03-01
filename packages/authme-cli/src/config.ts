@@ -48,8 +48,7 @@ export function requireAuth(): { serverUrl: string; headers: Record<string, stri
     return { serverUrl: config.serverUrl, headers };
   }
 
-  console.error(
+  throw new Error(
     'Not authenticated. Run `authme login` or set AUTHME_SERVER_URL + ADMIN_API_KEY env vars.',
   );
-  process.exit(1);
 }

@@ -34,8 +34,7 @@ export function registerInitCommand(program: Command): void {
         });
 
         if (!res.ok) {
-          console.error(chalk.red('Login failed. Check your credentials and server URL.'));
-          process.exit(1);
+          throw new Error(chalk.red('Login failed. Check your credentials and server URL.'));
         }
 
         const data: LoginResponse = await res.json();
