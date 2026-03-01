@@ -518,6 +518,14 @@ export class LoginController {
       lastName: query['lastName'] ?? '',
       error: query['error'] ?? '',
       info: query['info'] ?? '',
+      client_id: query['client_id'] ?? '',
+      redirect_uri: query['redirect_uri'] ?? '',
+      response_type: query['response_type'] ?? '',
+      scope: query['scope'] ?? '',
+      state: query['state'] ?? '',
+      nonce: query['nonce'] ?? '',
+      code_challenge: query['code_challenge'] ?? '',
+      code_challenge_method: query['code_challenge_method'] ?? '',
     });
   }
 
@@ -540,7 +548,15 @@ export class LoginController {
     const password = body['password'] ?? '';
     const confirmPassword = body['confirmPassword'] ?? '';
 
-    const preserveFields = `&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}`;
+    // Preserve OAuth params through registration redirects
+    const oauthParamNames = ['client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method'];
+    const oauthParams = oauthParamNames
+      .filter(p => body[p])
+      .map(p => `${p}=${encodeURIComponent(body[p])}`)
+      .join('&');
+    const oauthSuffix = oauthParams ? `&${oauthParams}` : '';
+
+    const preserveFields = `&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}${oauthSuffix}`;
 
     if (!username || username.length < 2) {
       return res.redirect(
@@ -644,7 +660,7 @@ export class LoginController {
     }
 
     const info = encodeURIComponent('Account created successfully! Please check your email to verify your account, then sign in.');
-    res.redirect(`/realms/${realm.name}/login?info=${info}`);
+    res.redirect(`/realms/${realm.name}/login?info=${info}${oauthSuffix}`);
   }
 
   // ─── EMAIL VERIFICATION ─────────────────────────────────
