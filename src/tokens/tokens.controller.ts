@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
@@ -85,7 +86,10 @@ export class TokensController {
   userinfo(@CurrentRealm() realm: Realm, @Req() req: Request) {
     const authHeader = req.headers['authorization'];
     if (!authHeader?.startsWith('Bearer ')) {
-      return { error: 'invalid_token', error_description: 'Missing Bearer token' };
+      throw new UnauthorizedException({
+        error: 'invalid_token',
+        error_description: 'Missing Bearer token',
+      });
     }
     const token = authHeader.slice(7);
     return this.tokensService.userinfo(realm, token);
