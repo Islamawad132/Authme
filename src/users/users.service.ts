@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { VerificationService } from '../verification/verification.service.js';
@@ -73,19 +74,31 @@ export class UsersService {
       passwordHash = await this.crypto.hashPassword(dto.password);
     }
 
-    const user = await this.prisma.user.create({
-      data: {
-        realmId: realm.id,
-        username: dto.username,
-        email: dto.email,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        enabled: dto.enabled,
-        passwordHash,
-        passwordChangedAt: passwordHash ? new Date() : undefined,
-      },
-      select: USER_SELECT,
-    });
+    let user;
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          realmId: realm.id,
+          username: dto.username,
+          email: dto.email,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          enabled: dto.enabled,
+          passwordHash,
+          passwordChangedAt: passwordHash ? new Date() : undefined,
+        },
+        select: USER_SELECT,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const target = (error.meta?.target as string[]) ?? [];
+        if (target.includes('email')) {
+          throw new ConflictException(`Email '${dto.email}' is already in use`);
+        }
+        throw new ConflictException(`User '${dto.username}' already exists in realm '${realm.name}'`);
+      }
+      throw error;
+    }
 
     // Record password history
     if (passwordHash && realm.passwordHistoryCount > 0) {
