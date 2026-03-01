@@ -78,6 +78,17 @@ async function bootstrap() {
   // Handlebars template engine — templates live in themes/ and are resolved by ThemeRenderService
   app.setBaseViewsDir(join(__dirname, '..', 'themes'));
   app.setViewEngine('hbs');
+
+  // Block access to template sources, config files, and message bundles
+  const expressInstance = app.getHttpAdapter().getInstance();
+  expressInstance.use('/themes', (req: { path: string }, res: { status: (code: number) => { json: (body: object) => void } }, next: () => void) => {
+    if (/\.(hbs|properties)$/.test(req.path) || req.path.includes('theme.json')) {
+      res.status(403).json({ statusCode: 403, message: 'Forbidden' });
+      return;
+    }
+    next();
+  });
+
   app.useStaticAssets(join(__dirname, '..', 'themes'), { prefix: '/themes' });
 
   // Register theme engine Handlebars helpers ({{msg}}, {{msgArgs}})
