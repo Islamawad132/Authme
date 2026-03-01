@@ -197,6 +197,12 @@ export class LoginController {
     req: Request,
     res: Response,
   ) {
+    // Validate OAuth request (including redirect_uri) BEFORE creating session
+    let client;
+    if (oauthParams['client_id']) {
+      client = await this.oauthService.validateAuthRequest(realm, oauthParams as any);
+    }
+
     const sessionToken = await this.loginService.createLoginSession(
       realm, user, req.ip, req.headers['user-agent'],
     );
@@ -217,11 +223,9 @@ export class LoginController {
       ipAddress: req.ip,
     });
 
-    if (!oauthParams['client_id']) {
+    if (!client) {
       return res.redirect(302, `/realms/${realm.name}/account`);
     }
-
-    const client = await this.oauthService.validateAuthRequest(realm, oauthParams as any);
 
     if (client.requireConsent) {
       const scopes = (oauthParams['scope'] ?? 'openid').split(' ').filter(Boolean);
