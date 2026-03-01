@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsObject, Min, Matches } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, IsObject, Min, MinLength, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateRealmDto {
@@ -176,6 +176,7 @@ export class CreateRealmDto {
   @ApiPropertyOptional({ default: 'authme', description: 'Name of the theme preset to use' })
   @IsOptional()
   @IsString()
+  @MinLength(1)
   themeName?: string;
 
   @ApiPropertyOptional({ description: 'Realm theme configuration (color overrides)' })
@@ -186,15 +187,18 @@ export class CreateRealmDto {
   @ApiPropertyOptional({ default: 'authme', description: 'Login page theme' })
   @IsOptional()
   @IsString()
+  @MinLength(1)
   loginTheme?: string;
 
   @ApiPropertyOptional({ default: 'authme', description: 'Account page theme' })
   @IsOptional()
   @IsString()
+  @MinLength(1)
   accountTheme?: string;
 
   @ApiPropertyOptional({ default: 'authme', description: 'Email template theme' })
   @IsOptional()
   @IsString()
+  @MinLength(1)
   emailTheme?: string;
 }
