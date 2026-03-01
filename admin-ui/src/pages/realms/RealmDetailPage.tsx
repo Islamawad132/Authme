@@ -7,6 +7,9 @@ import { getUsers } from '../../api/users';
 import { getClients } from '../../api/clients';
 import { getRealmRoles } from '../../api/roles';
 import { getGroups } from '../../api/groups';
+import { getClientScopes } from '../../api/clientScopes';
+import { getRealmSessions } from '../../api/sessions';
+import { getIdentityProviders } from '../../api/identityProviders';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import PasswordInput from '../../components/PasswordInput';
 
@@ -52,6 +55,24 @@ export default function RealmDetailPage() {
   const { data: groups } = useQuery({
     queryKey: ['groups', name],
     queryFn: () => getGroups(name!),
+    enabled: !!name && !!realm,
+  });
+
+  const { data: clientScopes } = useQuery({
+    queryKey: ['clientScopes', name],
+    queryFn: () => getClientScopes(name!),
+    enabled: !!name && !!realm,
+  });
+
+  const { data: sessions } = useQuery({
+    queryKey: ['sessions', name],
+    queryFn: () => getRealmSessions(name!),
+    enabled: !!name && !!realm,
+  });
+
+  const { data: identityProviders } = useQuery({
+    queryKey: ['identityProviders', name],
+    queryFn: () => getIdentityProviders(name!),
     enabled: !!name && !!realm,
   });
 
@@ -206,9 +227,9 @@ export default function RealmDetailPage() {
     { to: `/console/realms/${name}/clients`, label: 'Clients', count: clients?.length },
     { to: `/console/realms/${name}/roles`, label: 'Roles', count: roles?.length },
     { to: `/console/realms/${name}/groups`, label: 'Groups', count: groups?.length },
-    { to: `/console/realms/${name}/client-scopes`, label: 'Client Scopes', count: undefined },
-    { to: `/console/realms/${name}/sessions`, label: 'Sessions', count: undefined },
-    { to: `/console/realms/${name}/identity-providers`, label: 'Identity Providers', count: undefined },
+    { to: `/console/realms/${name}/client-scopes`, label: 'Client Scopes', count: clientScopes?.length },
+    { to: `/console/realms/${name}/sessions`, label: 'Sessions', count: sessions?.length },
+    { to: `/console/realms/${name}/identity-providers`, label: 'Identity Providers', count: identityProviders?.length },
   ];
 
   return (
