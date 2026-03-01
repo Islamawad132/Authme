@@ -44,6 +44,15 @@ export class TokensService {
         return { active: false };
       }
 
+      // Check session validity (logout deletes sessions)
+      const sid = payload['sid'] as string | undefined;
+      if (sid) {
+        const session = await this.prisma.session.findUnique({ where: { id: sid } });
+        if (!session) {
+          return { active: false };
+        }
+      }
+
       return {
         active: true,
         sub: payload.sub,
@@ -203,6 +212,15 @@ export class TokensService {
     const jti = payload['jti'] as string | undefined;
     if (jti && this.blacklist.isBlacklisted(jti)) {
       throw new UnauthorizedException('Token has been revoked');
+    }
+
+    // Check session validity (logout revokes sessions)
+    const sid = payload['sid'] as string | undefined;
+    if (sid) {
+      const session = await this.prisma.session.findUnique({ where: { id: sid } });
+      if (!session) {
+        throw new UnauthorizedException('Session has been revoked');
+      }
     }
 
     const user = await this.prisma.user.findUnique({
