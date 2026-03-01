@@ -730,19 +730,26 @@ export class LoginController {
       });
 
       if (user) {
-        const rawToken = await this.verificationService.createToken(
-          user.id,
-          'password_reset',
-          3600,
-        );
-        const baseUrl = this.config.get<string>('BASE_URL', 'http://localhost:3000');
-        const resetUrl = `${baseUrl}/realms/${realm.name}/reset-password?token=${rawToken}`;
+        try {
+          const configured = await this.emailService.isConfigured(realm.name);
+          if (configured) {
+            const rawToken = await this.verificationService.createToken(
+              user.id,
+              'password_reset',
+              3600,
+            );
+            const baseUrl = this.config.get<string>('BASE_URL', 'http://localhost:3000');
+            const resetUrl = `${baseUrl}/realms/${realm.name}/reset-password?token=${rawToken}`;
 
-        const fullRealm = await this.prisma.realm.findUnique({ where: { name: realm.name } });
-        if (fullRealm) {
-          const subject = this.themeEmail.getSubject(fullRealm, 'resetPasswordSubject');
-          const html = this.themeEmail.renderEmail(fullRealm, 'reset-password', { resetUrl });
-          await this.emailService.sendEmail(realm.name, email, subject, html);
+            const fullRealm = await this.prisma.realm.findUnique({ where: { name: realm.name } });
+            if (fullRealm) {
+              const subject = this.themeEmail.getSubject(fullRealm, 'resetPasswordSubject');
+              const html = this.themeEmail.renderEmail(fullRealm, 'reset-password', { resetUrl });
+              await this.emailService.sendEmail(realm.name, email, subject, html);
+            }
+          }
+        } catch {
+          // Don't reveal email sending errors to the user
         }
       }
     }
