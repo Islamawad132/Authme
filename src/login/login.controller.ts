@@ -564,6 +564,13 @@ export class LoginController {
       );
     }
 
+    const htmlPattern = /[<>]/;
+    if (htmlPattern.test(username) || htmlPattern.test(firstName) || htmlPattern.test(lastName)) {
+      return res.redirect(
+        `/realms/${realm.name}/register?error=${encodeURIComponent('Fields must not contain HTML tags or angle brackets.')}${preserveFields}`,
+      );
+    }
+
     if (!email) {
       return res.redirect(
         `/realms/${realm.name}/register?error=${encodeURIComponent('Email is required.')}${preserveFields}`,
