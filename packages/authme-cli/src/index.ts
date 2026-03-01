@@ -21,6 +21,6 @@ registerRoleCommands(program);
 registerInitCommand(program);
 
 program.parseAsync(process.argv).catch((err) => {
-  console.error(err);
-  process.exit(1);
+  if (err.message) console.error(err.message);
+  process.exitCode = 1;
 });

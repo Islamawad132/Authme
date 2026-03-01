@@ -36,8 +36,7 @@ export function registerAuthCommands(program: Command): void {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: res.statusText }));
-        console.error(chalk.red(`Login failed: ${err.message}`));
-        process.exit(1);
+        throw new Error(chalk.red(`Login failed: ${err.message}`));
       }
 
       const data: LoginResponse = await res.json();

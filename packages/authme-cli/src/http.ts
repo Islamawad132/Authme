@@ -62,8 +62,9 @@ export class HttpClient {
     if (!res.ok) {
       const msg = json?.message ?? json?.error ?? res.statusText;
       const display = Array.isArray(msg) ? msg.join(', ') : msg;
-      console.error(chalk.red(`Error ${res.status}: ${display}`));
-      process.exit(1);
+      const error = new Error(`Error ${res.status}: ${display}`);
+      error.message = chalk.red(error.message);
+      throw error;
     }
 
     return json as T;
