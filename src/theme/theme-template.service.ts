@@ -31,6 +31,14 @@ export class ThemeTemplateService {
       }
     }
 
+    // Fallback to the default 'authme' theme to prevent 500 errors
+    if (themeName !== 'authme') {
+      this.logger.warn(
+        `Template "${templateName}" not found for theme "${themeName}/${themeType}", falling back to "authme"`,
+      );
+      return this.resolve('authme', themeType, templateName);
+    }
+
     throw new Error(
       `Template not found: ${templateName} for theme ${themeName}/${themeType}. ` +
       `Searched chain: [${chain.join(' → ')}]`,
