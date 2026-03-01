@@ -36,15 +36,17 @@ export interface AuthmeTokenPayload extends JWTPayload {
   resource_access?: Record<string, { roles: string[] }>;
 }
 
-// Cache JWKS instances per issuer to avoid creating new ones on every request
-const jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+// Cache JWKS instances per issuer with a TTL to support key rotation
+const JWKS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const jwksCache = new Map<string, { jwks: ReturnType<typeof createRemoteJWKSet>; cachedAt: number }>();
 
 function getJWKS(issuerUrl: string, realm: string) {
   const url = `${issuerUrl}/realms/${realm}/protocol/openid-connect/certs`;
-  if (!jwksCache.has(url)) {
-    jwksCache.set(url, createRemoteJWKSet(new URL(url)));
+  const cached = jwksCache.get(url);
+  if (!cached || Date.now() - cached.cachedAt > JWKS_CACHE_TTL_MS) {
+    jwksCache.set(url, { jwks: createRemoteJWKSet(new URL(url)), cachedAt: Date.now() });
   }
-  return jwksCache.get(url)!;
+  return jwksCache.get(url)!.jwks;
 }
 
 /**
