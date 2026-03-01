@@ -9,6 +9,7 @@ import { join } from 'path';
 import { AppModule } from './app.module.js';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter.js';
 import { registerHandlebarsHelpers } from './theme/handlebars-helpers.js';
+import { PrismaService } from './prisma/prisma.service.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -36,7 +37,42 @@ async function bootstrap() {
       crossOriginResourcePolicy: false,
     }),
   );
-  app.enableCors();
+  // Dynamic CORS: validate Origin against client webOrigins stored in the database.
+  // This replaces the previous `app.enableCors()` which allowed all origins (*).
+  const prisma = app.get(PrismaService);
+  app.enableCors({
+    origin: async (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      // Allow requests with no Origin header (server-to-server, curl, same-origin)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      try {
+        // Check if any enabled client has '*' (allow all) or the specific origin in webOrigins
+        const matchingClient = await prisma.client.findFirst({
+          where: {
+            enabled: true,
+            OR: [
+              { webOrigins: { has: origin } },
+              { webOrigins: { has: '*' } },
+            ],
+          },
+          select: { id: true },
+        });
+
+        callback(null, !!matchingClient);
+      } catch {
+        callback(null, false);
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-api-key'],
+  });
   app.use(cookieParser());
 
   // Handlebars template engine — templates live in themes/ and are resolved by ThemeRenderService
