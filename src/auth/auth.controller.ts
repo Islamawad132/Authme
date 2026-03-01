@@ -4,12 +4,13 @@ import {
   Body,
   Param,
   Req,
+  Res,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import type { Realm } from '@prisma/client';
 import { AuthService } from './auth.service.js';
 import { TokenRequestDto } from './dto/token-request.dto.js';
@@ -29,11 +30,14 @@ export class AuthController {
   @ApiOperation({ summary: 'Token endpoint (password, client_credentials, refresh_token, authorization_code)' })
   @ApiConsumes('application/x-www-form-urlencoded', 'application/json')
   @ApiBody({ type: TokenRequestDto })
-  token(
+  async token(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
+    res.set('Cache-Control', 'no-store');
+    res.set('Pragma', 'no-cache');
     return this.authService.handleTokenRequest(
       realm,
       body,
