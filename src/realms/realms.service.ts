@@ -1,11 +1,13 @@
 import {
   Injectable,
+  BadRequestException,
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
 import { ScopeSeedService } from '../scopes/scope-seed.service.js';
+import { ThemeService } from '../theme/theme.service.js';
 import { CreateRealmDto } from './dto/create-realm.dto.js';
 import { UpdateRealmDto } from './dto/update-realm.dto.js';
 
@@ -15,6 +17,7 @@ export class RealmsService {
     private readonly prisma: PrismaService,
     private readonly jwkService: JwkService,
     private readonly scopeSeedService: ScopeSeedService,
+    private readonly themeService: ThemeService,
   ) {}
 
   private redactSmtpPassword(realm: any) {
@@ -116,6 +119,19 @@ export class RealmsService {
 
   async update(name: string, dto: UpdateRealmDto) {
     await this.findByNameRaw(name);
+
+    // Validate theme names against available themes
+    const themeFields = [dto.loginTheme, dto.accountTheme, dto.emailTheme, dto.themeName].filter(Boolean);
+    if (themeFields.length > 0) {
+      const availableNames = this.themeService.getAvailableThemes().map(t => t.name);
+      for (const themeName of themeFields) {
+        if (!availableNames.includes(themeName!)) {
+          throw new BadRequestException(
+            `Theme '${themeName}' does not exist. Available themes: ${availableNames.join(', ')}`,
+          );
+        }
+      }
+    }
 
     const data: any = {
       displayName: dto.displayName,
