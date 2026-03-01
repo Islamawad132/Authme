@@ -51,6 +51,15 @@ export class UsersService {
       throw new ConflictException(`User '${dto.username}' already exists in realm '${realm.name}'`);
     }
 
+    if (dto.email) {
+      const emailTaken = await this.prisma.user.findUnique({
+        where: { realmId_email: { realmId: realm.id, email: dto.email } },
+      });
+      if (emailTaken) {
+        throw new ConflictException(`Email '${dto.email}' is already in use`);
+      }
+    }
+
     let passwordHash: string | undefined;
     if (dto.password) {
       // Validate password against realm policy
@@ -132,7 +141,17 @@ export class UsersService {
   }
 
   async update(realm: Realm, userId: string, dto: UpdateUserDto) {
-    await this.findById(realm, userId);
+    const user = await this.findById(realm, userId);
+
+    if (dto.email && dto.email !== user.email) {
+      const emailTaken = await this.prisma.user.findUnique({
+        where: { realmId_email: { realmId: realm.id, email: dto.email } },
+      });
+      if (emailTaken) {
+        throw new ConflictException(`Email '${dto.email}' is already in use`);
+      }
+    }
+
     return this.prisma.user.update({
       where: { id: userId },
       data: {

@@ -132,6 +132,17 @@ describe('UsersService', () => {
         service.create(mockRealm, { username: 'testuser' }),
       ).rejects.toThrow(ConflictException);
     });
+
+    it('should throw ConflictException when email already exists', async () => {
+      // First call (username check) returns null, second call (email check) returns existing user
+      prisma.user.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(mockUser);
+
+      await expect(
+        service.create(mockRealm, { username: 'newuser', email: 'test@example.com' }),
+      ).rejects.toThrow(ConflictException);
+    });
   });
 
   describe('findAll', () => {
