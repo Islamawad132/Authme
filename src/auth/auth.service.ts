@@ -312,7 +312,7 @@ export class AuthService {
       user,
       client_id,
       storedToken.sessionId,
-      scope,
+      scope || storedToken.scope || undefined,
     );
   }
 
@@ -677,6 +677,7 @@ export class AuthService {
       data: {
         sessionId,
         tokenHash: refreshTokenHash,
+        scope: validatedScope,
         expiresAt: new Date(Date.now() + refreshLifespan * 1000),
         isOffline,
       },
