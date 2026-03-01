@@ -556,7 +556,7 @@ export class LoginController {
       .join('&');
     const oauthSuffix = oauthParams ? `&${oauthParams}` : '';
 
-    const preserveFields = `&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}&firstName=${encodeURIComponent(firstName)}&lastName=${encodeURIComponent(lastName)}${oauthSuffix}`;
+    const preserveFields = oauthSuffix;
 
     if (!username || username.length < 2) {
       return res.redirect(
@@ -590,23 +590,16 @@ export class LoginController {
       );
     }
 
-    // Check for duplicate username
+    // Check for duplicate username or email — use a generic message to prevent enumeration
     const existingByUsername = await this.prisma.user.findUnique({
       where: { realmId_username: { realmId: realm.id, username } },
     });
-    if (existingByUsername) {
-      return res.redirect(
-        `/realms/${realm.name}/register?error=${encodeURIComponent('An account with that username already exists.')}${preserveFields}`,
-      );
-    }
-
-    // Check for duplicate email
     const existingByEmail = await this.prisma.user.findUnique({
       where: { realmId_email: { realmId: realm.id, email } },
     });
-    if (existingByEmail) {
+    if (existingByUsername || existingByEmail) {
       return res.redirect(
-        `/realms/${realm.name}/register?error=${encodeURIComponent('An account with that email already exists.')}${preserveFields}`,
+        `/realms/${realm.name}/register?error=${encodeURIComponent('An account with that username or email already exists.')}${preserveFields}`,
       );
     }
 
