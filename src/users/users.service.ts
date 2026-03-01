@@ -12,6 +12,7 @@ import { VerificationService } from '../verification/verification.service.js';
 import { EmailService } from '../email/email.service.js';
 import { PasswordPolicyService } from '../password-policy/password-policy.service.js';
 import { ThemeEmailService } from '../theme/theme-email.service.js';
+import { BruteForceService } from '../brute-force/brute-force.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import type { Realm } from '@prisma/client';
@@ -41,6 +42,7 @@ export class UsersService {
     private readonly config: ConfigService,
     private readonly passwordPolicyService: PasswordPolicyService,
     private readonly themeEmail: ThemeEmailService,
+    private readonly bruteForceService: BruteForceService,
   ) {}
 
   async create(realm: Realm, dto: CreateUserDto) {
@@ -194,6 +196,9 @@ export class UsersService {
       where: { id: userId },
       data: { passwordHash, passwordChangedAt: new Date() },
     });
+
+    // Unlock brute-force locked account and clear failure records
+    await this.bruteForceService.resetFailures(realm.id, userId);
 
     // Record password history
     await this.passwordPolicyService.recordHistory(
