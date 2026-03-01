@@ -18,9 +18,16 @@ export function registerAuthCommands(program: Command): void {
       const serverUrl = (opts.server || (await ask('Server URL: '))).replace(/\/$/, '');
 
       if (opts.apiKey) {
+        // Save config temporarily to allow HttpClient to use the API key
         saveConfig({ serverUrl, accessToken: '', apiKey: opts.apiKey });
-        const client = new HttpClient();
-        await client.get('/admin/auth/me');
+        try {
+          const client = new HttpClient();
+          await client.get('/admin/auth/me');
+        } catch (err: unknown) {
+          // Validation failed — clear the saved config
+          clearConfig();
+          throw err;
+        }
         success(`Authenticated to ${serverUrl} via API key`);
         return;
       }
@@ -35,11 +42,11 @@ export function registerAuthCommands(program: Command): void {
       });
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: res.statusText }));
+        const err = (await res.json().catch(() => ({ message: res.statusText }))) as { message?: string };
         throw new Error(chalk.red(`Login failed: ${err.message}`));
       }
 
-      const data: LoginResponse = await res.json();
+      const data = (await res.json()) as LoginResponse;
       saveConfig({ serverUrl, accessToken: data.access_token });
       success(`Logged in to ${serverUrl} as ${username}`);
     });
