@@ -61,7 +61,7 @@ export default function Layout() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 transform bg-gray-900 text-white transition-transform lg:relative lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 transform flex-col bg-gray-900 text-white transition-transform lg:relative lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -69,7 +69,7 @@ export default function Layout() {
           <img src="/console/authme-logo.png" alt="AuthMe" className="h-8 w-auto" />
         </div>
 
-        <nav className="mt-4 space-y-1 px-3">
+        <nav className="mt-4 flex-1 space-y-1 overflow-y-auto px-3 pb-4">
           {globalNav.map((item) => (
             <NavLink
               key={item.to}
