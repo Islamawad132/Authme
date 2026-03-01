@@ -145,6 +145,25 @@ export function createAuthmeMiddleware(config: AuthmeServerConfig) {
 // ─── NestJS Guard ─────────────────────────────────────────
 
 /**
+ * Lightweight HttpException-compatible error that NestJS exception filters
+ * recognize without requiring @nestjs/common as a dependency.
+ */
+class HttpError extends Error {
+  constructor(
+    private readonly response: string | object,
+    private readonly statusCode: number,
+  ) {
+    super(typeof response === 'string' ? response : JSON.stringify(response));
+  }
+  getStatus() {
+    return this.statusCode;
+  }
+  getResponse() {
+    return this.response;
+  }
+}
+
+/**
  * NestJS-compatible guard factory for AuthMe token validation.
  *
  * @example
@@ -176,20 +195,25 @@ export function createAuthmeGuard(config: AuthmeServerConfig) {
       const header = Array.isArray(authHeader) ? authHeader[0] : authHeader;
 
       if (!header?.startsWith('Bearer ')) {
-        throw new Error('Missing Bearer token');
+        throw new HttpError({ statusCode: 401, message: 'Missing Bearer token', error: 'Unauthorized' }, 401);
       }
 
-      const token = header.slice(7);
-      const payload = await verifyToken(token, config);
+      try {
+        const token = header.slice(7);
+        const payload = await verifyToken(token, config);
 
-      if (config.requiredRoles?.length) {
-        if (!hasRealmRoles(payload, config.requiredRoles)) {
-          throw new Error('Insufficient roles');
+        if (config.requiredRoles?.length) {
+          if (!hasRealmRoles(payload, config.requiredRoles)) {
+            throw new HttpError({ statusCode: 403, message: 'Insufficient roles', error: 'Forbidden' }, 403);
+          }
         }
-      }
 
-      request.user = payload;
-      return true;
+        request.user = payload;
+        return true;
+      } catch (err) {
+        if (err instanceof HttpError) throw err;
+        throw new HttpError({ statusCode: 401, message: 'Invalid or expired token', error: 'Unauthorized' }, 401);
+      }
     }
   };
 }
