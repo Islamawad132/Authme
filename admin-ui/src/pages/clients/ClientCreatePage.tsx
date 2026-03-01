@@ -107,10 +107,12 @@ export default function ClientCreatePage() {
       <form onSubmit={handleSubmit} className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="clientId" className="mb-1.5 block text-sm font-medium text-gray-700">
               Client ID
             </label>
             <input
+              id="clientId"
+              name="clientId"
               type="text"
               required
               value={form.clientId}
@@ -120,10 +122,12 @@ export default function ClientCreatePage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="clientName" className="mb-1.5 block text-sm font-medium text-gray-700">
               Name
             </label>
             <input
+              id="clientName"
+              name="name"
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -134,10 +138,12 @@ export default function ClientCreatePage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="description" className="mb-1.5 block text-sm font-medium text-gray-700">
             Description
           </label>
           <textarea
+            id="description"
+            name="description"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             rows={2}
@@ -146,10 +152,12 @@ export default function ClientCreatePage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="clientType" className="mb-1.5 block text-sm font-medium text-gray-700">
             Client Type
           </label>
           <select
+            id="clientType"
+            name="clientType"
             value={form.clientType}
             onChange={(e) =>
               setForm({ ...form, clientType: e.target.value as 'CONFIDENTIAL' | 'PUBLIC' })
@@ -165,10 +173,12 @@ export default function ClientCreatePage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="redirectUris" className="mb-1.5 block text-sm font-medium text-gray-700">
             Redirect URIs (one per line)
           </label>
           <textarea
+            id="redirectUris"
+            name="redirectUris"
             value={form.redirectUris}
             onChange={(e) => setForm({ ...form, redirectUris: e.target.value })}
             rows={3}
@@ -178,10 +188,12 @@ export default function ClientCreatePage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="webOrigins" className="mb-1.5 block text-sm font-medium text-gray-700">
             Web Origins (one per line)
           </label>
           <textarea
+            id="webOrigins"
+            name="webOrigins"
             value={form.webOrigins}
             onChange={(e) => setForm({ ...form, webOrigins: e.target.value })}
             rows={2}
@@ -191,10 +203,12 @@ export default function ClientCreatePage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="grantTypes" className="mb-1.5 block text-sm font-medium text-gray-700">
             Grant Types (comma-separated)
           </label>
           <input
+            id="grantTypes"
+            name="grantTypes"
             type="text"
             value={form.grantTypes}
             onChange={(e) => setForm({ ...form, grantTypes: e.target.value })}

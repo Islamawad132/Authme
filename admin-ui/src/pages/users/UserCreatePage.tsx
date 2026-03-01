@@ -52,10 +52,12 @@ export default function UserCreatePage() {
       <form onSubmit={handleSubmit} className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-gray-700">
               Username
             </label>
             <input
+              id="username"
+              name="username"
               type="text"
               required
               value={form.username}
@@ -64,10 +66,12 @@ export default function UserCreatePage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-gray-700">
               Email
             </label>
             <input
+              id="email"
+              name="email"
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -78,10 +82,12 @@ export default function UserCreatePage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="firstName" className="mb-1.5 block text-sm font-medium text-gray-700">
               First Name
             </label>
             <input
+              id="firstName"
+              name="firstName"
               type="text"
               value={form.firstName}
               onChange={(e) => setForm({ ...form, firstName: e.target.value })}
@@ -89,10 +95,12 @@ export default function UserCreatePage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="lastName" className="mb-1.5 block text-sm font-medium text-gray-700">
               Last Name
             </label>
             <input
+              id="lastName"
+              name="lastName"
               type="text"
               value={form.lastName}
               onChange={(e) => setForm({ ...form, lastName: e.target.value })}
@@ -102,10 +110,12 @@ export default function UserCreatePage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">
             Password
           </label>
           <PasswordInput
+            id="password"
+            name="password"
             required
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
