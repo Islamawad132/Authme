@@ -55,10 +55,30 @@ export class ThemeEmailService {
     let compiled = this.compiledTemplates.get(templatePath);
     if (!compiled) {
       const source = readFileSync(templatePath, 'utf-8');
-      // Create a standalone Handlebars instance with the msg helper
+      this.registerHelpers();
       compiled = Handlebars.compile(source);
       this.compiledTemplates.set(templatePath, compiled);
     }
     return compiled;
+  }
+
+  private helpersRegistered = false;
+
+  private registerHelpers(): void {
+    if (this.helpersRegistered) return;
+    Handlebars.registerHelper('msg', function (key: string, options: any) {
+      const messages: Record<string, string> = options?.data?.root?._messages ?? {};
+      return messages[key] ?? key;
+    });
+    Handlebars.registerHelper('msgArgs', function (key: string, ...args: any[]) {
+      const options = args.pop();
+      const messages: Record<string, string> = options?.data?.root?._messages ?? {};
+      let text = messages[key] ?? key;
+      for (let i = 0; i < args.length; i++) {
+        text = text.replace(`{${i}}`, String(args[i] ?? ''));
+      }
+      return text;
+    });
+    this.helpersRegistered = true;
   }
 }
