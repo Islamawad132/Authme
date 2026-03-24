@@ -68,7 +68,7 @@ export function registerMigrateCommand(program: Command): void {
 
       try {
         const http = createHttpClient(config);
-        const { data: report } = await http.post<MigrationReport>('/admin/migration/keycloak', {
+        const report = await http.post<MigrationReport>('/admin/migration/keycloak', {
           data, dryRun: opts.dryRun, targetRealm: opts.realm,
         });
         if (opts.json) {
@@ -104,7 +104,7 @@ export function registerMigrateCommand(program: Command): void {
 
       try {
         const http = createHttpClient(config);
-        const { data: report } = await http.post<MigrationReport>('/admin/migration/auth0', {
+        const report = await http.post<MigrationReport>('/admin/migration/auth0', {
           data, dryRun: opts.dryRun, targetRealm: opts.realm,
         });
         if (opts.json) {
