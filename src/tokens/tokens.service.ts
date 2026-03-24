@@ -1,6 +1,7 @@
 import {
   Injectable,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import type { Realm } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -13,6 +14,7 @@ import { TokenBlacklistService } from './token-blacklist.service.js';
 import { BackchannelLogoutService } from './backchannel-logout.service.js';
 import { EventsService } from '../events/events.service.js';
 import { LoginEventType } from '../events/event-types.js';
+import { matchesRedirectUri } from '../common/redirect-uri.utils.js';
 
 @Injectable()
 export class TokensService {
@@ -161,6 +163,71 @@ export class TokensService {
       }
     } catch {
       // Invalid or expired id_token — best-effort logout, don't throw
+    }
+  }
+
+  /**
+   * Validate a post_logout_redirect_uri against the client's registered
+   * redirectUris, derived from the id_token_hint (azp / aud claim).
+   *
+   * Throws BadRequestException if:
+   * - no id_token_hint is provided (no client context to validate against)
+   * - the client cannot be found in this realm
+   * - the URI does not match any of the client's registered redirectUris
+   */
+  async validatePostLogoutRedirectUri(
+    realm: Realm,
+    postLogoutRedirectUri: string,
+    idTokenHint?: string,
+  ): Promise<void> {
+    if (!idTokenHint) {
+      throw new BadRequestException(
+        'id_token_hint is required when post_logout_redirect_uri is specified',
+      );
+    }
+
+    // Decode the id_token_hint to obtain the client identifier (azp or aud).
+    // We do a best-effort decode — if the token is expired but otherwise well-
+    // formed we still extract the client id so the redirect can be validated.
+    let clientId: string | undefined;
+    try {
+      const signingKey = await this.prisma.realmSigningKey.findFirst({
+        where: { realmId: realm.id, active: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (signingKey) {
+        const payload = await this.jwkService.verifyJwt(idTokenHint, signingKey.publicKey);
+        const p = payload as Record<string, unknown>;
+        // azp (authorized party) is the canonical client identifier in OIDC id_tokens
+        clientId =
+          (p['azp'] as string | undefined) ??
+          (Array.isArray(p['aud']) ? (p['aud'] as string[])[0] : (p['aud'] as string | undefined));
+      }
+    } catch {
+      // Token may be expired — fall through; clientId stays undefined
+    }
+
+    if (!clientId) {
+      throw new BadRequestException(
+        'Unable to determine client from id_token_hint',
+      );
+    }
+
+    const client = await this.prisma.client.findUnique({
+      where: { realmId_clientId: { realmId: realm.id, clientId } },
+      select: { redirectUris: true },
+    });
+
+    if (!client) {
+      throw new BadRequestException(
+        `Client '${clientId}' not found in this realm`,
+      );
+    }
+
+    if (!matchesRedirectUri(postLogoutRedirectUri, client.redirectUris)) {
+      throw new BadRequestException(
+        'post_logout_redirect_uri does not match any registered redirect URI for this client',
+      );
     }
   }
 

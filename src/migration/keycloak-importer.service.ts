@@ -265,7 +265,8 @@ export class KeycloakImporterService {
           continue;
         }
 
-        const { hash, algorithm } = this.extractKeycloakPassword(user);
+        const { hash: rawHash, algorithm, needsHashing } = this.extractKeycloakPassword(user);
+        const hash = (needsHashing && rawHash) ? await this.crypto.hashPassword(rawHash) : rawHash;
 
         if (!dryRun) {
           const created = await this.prisma.user.create({
@@ -304,7 +305,7 @@ export class KeycloakImporterService {
     }
   }
 
-  private extractKeycloakPassword(user: KeycloakUser): { hash: string | null; algorithm: string } {
+  private extractKeycloakPassword(user: KeycloakUser): { hash: string | null; algorithm: string; needsHashing?: boolean } {
     const passwordCred = user.credentials?.find(c => c.type === 'password');
     if (!passwordCred) return { hash: null, algorithm: 'argon2' };
 
@@ -317,7 +318,7 @@ export class KeycloakImporterService {
 
     if (passwordCred.value) {
       // Plain text password (rare) — hash it with Argon2
-      return { hash: passwordCred.value, algorithm: 'plaintext' };
+      return { hash: passwordCred.value, algorithm: 'argon2', needsHashing: true };
     }
 
     return { hash: null, algorithm: 'argon2' };

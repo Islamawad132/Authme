@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 import { Reflector } from '@nestjs/core';
+import { timingSafeEqual } from 'crypto';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { AdminAuthService } from '../../admin-auth/admin-auth.service.js';
 
@@ -49,7 +50,11 @@ export class AdminApiKeyGuard implements CanActivate {
     const expectedKey = this.configService.get<string>('ADMIN_API_KEY');
     if (expectedKey) {
       const apiKey = request.headers['x-admin-api-key'];
-      if (typeof apiKey === 'string' && apiKey === expectedKey) {
+      if (
+        typeof apiKey === 'string' &&
+        apiKey.length === expectedKey.length &&
+        timingSafeEqual(Buffer.from(apiKey), Buffer.from(expectedKey))
+      ) {
         (request as any)['adminUser'] = { userId: 'api-key', roles: ['super-admin'] };
         return true;
       }

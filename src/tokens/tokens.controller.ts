@@ -68,6 +68,17 @@ export class TokensController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    if (postLogoutRedirectUri) {
+      // Validate post_logout_redirect_uri against the client's registered
+      // redirect URIs *before* performing any session teardown so that an
+      // attacker cannot abuse the endpoint as an open redirector.
+      await this.tokensService.validatePostLogoutRedirectUri(
+        realm,
+        postLogoutRedirectUri,
+        idTokenHint,
+      );
+    }
+
     await this.tokensService.logoutByIdToken(realm, req.ip, idTokenHint);
 
     if (postLogoutRedirectUri) {
