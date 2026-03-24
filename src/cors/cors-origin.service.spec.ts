@@ -92,13 +92,34 @@ describe('CorsOriginService', () => {
     });
   });
 
-  // ─── Wildcard support ─────────────────────────────────────────────────
+  // ─── Wildcard rejection (#320) ────────────────────────────────────────
+  //
+  // Even when a client record in the database contains '*' as a webOrigin
+  // (legacy data that pre-dates the creation-time validation), the service
+  // must NOT honour it.  The wildcard is filtered out at load time and a
+  // warning is emitted; all origin checks must return false in this case.
 
-  describe('wildcard origin', () => {
+  describe('wildcard origin in database (legacy data)', () => {
     beforeEach(() => build([['*']]));
 
-    it('allows any origin when a client has webOrigin "*"', async () => {
-      expect(await service.isOriginAllowed('https://anything.example.com')).toBe(true);
+    it('does NOT allow any origin when the only webOrigin stored is "*"', async () => {
+      expect(await service.isOriginAllowed('https://anything.example.com')).toBe(false);
+    });
+
+    it('does NOT allow the literal "*" origin string', async () => {
+      expect(await service.isOriginAllowed('*')).toBe(false);
+    });
+  });
+
+  describe('wildcard mixed with concrete origins (legacy data)', () => {
+    beforeEach(() => build([['*', 'https://app.example.com']]));
+
+    it('allows the concrete origin', async () => {
+      expect(await service.isOriginAllowed('https://app.example.com')).toBe(true);
+    });
+
+    it('does NOT allow an arbitrary origin just because "*" is present', async () => {
+      expect(await service.isOriginAllowed('https://evil.com')).toBe(false);
     });
   });
 

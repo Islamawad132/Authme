@@ -1,14 +1,18 @@
 import {
   Injectable,
   BadRequestException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomInt } from 'crypto';
+import { Interval } from '@nestjs/schedule';
 import type { Realm } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 @Injectable()
 export class DeviceService {
+  private readonly logger = new Logger(DeviceService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async initiateDeviceAuth(
@@ -85,12 +89,26 @@ export class DeviceService {
     });
   }
 
+  @Interval(600_000) // every 10 minutes — matches the device-code TTL
+  async cleanupExpiredDeviceCodes(): Promise<void> {
+    const result = await this.prisma.deviceCode.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+
+    if (result.count > 0) {
+      this.logger.debug(
+        `Device-code cleanup removed ${result.count} expired device code(s)`,
+      );
+    }
+  }
+
   private generateUserCode(): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
-    const bytes = randomBytes(8);
     for (let i = 0; i < 8; i++) {
-      code += chars[bytes[i]! % chars.length];
+      // randomInt(max) is rejection-sampling based and therefore unbiased,
+      // unlike the bytes[i] % N pattern which has modulo bias when 256 % N != 0.
+      code += chars[randomInt(chars.length)];
       if (i === 3) code += '-';
     }
     return code;

@@ -2,6 +2,7 @@ import React from 'react';
 import { render, type RenderOptions } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProvider } from '../context/AuthContext';
 
 interface WrapperOptions {
   /** Initial URL for the in-memory router, e.g. "/console/realms/test-realm/users" */
@@ -53,7 +54,9 @@ export function renderWithProviders(
 
     return (
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={[initialUrl]}>{content}</MemoryRouter>
+        <AuthProvider>
+          <MemoryRouter initialEntries={[initialUrl]}>{content}</MemoryRouter>
+        </AuthProvider>
       </QueryClientProvider>
     );
   }

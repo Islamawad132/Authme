@@ -1,4 +1,4 @@
-import { ThemeRenderService } from './theme-render.service.js';
+import { ThemeRenderService, sanitizeCss } from './theme-render.service.js';
 
 describe('ThemeRenderService', () => {
   let service: ThemeRenderService;
@@ -182,6 +182,60 @@ describe('ThemeRenderService', () => {
       service.render(mockRes as any, realmWithLocale, 'login', 'login', {});
 
       expect(messageService.getMessages).toHaveBeenCalledWith('authme', 'login', 'es');
+    });
+
+    it('should sanitize customCss before passing it to res.render', () => {
+      themeService.resolveColors.mockReturnValue({
+        primaryColor: '#2563eb',
+        backgroundColor: '#f0f2f5',
+        customCss: 'body { color: red; } </style><script>alert(1)</script>',
+      });
+
+      service.render(mockRes as any, mockRealm, 'login', 'login', {}, mockReq as any);
+
+      const [, data] = mockRes.render.mock.calls[0];
+      expect(data.customCss).not.toContain('</style');
+      expect(data.customCss).not.toContain('<script');
+      expect(data.customCss).toContain('body { color: red; }');
+    });
+  });
+
+  describe('sanitizeCss', () => {
+    it('should pass through valid CSS unchanged', () => {
+      const css = 'body { color: red; } .foo > .bar { margin: 0; }';
+      expect(sanitizeCss(css)).toBe(css);
+    });
+
+    it('should strip </style> to prevent breaking out of the style block', () => {
+      // The closing > of </style> and the opening > of <script> are both left;
+      // what matters is that the dangerous sequences that break out of the <style>
+      // block are removed.
+      expect(sanitizeCss('</style>')).toBe('>');
+      const result = sanitizeCss('body{}</style><script>alert(1)</script>');
+      expect(result).not.toContain('</style');
+      expect(result).not.toContain('<script');
+      expect(result).toContain('body{}');
+      expect(result).toContain('alert(1)');
+    });
+
+    it('should strip </style case-insensitively', () => {
+      expect(sanitizeCss('</STYLE>')).toBe('>');
+      expect(sanitizeCss('</Style>')).toBe('>');
+    });
+
+    it('should strip <script case-insensitively', () => {
+      expect(sanitizeCss('<script>alert(1)</script>')).toBe('>alert(1)</script>');
+      expect(sanitizeCss('<SCRIPT>evil()</SCRIPT>')).toBe('>evil()</SCRIPT>');
+    });
+
+    it('should strip multiple occurrences', () => {
+      const input = '</style><style>a{}</style>';
+      // Both </style occurrences are removed
+      expect(sanitizeCss(input)).not.toContain('</style');
+    });
+
+    it('should return empty string unchanged', () => {
+      expect(sanitizeCss('')).toBe('');
     });
   });
 });

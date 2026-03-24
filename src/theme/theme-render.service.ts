@@ -8,6 +8,26 @@ import { ThemeMessageService } from './theme-message.service.js';
 import { I18nService, SUPPORTED_LOCALES } from './i18n.service.js';
 import type { ThemeType } from './theme.types.js';
 
+/**
+ * Sanitizes a CSS string so it cannot break out of a <style> block.
+ *
+ * Strips any occurrence of </style (case-insensitive) to prevent an attacker
+ * from closing the surrounding <style> element and injecting arbitrary HTML or
+ * script content.  A <script opening tag is also removed as defence-in-depth.
+ *
+ * Valid CSS selectors and property values that happen to contain angle brackets
+ * (extremely rare, and never required for `</style`) are unaffected in normal
+ * use; the restriction is intentionally narrow.
+ */
+export function sanitizeCss(css: string): string {
+  // Remove any </style...> sequence (the closing bracket is optional because a
+  // browser may still parse a partial tag).
+  // Also remove opening <script tags for defence-in-depth.
+  return css
+    .replace(/<\/style/gi, '')
+    .replace(/<script/gi, '');
+}
+
 @Injectable()
 export class ThemeRenderService {
   constructor(
@@ -63,10 +83,19 @@ export class ThemeRenderService {
       url: this.buildLangUrl(currentUrl, code),
     }));
 
+    // Sanitize customCss before it reaches the template.  The layout renders it
+    // with {{{customCss}}} (triple-brace / unescaped) so that valid CSS syntax
+    // such as `>`, `&`, and `{` is preserved.  We therefore must strip any
+    // HTML break-out sequences here, server-side.
+    const sanitizedColors = {
+      ...colors,
+      customCss: sanitizeCss(colors.customCss ?? ''),
+    };
+
     res.render(relativeTemplate, {
       layout: relativeLayout,
       ...data,
-      ...colors,
+      ...sanitizedColors,
       _messages: messages,
       themeCssFiles: cssFiles,
       realmName: data.realmName ?? realm.name,

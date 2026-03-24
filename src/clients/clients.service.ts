@@ -1,5 +1,6 @@
 import {
   Injectable,
+  BadRequestException,
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
@@ -42,6 +43,7 @@ export class ClientsService {
   ) {}
 
   async create(realm: Realm, dto: CreateClientDto) {
+    this.rejectWildcardOrigins(dto.webOrigins);
     const existing = await this.prisma.client.findUnique({
       where: {
         realmId_clientId: { realmId: realm.id, clientId: dto.clientId },
@@ -142,6 +144,7 @@ export class ClientsService {
   }
 
   async update(realm: Realm, clientId: string, dto: UpdateClientDto) {
+    this.rejectWildcardOrigins(dto.webOrigins);
     await this.findByClientId(realm, clientId);
 
     const updated = await this.prisma.client.update({
@@ -237,6 +240,24 @@ export class ClientsService {
       clientSecret: rawSecret,
       secretWarning: 'Store this secret securely. It will not be shown again.',
     };
+  }
+
+  /**
+   * Defense-in-depth guard: reject '*' as a webOrigin even if the DTO
+   * validation layer was somehow bypassed (e.g. direct service calls in tests,
+   * seeding scripts, or future programmatic callers that skip the HTTP stack).
+   *
+   * The primary rejection point is the @IsNoWildcardOrigin() decorator on
+   * CreateClientDto / UpdateClientDto, which catches this at request-validation
+   * time and returns a structured 400 before we ever reach the service layer.
+   */
+  private rejectWildcardOrigins(webOrigins: string[] | undefined): void {
+    if (webOrigins?.includes('*')) {
+      throw new BadRequestException(
+        'webOrigins must not contain the wildcard "*". ' +
+          'Specify explicit origins (e.g. "https://app.example.com") instead.',
+      );
+    }
   }
 
   private async assignBuiltInScopes(realmId: string, clientDbId: string) {
