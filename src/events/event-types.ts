@@ -15,6 +15,8 @@ export const LoginEventType = {
   MFA_VERIFY_ERROR: 'MFA_VERIFY_ERROR',
   PASSWORD_RESET: 'PASSWORD_RESET',
   DEVICE_CODE_TO_TOKEN: 'DEVICE_CODE_TO_TOKEN',
+  IMPERSONATION_START: 'IMPERSONATION_START',
+  IMPERSONATION_END: 'IMPERSONATION_END',
 } as const;
 
 export type LoginEventTypeValue = (typeof LoginEventType)[keyof typeof LoginEventType];
@@ -35,6 +37,7 @@ export const ResourceType = {
   GROUP: 'GROUP',
   SCOPE: 'SCOPE',
   IDP: 'IDP',
+  IMPERSONATION: 'IMPERSONATION',
 } as const;
 
 export type ResourceTypeValue = (typeof ResourceType)[keyof typeof ResourceType];

@@ -52,10 +52,16 @@ model Realm {
   // Offline tokens
   offlineTokenLifespan Int @default(2592000) @map("offline_token_lifespan")
 
+  // Impersonation
+  impersonationEnabled     Boolean @default(false) @map("impersonation_enabled")
+  impersonationMaxDuration Int     @default(1800)  @map("impersonation_max_duration")
+
   // Events configuration
-  eventsEnabled      Boolean @default(false) @map("events_enabled")
-  eventsExpiration   Int     @default(604800) @map("events_expiration")
-  adminEventsEnabled Boolean @default(false) @map("admin_events_enabled")
+  eventsEnabled             Boolean @default(false) @map("events_enabled")
+  eventsExpiration          Int     @default(604800) @map("events_expiration")
+  adminEventsEnabled        Boolean @default(false) @map("admin_events_enabled")
+  loginEventRetentionDays   Int     @default(30)     @map("login_event_retention_days")
+  adminEventRetentionDays   Int     @default(90)     @map("admin_event_retention_days")
 
   // Rate limiting
   rateLimitEnabled         Boolean @default(false) @map("rate_limit_enabled")
@@ -91,6 +97,8 @@ model Realm {
   userFederations    UserFederation[]
   samlServiceProviders SamlServiceProvider[]
   webhooks           Webhook[]
+  auditLogStreams     AuditLogStream[]
+  impersonationSessions ImpersonationSession[]
 
   @@map("realms")
 }
@@ -774,4 +782,53 @@ model AdminEvent {
   @@index([realmId, createdAt])
   @@index([realmId, resourceType])
   @@map("admin_events")
+}
+
+// ─── IMPERSONATION SESSIONS ──────────────────────────────
+
+model ImpersonationSession {
+  id            String   @id @default(uuid())
+  realmId       String   @map("realm_id")
+  adminUserId   String   @map("admin_user_id")
+  targetUserId  String   @map("target_user_id")
+  sessionId     String   @map("session_id")
+  active        Boolean  @default(true)
+  expiresAt     DateTime @map("expires_at")
+  endedAt       DateTime? @map("ended_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  realm       Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([realmId, adminUserId])
+  @@index([realmId, targetUserId])
+  @@index([sessionId])
+  @@map("impersonation_sessions")
+}
+
+// ─── AUDIT LOG STREAMS ───────────────────────────────────
+
+model AuditLogStream {
+  id          String  @id @default(uuid())
+  realmId     String  @map("realm_id")
+  realm       Realm   @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  name        String
+  streamType  String  @map("stream_type")   // "syslog" | "http"
+  enabled     Boolean @default(true)
+
+  // HTTP destination
+  url         String?
+  httpHeaders Json?   @map("http_headers")
+
+  // Syslog destination
+  syslogHost     String? @map("syslog_host")
+  syslogPort     Int?    @map("syslog_port")
+  syslogProtocol String  @default("udp")  @map("syslog_protocol")  // "udp" | "tcp"
+  syslogFacility Int     @default(16)     @map("syslog_facility")   // local0
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  @@map("audit_log_streams")
 }
