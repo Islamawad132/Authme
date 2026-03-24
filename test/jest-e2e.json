@@ -12,5 +12,6 @@
   },
   "transformIgnorePatterns": [
     "node_modules/(?!jose)"
-  ]
+  ],
+  "globalSetup": "./global-setup.ts"
 }
