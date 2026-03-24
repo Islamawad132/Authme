@@ -57,6 +57,15 @@ model Realm {
   eventsExpiration   Int     @default(604800) @map("events_expiration")
   adminEventsEnabled Boolean @default(false) @map("admin_events_enabled")
 
+  // Rate limiting
+  rateLimitEnabled         Boolean @default(false) @map("rate_limit_enabled")
+  clientRateLimitPerMinute Int     @default(60)    @map("client_rate_limit_per_minute")
+  clientRateLimitPerHour   Int     @default(1000)  @map("client_rate_limit_per_hour")
+  userRateLimitPerMinute   Int     @default(30)    @map("user_rate_limit_per_minute")
+  userRateLimitPerHour     Int     @default(500)   @map("user_rate_limit_per_hour")
+  ipRateLimitPerMinute     Int     @default(20)    @map("ip_rate_limit_per_minute")
+  ipRateLimitPerHour       Int     @default(200)   @map("ip_rate_limit_per_hour")
+
   // Theming
   themeName    String  @default("authme") @map("theme_name") @db.VarChar(50)
   theme        Json?   @default("{}") @map("theme")
@@ -81,6 +90,7 @@ model Realm {
   adminEvents        AdminEvent[]
   userFederations    UserFederation[]
   samlServiceProviders SamlServiceProvider[]
+  webhooks           Webhook[]
 
   @@map("realms")
 }
@@ -706,6 +716,44 @@ model PendingAction {
 
   @@index([expiresAt])
   @@map("pending_actions")
+}
+
+// ─── WEBHOOKS ────────────────────────────────────────────
+
+model Webhook {
+  id          String   @id @default(uuid())
+  realmId     String   @map("realm_id")
+  realm       Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  url         String
+  secret      String
+  enabled     Boolean  @default(true)
+  eventTypes  String[] @map("event_types")
+  description String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  deliveries WebhookDelivery[]
+
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id          String   @id @default(uuid())
+  webhookId   String   @map("webhook_id")
+  webhook     Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  eventType   String   @map("event_type")
+  payload     Json
+  statusCode  Int?     @map("status_code")
+  response    String?
+  success     Boolean  @default(false)
+  attempts    Int      @default(0)
+  lastAttempt DateTime? @map("last_attempt")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([webhookId, createdAt])
+  @@map("webhook_deliveries")
 }
 
 // ─── ADMIN EVENTS ────────────────────────────────────────
