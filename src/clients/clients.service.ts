@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { ScopeSeedService } from '../scopes/scope-seed.service.js';
 import { CacheService } from '../cache/cache.service.js';
+import { CorsOriginService } from '../cors/cors-origin.service.js';
 import { CreateClientDto } from './dto/create-client.dto.js';
 import { UpdateClientDto } from './dto/update-client.dto.js';
 
@@ -37,6 +38,7 @@ export class ClientsService {
     private readonly crypto: CryptoService,
     private readonly scopeSeedService: ScopeSeedService,
     private readonly cache: CacheService,
+    private readonly corsOriginService: CorsOriginService,
   ) {}
 
   async create(realm: Realm, dto: CreateClientDto) {
@@ -99,6 +101,10 @@ export class ClientsService {
     // Assign default and optional scopes to the new client
     await this.assignBuiltInScopes(realm.id, client.id);
 
+    // A new client may introduce additional allowed origins — bust the CORS cache.
+    await this.cache.invalidateCorsOrigins();
+    this.corsOriginService.invalidateLocalCache();
+
     return {
       ...client,
       ...(rawSecret
@@ -159,6 +165,11 @@ export class ClientsService {
 
     await this.cache.invalidateClientCache(`${realm.id}:${clientId}`);
 
+    // webOrigins may have changed — bust the CORS cache so new origins take effect
+    // and revoked ones are no longer accepted.
+    await this.cache.invalidateCorsOrigins();
+    this.corsOriginService.invalidateLocalCache();
+
     return updated;
   }
 
@@ -179,6 +190,10 @@ export class ClientsService {
     });
 
     await this.cache.invalidateClientCache(`${realm.id}:${clientId}`);
+
+    // Deleted client's origins should no longer be accepted — bust the CORS cache.
+    await this.cache.invalidateCorsOrigins();
+    this.corsOriginService.invalidateLocalCache();
   }
 
   async getServiceAccount(realm: Realm, clientId: string) {

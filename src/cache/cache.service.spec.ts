@@ -160,6 +160,55 @@ describe('CacheService', () => {
     });
   });
 
+  // ─── CORS allowed origins ─────────────────────────────────────────────
+
+  describe('CORS allowed origins', () => {
+    it('cacheCorsOrigins stores JSON with default 300 s TTL', async () => {
+      const origins = ['https://app.example.com', '*'];
+      await service.cacheCorsOrigins(origins);
+      expect(redis.set).toHaveBeenCalledWith(
+        'cors:allowed-origins',
+        JSON.stringify(origins),
+        300,
+      );
+    });
+
+    it('cacheCorsOrigins respects a custom TTL', async () => {
+      await service.cacheCorsOrigins(['https://a.com'], 60);
+      expect(redis.set).toHaveBeenCalledWith(
+        'cors:allowed-origins',
+        JSON.stringify(['https://a.com']),
+        60,
+      );
+    });
+
+    it('getCachedCorsOrigins returns null on cache miss', async () => {
+      redis.get.mockResolvedValue(null);
+      const result = await service.getCachedCorsOrigins();
+      expect(result).toBeNull();
+      expect(metrics.cacheOperationsTotal.inc).toHaveBeenCalledWith({
+        operation: 'miss',
+        cache: 'cors_origins',
+      });
+    });
+
+    it('getCachedCorsOrigins returns the parsed array on cache hit', async () => {
+      const origins = ['https://app.example.com'];
+      redis.get.mockResolvedValue(JSON.stringify(origins));
+      const result = await service.getCachedCorsOrigins();
+      expect(result).toEqual(origins);
+      expect(metrics.cacheOperationsTotal.inc).toHaveBeenCalledWith({
+        operation: 'hit',
+        cache: 'cors_origins',
+      });
+    });
+
+    it('invalidateCorsOrigins deletes the cors:allowed-origins key', async () => {
+      await service.invalidateCorsOrigins();
+      expect(redis.del).toHaveBeenCalledWith('cors:allowed-origins');
+    });
+  });
+
   // ─── No-op when Redis unavailable ────────────────────────────────────
 
   describe('when Redis is unavailable', () => {
