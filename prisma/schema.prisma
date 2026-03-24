@@ -215,6 +215,10 @@ model Client {
   backchannelLogoutUri             String?  @map("backchannel_logout_uri")
   backchannelLogoutSessionRequired Boolean  @default(true) @map("backchannel_logout_session_required")
 
+  // Step-up authentication
+  requiredAcr         String? @map("required_acr")
+  stepUpCacheDuration Int     @default(900) @map("step_up_cache_duration")
+
   // Service account
   serviceAccountUserId String? @map("service_account_user_id")
 
@@ -318,6 +322,7 @@ model AuthorizationCode {
   codeChallenge       String? @map("code_challenge")
   codeChallengeMethod String? @map("code_challenge_method")
   nonce               String?
+  acrValues           String? @map("acr_values")
   used                Boolean @default(false)
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -364,6 +369,20 @@ model LoginSession {
   realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
 
   @@map("login_sessions")
+}
+
+// ─── STEP-UP AUTHENTICATION ──────────────────────────────
+
+model StepUpRecord {
+  id          String   @id @default(uuid())
+  sessionId   String   @map("session_id")
+  acrLevel    String   @map("acr_level")
+  completedAt DateTime @default(now()) @map("completed_at")
+  expiresAt   DateTime @map("expires_at")
+
+  @@index([sessionId])
+  @@index([expiresAt])
+  @@map("step_up_records")
 }
 
 // ─── USER CONSENT ────────────────────────────────────────

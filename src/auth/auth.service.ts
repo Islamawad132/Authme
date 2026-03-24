@@ -17,6 +17,7 @@ import { MetricsService } from '../metrics/metrics.service.js';
 import { LoginEventType } from '../events/event-types.js';
 import { resolveUserClaims, type UserClaimSource } from '../scopes/claims.resolver.js';
 import { CustomAttributesService } from '../custom-attributes/custom-attributes.service.js';
+import { StepUpService, ACR_PASSWORD, ACR_MFA } from '../step-up/step-up.service.js';
 import type { PluginManagerService } from '../plugins/plugin-manager.service.js';
 import type { Realm } from '@prisma/client';
 import type { JWTPayload } from 'jose';
@@ -46,6 +47,7 @@ export class AuthService {
     private readonly eventsService: EventsService,
     private readonly metricsService: MetricsService,
     private readonly customAttributesService: CustomAttributesService,
+    @Optional() private readonly stepUpService?: StepUpService,
     @Optional() private readonly pluginManager?: PluginManagerService,
   ) {}
 
@@ -147,7 +149,7 @@ export class AuthService {
     this.metricsService.authLoginTotal.inc({ realm: realm.name, status: 'success' });
     this.metricsService.authTokenIssuedTotal.inc({ realm: realm.name, grant_type: 'password' });
 
-    return this.issueTokens(realm, user, client_id, session.id, scope, undefined, new Date());
+    return this.issueTokens(realm, user, client_id, session.id, scope, undefined, new Date(), ACR_PASSWORD, ['pwd']);
   }
 
   private async handleMfaOtpGrant(
@@ -202,7 +204,7 @@ export class AuthService {
     this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.MFA_VERIFY, userId: user.id, sessionId: session.id, clientId: client_id, ipAddress: ip });
     this.metricsService.authTokenIssuedTotal.inc({ realm: realm.name, grant_type: 'mfa_otp' });
 
-    return this.issueTokens(realm, user, client_id, session.id, scope, undefined, new Date());
+    return this.issueTokens(realm, user, client_id, session.id, scope, undefined, new Date(), ACR_MFA, ['pwd', 'otp']);
   }
 
   private async handleClientCredentialsGrant(
@@ -412,6 +414,12 @@ export class AuthService {
     this.eventsService.recordLoginEvent({ realmId: realm.id, type: LoginEventType.CODE_TO_TOKEN, userId: user.id, sessionId: session.id, clientId: client_id, ipAddress: ip });
     this.metricsService.authTokenIssuedTotal.inc({ realm: realm.name, grant_type: 'authorization_code' });
 
+    // Resolve ACR from the auth code's stored acr_values (set at authorization time)
+    const storedAcrValues = (authCode as any).acrValues as string | null | undefined;
+    const resolvedAcr = storedAcrValues
+      ? storedAcrValues.split(' ')[0]
+      : ACR_PASSWORD;
+
     return this.issueTokens(
       realm,
       user,
@@ -420,6 +428,8 @@ export class AuthService {
       authCode.scope ?? undefined,
       authCode.nonce ?? undefined,
       new Date(),
+      resolvedAcr,
+      ['pwd'],
     );
   }
 
@@ -575,6 +585,8 @@ export class AuthService {
     scope?: string,
     nonce?: string,
     authTime?: Date,
+    acr?: string,
+    amr?: string[],
   ): Promise<TokenResponse> {
     const signingKey = await this.getActiveSigningKey(realm.id);
 
@@ -711,6 +723,8 @@ export class AuthService {
         nonce,
         authTime,
         signingKey,
+        acr,
+        amr,
       });
     }
 
@@ -734,10 +748,17 @@ export class AuthService {
     nonce?: string;
     authTime?: Date;
     signingKey: { privateKey: string; kid: string };
+    acr?: string;
+    amr?: string[];
   }): Promise<string> {
     const allowedClaims = this.scopesService.getClaimsForScopes(params.scopes);
     const customAttrClaims = await this.customAttributesService.getOidcClaimsForUser(params.user.id);
     const userClaims = resolveUserClaims(params.user, allowedClaims, customAttrClaims);
+
+    // Resolve the ACR claim:
+    //  - Use explicitly provided acr (from step-up flow) if available
+    //  - Otherwise default to ACR_PASSWORD ("urn:authme:acr:password")
+    const resolvedAcr = params.acr ?? ACR_PASSWORD;
 
     const idTokenPayload: JWTPayload = {
       iss: this.getIssuer(params.realm),
@@ -750,7 +771,8 @@ export class AuthService {
       auth_time: params.authTime
         ? Math.floor(params.authTime.getTime() / 1000)
         : Math.floor(Date.now() / 1000),
-      acr: '1',
+      acr: resolvedAcr,
+      ...(params.amr && params.amr.length > 0 ? { amr: params.amr } : {}),
       ...userClaims,
     };
 

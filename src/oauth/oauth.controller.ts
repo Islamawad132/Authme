@@ -12,6 +12,9 @@ import type { Realm } from '@prisma/client';
 import { OAuthService } from './oauth.service.js';
 import { LoginService } from '../login/login.service.js';
 import { ConsentService } from '../consent/consent.service.js';
+import { StepUpService } from '../step-up/step-up.service.js';
+import { CryptoService } from '../crypto/crypto.service.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
@@ -25,6 +28,9 @@ export class OAuthController {
     private readonly oauthService: OAuthService,
     private readonly loginService: LoginService,
     private readonly consentService: ConsentService,
+    private readonly stepUpService: StepUpService,
+    private readonly crypto: CryptoService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Get('auth')
@@ -43,6 +49,47 @@ export class OAuthController {
     if (sessionCookie) {
       const user = await this.loginService.validateLoginSession(realm, sessionCookie);
       if (user) {
+        // ── Step-up ACR check ────────────────────────────────────────────────
+        //
+        // Determine the highest required ACR from two sources:
+        //   1. The `acr_values` query parameter (client request)
+        //   2. The client's `requiredAcr` configuration (server-enforced policy)
+        const requestedAcr = query['acr_values']
+          ? query['acr_values'].split(' ')[0]   // take the highest-preference value
+          : null;
+        const clientRequiredAcr = (client as any).requiredAcr ?? null;
+
+        // Prefer the stronger of the two requirements
+        const requiredAcr = this.resolveRequiredAcr(requestedAcr, clientRequiredAcr);
+
+        if (requiredAcr) {
+          // Look up the login session ID so we can check step-up records
+          const loginSession = await this.getLoginSessionByToken(sessionCookie);
+          if (loginSession) {
+            const sessionAcr = await this.stepUpService.getSessionAcr(loginSession.id);
+            const stepUpNeeded = !this.stepUpService.satisfiesAcr(sessionAcr, requiredAcr);
+
+            if (stepUpNeeded) {
+              // Redirect to step-up challenge, passing the original OAuth params
+              // so the flow can resume after the step-up completes.
+              const stepUpParams = new URLSearchParams();
+              stepUpParams.set('acr', requiredAcr);
+              stepUpParams.set('client_id', client.clientId);
+              stepUpParams.set('session_token', sessionCookie);
+              // Encode the original OAuth params as a `continue` parameter so
+              // the step-up UI can redirect back after success.
+              const continueUrl = `/realms/${realm.name}/protocol/openid-connect/auth?${new URLSearchParams(query).toString()}`;
+              stepUpParams.set('continue', continueUrl);
+
+              return res.redirect(
+                302,
+                `/realms/${realm.name}/step-up/challenge?${stepUpParams.toString()}`,
+              );
+            }
+          }
+        }
+        // ── End step-up check ────────────────────────────────────────────────
+
         // Check if client requires consent
         if (client.requireConsent) {
           const scopes = (query['scope'] ?? 'openid').split(' ').filter(Boolean);
@@ -73,5 +120,30 @@ export class OAuthController {
       if (value) loginParams.set(key, value);
     }
     res.redirect(302, `/realms/${realm.name}/login?${loginParams.toString()}`);
+  }
+
+  // ── Private helpers ────────────────────────────────────────────────────────
+
+  /**
+   * Given two optional ACR requirements, returns the one with higher
+   * assurance strength, or null if neither is set.
+   */
+  private resolveRequiredAcr(
+    requestedAcr: string | null,
+    clientAcr: string | null,
+  ): string | null {
+    if (!requestedAcr && !clientAcr) return null;
+    if (!requestedAcr) return clientAcr;
+    if (!clientAcr) return requestedAcr;
+
+    // Both are set — return the stronger one
+    const reqStrength = this.stepUpService.getAcrStrength(requestedAcr);
+    const clientStrength = this.stepUpService.getAcrStrength(clientAcr);
+    return reqStrength >= clientStrength ? requestedAcr : clientAcr;
+  }
+
+  private async getLoginSessionByToken(sessionToken: string) {
+    const tokenHash = this.crypto.sha256(sessionToken);
+    return this.prisma.loginSession.findUnique({ where: { tokenHash } });
   }
 }
