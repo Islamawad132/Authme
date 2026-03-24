@@ -1,30 +1,24 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Authme — primary Prisma schema (PostgreSQL)
+// SQLite variant of the Authme Prisma schema.
 //
-// This is the canonical schema used in production.  Two additional provider
-// variants live alongside it for alternative deployments:
+// Intended for local development and CI testing only — not for production use.
 //
-//   prisma/schema.sqlite.prisma  — SQLite (development / CI, no Docker needed)
-//   prisma/schema.mysql.prisma   — MySQL 8+ / MariaDB 10.5+
+// Key differences from schema.prisma (PostgreSQL):
+//   - datasource provider is "sqlite"
+//   - `Json`  fields are replaced with `String`  (store JSON-serialised text)
+//   - `Bytes` fields are replaced with `String`  (store base64-encoded text)
+//   - `BigInt` fields are replaced with `Int`    (SQLite stores both as INTEGER)
+//   - PostgreSQL-only `@db.*` column-type annotations are removed (e.g. @db.VarChar)
+//   - Native `String[]` array fields (not supported by SQLite) are replaced with
+//     `String` and must be stored as comma-separated values or JSON text
+//   - Enum types are kept as String fields (SQLite has no native enum support)
 //
-// To switch providers use the helper scripts:
-//   ./scripts/use-sqlite.sh      activate SQLite (copies sqlite variant here)
-//   ./scripts/use-mysql.sh       activate MySQL  (copies mysql variant here)
-//   git checkout prisma/schema.prisma   revert to PostgreSQL
+// Usage:
+//   ./scripts/use-sqlite.sh        # copies this file → prisma/schema.prisma
+//   npx prisma migrate dev --name init
 //
-// Provider compatibility notes
-// ─────────────────────────────
-// The following Prisma / PostgreSQL features are NOT available in all providers
-// and are handled differently in the sqlite/mysql variants:
-//
-//   Feature              PostgreSQL      MySQL           SQLite
-//   ─────────────────────────────────────────────────────────────────────
-//   Json fields          native JSONB    native JSON     serialised String
-//   Bytes fields         native bytea    native LONGBLOB base64 String
-//   BigInt fields        native int8     native bigint   mapped to Int
-//   String[] arrays      native array    JSON column     JSON text String
-//   @db.VarChar(n)       supported       supported       ignored (omitted)
-//   enum types           native          native          stored as String
+// To switch back to PostgreSQL:
+//   git checkout prisma/schema.prisma
 // ─────────────────────────────────────────────────────────────────────────────
 
 generator client {
@@ -32,7 +26,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 // ─── REALMS ───────────────────────────────────────────────
@@ -54,13 +48,13 @@ model Realm {
   smtpSecure   Boolean  @default(false) @map("smtp_secure")
 
   // Password policies
-  passwordMinLength          Int     @default(8)    @map("password_min_length")
-  passwordRequireUppercase   Boolean @default(false) @map("password_require_uppercase")
-  passwordRequireLowercase   Boolean @default(false) @map("password_require_lowercase")
-  passwordRequireDigits      Boolean @default(false) @map("password_require_digits")
+  passwordMinLength           Int     @default(8)    @map("password_min_length")
+  passwordRequireUppercase    Boolean @default(false) @map("password_require_uppercase")
+  passwordRequireLowercase    Boolean @default(false) @map("password_require_lowercase")
+  passwordRequireDigits       Boolean @default(false) @map("password_require_digits")
   passwordRequireSpecialChars Boolean @default(false) @map("password_require_special_chars")
-  passwordHistoryCount       Int     @default(0)    @map("password_history_count")
-  passwordMaxAgeDays         Int     @default(0)    @map("password_max_age_days")
+  passwordHistoryCount        Int     @default(0)    @map("password_history_count")
+  passwordMaxAgeDays          Int     @default(0)    @map("password_max_age_days")
 
   // Brute force protection
   bruteForceEnabled     Boolean @default(false) @map("brute_force_enabled")
@@ -70,10 +64,11 @@ model Realm {
   permanentLockoutAfter Int     @default(0)     @map("permanent_lockout_after")
 
   // Registration
-  registrationAllowed          Boolean  @default(true)  @map("registration_allowed")
-  registrationApprovalRequired Boolean  @default(false) @map("registration_approval_required")
-  allowedEmailDomains          String[] @map("allowed_email_domains")
-  termsOfServiceUrl            String?  @map("terms_of_service_url")
+  registrationAllowed          Boolean @default(true)  @map("registration_allowed")
+  registrationApprovalRequired Boolean @default(false) @map("registration_approval_required")
+  // SQLite: stored as JSON array text e.g. '["example.com","corp.org"]'
+  allowedEmailDomains          String  @default("[]") @map("allowed_email_domains")
+  termsOfServiceUrl            String? @map("terms_of_service_url")
 
   // Email verification
   requireEmailVerification Boolean @default(false) @map("require_email_verification")
@@ -82,9 +77,9 @@ model Realm {
   mfaRequired Boolean @default(false) @map("mfa_required")
 
   // WebAuthn / FIDO2
-  webAuthnEnabled Boolean  @default(false)  @map("webauthn_enabled")
-  webAuthnRpName  String?  @map("webauthn_rp_name")
-  webAuthnRpId    String?  @map("webauthn_rp_id")
+  webAuthnEnabled Boolean @default(false) @map("webauthn_enabled")
+  webAuthnRpName  String? @map("webauthn_rp_name")
+  webAuthnRpId    String? @map("webauthn_rp_id")
 
   // Offline tokens
   offlineTokenLifespan Int @default(2592000) @map("offline_token_lifespan")
@@ -94,11 +89,11 @@ model Realm {
   impersonationMaxDuration Int     @default(1800)  @map("impersonation_max_duration")
 
   // Events configuration
-  eventsEnabled             Boolean @default(false) @map("events_enabled")
-  eventsExpiration          Int     @default(604800) @map("events_expiration")
-  adminEventsEnabled        Boolean @default(false) @map("admin_events_enabled")
-  loginEventRetentionDays   Int     @default(30)     @map("login_event_retention_days")
-  adminEventRetentionDays   Int     @default(90)     @map("admin_event_retention_days")
+  eventsEnabled           Boolean @default(false) @map("events_enabled")
+  eventsExpiration        Int     @default(604800) @map("events_expiration")
+  adminEventsEnabled      Boolean @default(false) @map("admin_events_enabled")
+  loginEventRetentionDays Int     @default(30)    @map("login_event_retention_days")
+  adminEventRetentionDays Int     @default(90)    @map("admin_event_retention_days")
 
   // Rate limiting
   rateLimitEnabled         Boolean @default(false) @map("rate_limit_enabled")
@@ -110,40 +105,42 @@ model Realm {
   ipRateLimitPerHour       Int     @default(200)   @map("ip_rate_limit_per_hour")
 
   // Theming
-  themeName    String  @default("authme") @map("theme_name") @db.VarChar(50)
-  theme        Json?   @default("{}") @map("theme")
-  loginTheme   String  @default("authme") @map("login_theme") @db.VarChar(50)
-  accountTheme String  @default("authme") @map("account_theme") @db.VarChar(50)
-  emailTheme   String  @default("authme") @map("email_theme") @db.VarChar(50)
+  // SQLite: @db.VarChar is not supported — plain String is used instead
+  themeName    String  @default("authme") @map("theme_name")
+  // SQLite: Json → String (JSON-serialised text)
+  theme        String  @default("{}") @map("theme")
+  loginTheme   String  @default("authme") @map("login_theme")
+  accountTheme String  @default("authme") @map("account_theme")
+  emailTheme   String  @default("authme") @map("email_theme")
 
   // Internationalization (i18n)
-  defaultLocale    String   @default("en") @map("default_locale") @db.VarChar(10)
-  supportedLocales String[] @default(["en"]) @map("supported_locales")
+  defaultLocale String @default("en") @map("default_locale")
+  // SQLite: stored as JSON array text e.g. '["en","de"]'
+  supportedLocales String @default("[\"en\"]") @map("supported_locales")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users              User[]
-  clients            Client[]
-  roles              Role[]
-  signingKeys        RealmSigningKey[]
-  loginSessions      LoginSession[]
-  identityProviders  IdentityProvider[]
-  groups             Group[]
-  passwordHistories  PasswordHistory[]
-  loginFailures      LoginFailure[]
-  clientScopes       ClientScope[]
-  loginEvents        LoginEvent[]
-  adminEvents        AdminEvent[]
-  userFederations    UserFederation[]
+  users                User[]
+  clients              Client[]
+  roles                Role[]
+  signingKeys          RealmSigningKey[]
+  loginSessions        LoginSession[]
+  identityProviders    IdentityProvider[]
+  groups               Group[]
+  passwordHistories    PasswordHistory[]
+  loginFailures        LoginFailure[]
+  clientScopes         ClientScope[]
+  loginEvents          LoginEvent[]
+  adminEvents          AdminEvent[]
+  userFederations      UserFederation[]
   samlServiceProviders SamlServiceProvider[]
-  webhooks           Webhook[]
-  webAuthnCredentials WebAuthnCredential[]
+  webhooks             Webhook[]
+  webAuthnCredentials  WebAuthnCredential[]
   auditLogStreams       AuditLogStream[]
   impersonationSessions ImpersonationSession[]
-  policies              Policy[]
-  customAttributes      CustomAttribute[]
-  webAuthnCredentials WebAuthnCredential[]
+  policies             Policy[]
+  customAttributes     CustomAttribute[]
 
   @@map("realms")
 }
@@ -191,25 +188,25 @@ model User {
 
 // ─── CLIENTS ──────────────────────────────────────────────
 
-enum ClientType {
-  CONFIDENTIAL
-  PUBLIC
-}
+// SQLite: enums are not natively supported; ClientType is stored as String
+// Valid values: "CONFIDENTIAL" | "PUBLIC"
 
 model Client {
-  id           String     @id @default(uuid())
-  realmId      String     @map("realm_id")
-  clientId     String     @map("client_id")
-  clientSecret String?    @map("client_secret")
-  clientType   ClientType @default(CONFIDENTIAL) @map("client_type")
+  id           String  @id @default(uuid())
+  realmId      String  @map("realm_id")
+  clientId     String  @map("client_id")
+  clientSecret String? @map("client_secret")
+  // SQLite: enum ClientType stored as String
+  clientType   String  @default("CONFIDENTIAL") @map("client_type")
   name         String?
   description  String?
-  enabled        Boolean    @default(true)
-  requireConsent Boolean    @default(false) @map("require_consent")
+  enabled        Boolean @default(true)
+  requireConsent Boolean @default(false) @map("require_consent")
 
-  redirectUris String[] @map("redirect_uris")
-  webOrigins   String[] @map("web_origins")
-  grantTypes   String[] @default(["authorization_code"]) @map("grant_types")
+  // SQLite: String[] → String (JSON array text)
+  redirectUris String  @default("[]") @map("redirect_uris")
+  webOrigins   String  @default("[]") @map("web_origins")
+  grantTypes   String  @default("[\"authorization_code\"]") @map("grant_types")
 
   // Backchannel logout
   backchannelLogoutUri             String?  @map("backchannel_logout_uri")
@@ -221,7 +218,7 @@ model Client {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  realm          Realm               @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  realm          Realm                @relation(fields: [realmId], references: [id], onDelete: Cascade)
   clientRoles    Role[]
   authCodes      AuthorizationCode[]
   consents       UserConsent[]
@@ -327,13 +324,13 @@ model AuthorizationCode {
 // ─── REALM SIGNING KEYS ───────────────────────────────────
 
 model RealmSigningKey {
-  id        String  @id @default(uuid())
-  realmId   String  @map("realm_id")
-  kid       String
-  algorithm String  @default("RS256")
-  publicKey String  @map("public_key")
-  privateKey String @map("private_key")
-  active    Boolean @default(true)
+  id         String  @id @default(uuid())
+  realmId    String  @map("realm_id")
+  kid        String
+  algorithm  String  @default("RS256")
+  publicKey  String  @map("public_key")
+  privateKey String  @map("private_key")
+  active     Boolean @default(true)
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -365,10 +362,11 @@ model LoginSession {
 // ─── USER CONSENT ────────────────────────────────────────
 
 model UserConsent {
-  id       String   @id @default(uuid())
-  userId   String   @map("user_id")
-  clientId String   @map("client_id")
-  scopes   String[]
+  id       String @id @default(uuid())
+  userId   String @map("user_id")
+  clientId String @map("client_id")
+  // SQLite: String[] → String (JSON array text)
+  scopes   String @default("[]")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -509,7 +507,6 @@ model RecoveryCode {
   @@map("recovery_codes")
 }
 
-
 // ─── WEBAUTHN / FIDO2 ────────────────────────────────────
 
 model WebAuthnCredential {
@@ -519,9 +516,12 @@ model WebAuthnCredential {
   realmId      String    @map("realm_id")
   realm        Realm     @relation(fields: [realmId], references: [id], onDelete: Cascade)
   credentialId String    @map("credential_id")
-  publicKey    Bytes     @map("public_key")
-  counter      BigInt    @default(0)
-  transports   String[]
+  // SQLite: Bytes → String (store as base64-encoded text)
+  publicKey    String    @map("public_key")
+  // SQLite: BigInt → Int (SQLite INTEGER covers both)
+  counter      Int       @default(0)
+  // SQLite: String[] → String (JSON array text)
+  transports   String    @default("[]")
   deviceType   String    @map("device_type")
   backedUp     Boolean   @default(false)
   friendlyName String?   @map("friendly_name")
@@ -536,12 +536,12 @@ model WebAuthnCredential {
 // ─── IDENTITY PROVIDERS (Social Login) ───────────────────
 
 model IdentityProvider {
-  id            String  @id @default(uuid())
-  realmId       String  @map("realm_id")
-  alias         String
-  displayName   String? @map("display_name")
-  enabled       Boolean @default(true)
-  providerType  String  @default("oidc") @map("provider_type")
+  id           String  @id @default(uuid())
+  realmId      String  @map("realm_id")
+  alias        String
+  displayName  String? @map("display_name")
+  enabled      Boolean @default(true)
+  providerType String  @default("oidc") @map("provider_type")
 
   clientId         String  @map("idp_client_id")
   clientSecret     String  @map("idp_client_secret")
@@ -551,13 +551,14 @@ model IdentityProvider {
   jwksUrl          String? @map("jwks_url")
   issuer           String?
 
-  defaultScopes    String @default("openid email profile") @map("default_scopes")
-  trustEmail       Boolean @default(false) @map("trust_email")
-  linkOnly         Boolean @default(false) @map("link_only")
-  syncUserProfile  Boolean @default(true)  @map("sync_user_profile")
+  defaultScopes   String  @default("openid email profile") @map("default_scopes")
+  trustEmail      Boolean @default(false) @map("trust_email")
+  linkOnly        Boolean @default(false) @map("link_only")
+  syncUserProfile Boolean @default(true)  @map("sync_user_profile")
 
   // SAML broker config (for providerType="saml")
-  samlConfig Json? @map("saml_config")
+  // SQLite: Json? → String? (JSON-serialised text)
+  samlConfig String? @map("saml_config")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -593,20 +594,22 @@ model FederatedIdentity {
 // ─── SAML SERVICE PROVIDERS (IdP mode) ──────────────────
 
 model SamlServiceProvider {
-  id          String  @id @default(uuid())
-  realmId     String  @map("realm_id")
-  entityId    String  @map("entity_id")
-  name        String
-  enabled     Boolean @default(true)
+  id      String  @id @default(uuid())
+  realmId String  @map("realm_id")
+  entityId String @map("entity_id")
+  name    String
+  enabled Boolean @default(true)
 
-  acsUrl              String   @map("acs_url")
-  sloUrl              String?  @map("slo_url")
-  certificate         String?
-  nameIdFormat        String   @default("urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress") @map("name_id_format")
-  signAssertions      Boolean  @default(true) @map("sign_assertions")
-  signResponses       Boolean  @default(true) @map("sign_responses")
-  attributeStatements Json     @default("{}") @map("attribute_statements")
-  validRedirectUris   String[] @map("valid_redirect_uris")
+  acsUrl         String  @map("acs_url")
+  sloUrl         String? @map("slo_url")
+  certificate    String?
+  nameIdFormat   String  @default("urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress") @map("name_id_format")
+  signAssertions Boolean @default(true) @map("sign_assertions")
+  signResponses  Boolean @default(true) @map("sign_responses")
+  // SQLite: Json → String (JSON-serialised text)
+  attributeStatements String @default("{}") @map("attribute_statements")
+  // SQLite: String[] → String (JSON array text)
+  validRedirectUris   String @default("[]") @map("valid_redirect_uris")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -630,10 +633,10 @@ model ClientScope {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  realm            Realm              @relation(fields: [realmId], references: [id], onDelete: Cascade)
-  protocolMappers  ProtocolMapper[]
-  defaultClients   ClientDefaultScope[]
-  optionalClients  ClientOptionalScope[]
+  realm           Realm                @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  protocolMappers ProtocolMapper[]
+  defaultClients  ClientDefaultScope[]
+  optionalClients ClientOptionalScope[]
 
   @@unique([realmId, name])
   @@map("client_scopes")
@@ -645,7 +648,8 @@ model ProtocolMapper {
   name          String
   protocol      String @default("openid-connect")
   mapperType    String @map("mapper_type")
-  config        Json   @default("{}")
+  // SQLite: Json → String (JSON-serialised text)
+  config        String @default("{}")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -712,7 +716,8 @@ model LoginEvent {
   clientId  String?  @map("client_id")
   ipAddress String?  @map("ip_address")
   error     String?
-  details   Json?
+  // SQLite: Json? → String? (JSON-serialised text)
+  details   String?
   createdAt DateTime @default(now()) @map("created_at")
 
   realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
@@ -726,35 +731,35 @@ model LoginEvent {
 // ─── USER FEDERATION ─────────────────────────────────────
 
 model UserFederation {
-  id              String  @id @default(uuid())
-  realmId         String  @map("realm_id")
-  name            String
-  providerType    String  @default("ldap") @map("provider_type")
-  enabled         Boolean @default(true)
-  priority        Int     @default(0)
+  id           String  @id @default(uuid())
+  realmId      String  @map("realm_id")
+  name         String
+  providerType String  @default("ldap") @map("provider_type")
+  enabled      Boolean @default(true)
+  priority     Int     @default(0)
 
   // LDAP connection
-  connectionUrl      String  @map("connection_url")
-  bindDn             String  @map("bind_dn")
-  bindCredential     String  @map("bind_credential")
-  startTls           Boolean @default(false) @map("start_tls")
-  connectionTimeout  Int     @default(5000) @map("connection_timeout")
+  connectionUrl     String  @map("connection_url")
+  bindDn            String  @map("bind_dn")
+  bindCredential    String  @map("bind_credential")
+  startTls          Boolean @default(false) @map("start_tls")
+  connectionTimeout Int     @default(5000) @map("connection_timeout")
 
   // LDAP search
-  usersDn            String  @map("users_dn")
-  userObjectClass    String  @default("inetOrgPerson") @map("user_object_class")
-  usernameLdapAttr   String  @default("uid") @map("username_ldap_attr")
-  rdnLdapAttr        String  @default("uid") @map("rdn_ldap_attr")
-  uuidLdapAttr       String  @default("entryUUID") @map("uuid_ldap_attr")
-  searchFilter       String? @map("search_filter")
+  usersDn          String  @map("users_dn")
+  userObjectClass  String  @default("inetOrgPerson") @map("user_object_class")
+  usernameLdapAttr String  @default("uid") @map("username_ldap_attr")
+  rdnLdapAttr      String  @default("uid") @map("rdn_ldap_attr")
+  uuidLdapAttr     String  @default("entryUUID") @map("uuid_ldap_attr")
+  searchFilter     String? @map("search_filter")
 
   // Sync
-  syncMode       String  @default("on_demand") @map("sync_mode")
-  syncPeriod     Int     @default(3600) @map("sync_period")
+  syncMode       String    @default("on_demand") @map("sync_mode")
+  syncPeriod     Int       @default(3600) @map("sync_period")
   lastSyncAt     DateTime? @map("last_sync_at")
   lastSyncStatus String?   @map("last_sync_status")
-  importEnabled  Boolean @default(true)  @map("import_enabled")
-  editMode       String  @default("READ_ONLY") @map("edit_mode")
+  importEnabled  Boolean   @default(true) @map("import_enabled")
+  editMode       String    @default("READ_ONLY") @map("edit_mode")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -767,13 +772,14 @@ model UserFederation {
 }
 
 model UserFederationMapper {
-  id            String  @id @default(uuid())
-  federationId  String  @map("federation_id")
+  id            String @id @default(uuid())
+  federationId  String @map("federation_id")
   name          String
-  mapperType    String  @map("mapper_type")
-  ldapAttribute String  @map("ldap_attribute")
-  userAttribute String  @map("user_attribute")
-  config        Json    @default("{}")
+  mapperType    String @map("mapper_type")
+  ldapAttribute String @map("ldap_attribute")
+  userAttribute String @map("user_attribute")
+  // SQLite: Json → String (JSON-serialised text)
+  config        String @default("{}")
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -789,7 +795,8 @@ model PendingAction {
   id        String   @id @default(uuid())
   tokenHash String   @unique @map("token_hash")
   type      String   // "mfa_challenge" | "consent_request"
-  data      Json
+  // SQLite: Json → String (JSON-serialised text)
+  data      String
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -800,13 +807,14 @@ model PendingAction {
 // ─── WEBHOOKS ────────────────────────────────────────────
 
 model Webhook {
-  id          String   @id @default(uuid())
-  realmId     String   @map("realm_id")
-  realm       Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  id          String  @id @default(uuid())
+  realmId     String  @map("realm_id")
+  realm       Realm   @relation(fields: [realmId], references: [id], onDelete: Cascade)
   url         String
   secret      String
-  enabled     Boolean  @default(true)
-  eventTypes  String[] @map("event_types")
+  enabled     Boolean @default(true)
+  // SQLite: String[] → String (JSON array text)
+  eventTypes  String  @default("[]") @map("event_types")
   description String?
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -822,7 +830,8 @@ model WebhookDelivery {
   webhookId   String   @map("webhook_id")
   webhook     Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
   eventType   String   @map("event_type")
-  payload     Json
+  // SQLite: Json → String (JSON-serialised text)
+  payload     String
   statusCode  Int?     @map("status_code")
   response    String?
   success     Boolean  @default(false)
@@ -838,14 +847,15 @@ model WebhookDelivery {
 // ─── ADMIN EVENTS ────────────────────────────────────────
 
 model AdminEvent {
-  id             String   @id @default(uuid())
-  realmId        String   @map("realm_id")
-  adminUserId    String   @map("admin_user_id")
-  operationType  String   @map("operation_type")
-  resourceType   String   @map("resource_type")
-  resourcePath   String   @map("resource_path")
-  representation Json?
-  ipAddress      String?  @map("ip_address")
+  id            String   @id @default(uuid())
+  realmId       String   @map("realm_id")
+  adminUserId   String   @map("admin_user_id")
+  operationType String   @map("operation_type")
+  resourceType  String   @map("resource_type")
+  resourcePath  String   @map("resource_path")
+  // SQLite: Json? → String? (JSON-serialised text)
+  representation String?
+  ipAddress      String? @map("ip_address")
   createdAt      DateTime @default(now()) @map("created_at")
 
   realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
@@ -858,18 +868,18 @@ model AdminEvent {
 // ─── IMPERSONATION SESSIONS ──────────────────────────────
 
 model ImpersonationSession {
-  id            String   @id @default(uuid())
-  realmId       String   @map("realm_id")
-  adminUserId   String   @map("admin_user_id")
-  targetUserId  String   @map("target_user_id")
-  sessionId     String   @map("session_id")
-  active        Boolean  @default(true)
-  expiresAt     DateTime @map("expires_at")
-  endedAt       DateTime? @map("ended_at")
+  id           String    @id @default(uuid())
+  realmId      String    @map("realm_id")
+  adminUserId  String    @map("admin_user_id")
+  targetUserId String    @map("target_user_id")
+  sessionId    String    @map("session_id")
+  active       Boolean   @default(true)
+  expiresAt    DateTime  @map("expires_at")
+  endedAt      DateTime? @map("ended_at")
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  realm       Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
 
   @@index([realmId, adminUserId])
   @@index([realmId, targetUserId])
@@ -880,23 +890,24 @@ model ImpersonationSession {
 // ─── AUDIT LOG STREAMS ───────────────────────────────────
 
 model AuditLogStream {
-  id          String  @id @default(uuid())
-  realmId     String  @map("realm_id")
-  realm       Realm   @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  id      String @id @default(uuid())
+  realmId String @map("realm_id")
+  realm   Realm  @relation(fields: [realmId], references: [id], onDelete: Cascade)
 
-  name        String
-  streamType  String  @map("stream_type")   // "syslog" | "http"
-  enabled     Boolean @default(true)
+  name       String
+  streamType String  @map("stream_type") // "syslog" | "http"
+  enabled    Boolean @default(true)
 
   // HTTP destination
-  url         String?
-  httpHeaders Json?   @map("http_headers")
+  url String?
+  // SQLite: Json? → String? (JSON-serialised text)
+  httpHeaders String? @map("http_headers")
 
   // Syslog destination
   syslogHost     String? @map("syslog_host")
   syslogPort     Int?    @map("syslog_port")
-  syslogProtocol String  @default("udp")  @map("syslog_protocol")  // "udp" | "tcp"
-  syslogFacility Int     @default(16)     @map("syslog_facility")   // local0
+  syslogProtocol String  @default("udp") @map("syslog_protocol") // "udp" | "tcp"
+  syslogFacility Int     @default(16)    @map("syslog_facility")  // local0
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt      @map("updated_at")
@@ -907,23 +918,23 @@ model AuditLogStream {
 // ─── ABAC POLICIES ───────────────────────────────────────
 
 model Policy {
-  id          String   @id @default(uuid())
-  realmId     String   @map("realm_id")
-  realm       Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  id          String  @id @default(uuid())
+  realmId     String  @map("realm_id")
+  realm       Realm   @relation(fields: [realmId], references: [id], onDelete: Cascade)
   name        String
   description String?
-  enabled     Boolean  @default(true)
-  effect      String   @default("ALLOW")   // "ALLOW" | "DENY"
-  priority    Int      @default(0)
+  enabled     Boolean @default(true)
+  effect      String  @default("ALLOW") // "ALLOW" | "DENY"
+  priority    Int     @default(0)
 
-  // Conditions (JSON)
-  subjectConditions     Json? @map("subject_conditions")      // user attributes, roles, groups
-  resourceConditions    Json? @map("resource_conditions")     // resource type, owner, attributes
-  actionConditions      Json? @map("action_conditions")       // read, write, delete, etc.
-  environmentConditions Json? @map("environment_conditions")  // time, IP range, etc.
+  // Conditions — SQLite: Json? → String? (JSON-serialised text)
+  subjectConditions     String? @map("subject_conditions")
+  resourceConditions    String? @map("resource_conditions")
+  actionConditions      String? @map("action_conditions")
+  environmentConditions String? @map("environment_conditions")
 
-  logic    String  @default("AND")  // "AND" | "OR" for combining conditions
-  clientId String? @map("client_id") // optional: scope to specific client
+  logic    String  @default("AND") // "AND" | "OR"
+  clientId String? @map("client_id")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -936,20 +947,21 @@ model Policy {
 // ─── CUSTOM ATTRIBUTES ──────────────────────────────────
 
 model CustomAttribute {
-  id          String   @id @default(uuid())
-  realmId     String   @map("realm_id")
-  realm       Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
-  name        String
-  displayName String   @map("display_name")
-  type        String   @default("text")
-  required    Boolean  @default(false)
-  showOnRegistration Boolean @default(false) @map("show_on_registration")
-  showOnProfile      Boolean @default(true)  @map("show_on_profile")
-  options     Json?
-  mapToOidcClaim String? @map("map_to_oidc_claim")
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt      @map("updated_at")
+  id                 String   @id @default(uuid())
+  realmId            String   @map("realm_id")
+  realm              Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  name               String
+  displayName        String   @map("display_name")
+  type               String   @default("text")
+  required           Boolean  @default(false)
+  showOnRegistration Boolean  @default(false) @map("show_on_registration")
+  showOnProfile      Boolean  @default(true)  @map("show_on_profile")
+  // SQLite: Json? → String? (JSON-serialised text)
+  options            String?
+  mapToOidcClaim     String?  @map("map_to_oidc_claim")
+  sortOrder          Int      @default(0) @map("sort_order")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt      @map("updated_at")
 
   userAttributes UserAttribute[]
 
@@ -958,14 +970,14 @@ model CustomAttribute {
 }
 
 model UserAttribute {
-  id          String   @id @default(uuid())
-  userId      String   @map("user_id")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  attributeId String   @map("attribute_id")
+  id          String          @id @default(uuid())
+  userId      String          @map("user_id")
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attributeId String          @map("attribute_id")
   attribute   CustomAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
   value       String
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt      @map("updated_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt      @map("updated_at")
 
   @@unique([userId, attributeId])
   @@index([userId])
@@ -980,11 +992,10 @@ model InstalledPlugin {
   version     String
   type        String   // "auth-provider" | "event-listener" | "token-enrichment" | "theme"
   enabled     Boolean  @default(true)
-  config      Json?
+  // SQLite: Json? → String? (JSON-serialised text)
+  config      String?
   installedAt DateTime @default(now()) @map("installed_at")
   updatedAt   DateTime @updatedAt      @map("updated_at")
 
   @@map("installed_plugins")
 }
-
-
