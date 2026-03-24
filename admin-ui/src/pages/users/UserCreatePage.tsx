@@ -137,7 +137,12 @@ export default function UserCreatePage() {
         </div>
 
         {mutation.isError && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+          <div
+            role="alert"
+            aria-live="assertive"
+            aria-atomic="true"
+            className="rounded-md bg-red-50 p-3 text-sm text-red-700"
+          >
             {getErrorMessage(mutation.error, 'Failed to create user.')}
           </div>
         )}

@@ -62,6 +62,7 @@ export default function RealmListPage() {
             type="file"
             accept=".json"
             onChange={handleImportFile}
+            aria-label="Import realm JSON file"
             className="hidden"
           />
           <button
@@ -80,26 +81,31 @@ export default function RealmListPage() {
       </div>
 
       {importStatus && (
-        <div className={`mb-4 rounded-md p-3 text-sm ${importStatus.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+        <div
+          role="alert"
+          aria-live={importStatus.type === 'error' ? 'assertive' : 'polite'}
+          aria-atomic="true"
+          className={`mb-4 rounded-md p-3 text-sm ${importStatus.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
+        >
           {importStatus.message}
-          <button onClick={() => setImportStatus(null)} className="ml-2 underline">dismiss</button>
+          <button onClick={() => setImportStatus(null)} aria-label="Dismiss notification" className="ml-2 underline">dismiss</button>
         </div>
       )}
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-gray-200" aria-label="Realms">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Name
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Display Name
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Enabled
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Created
               </th>
             </tr>
@@ -110,7 +116,16 @@ export default function RealmListPage() {
                 <tr
                   key={realm.id}
                   onClick={() => navigate(`/console/realms/${realm.name}`)}
-                  className="cursor-pointer hover:bg-gray-50"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`/console/realms/${realm.name}`);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`View realm ${realm.displayName || realm.name}`}
+                  className="cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
                 >
                   <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-indigo-600">
                     {realm.name}

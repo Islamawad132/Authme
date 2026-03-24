@@ -53,11 +53,20 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Skip navigation link — visible on focus for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-indigo-600 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:outline-none"
+      >
+        Skip to main content
+      </a>
+
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/50 md:hidden"
           onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
         />
       )}
 
@@ -66,12 +75,13 @@ export default function Layout() {
         className={`fixed inset-y-0 left-0 z-40 flex w-64 transform flex-col bg-gray-900 text-white transition-transform duration-200 md:relative md:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        aria-label="Sidebar"
       >
         <div className="flex h-16 items-center gap-2 border-b border-gray-700 px-6">
           <img src="/console/authme-logo.png" alt="AuthMe" className="h-8 w-auto" />
         </div>
 
-        <nav className="mt-4 flex-1 space-y-1 overflow-y-auto px-3 pb-4">
+        <nav aria-label="Main navigation" className="mt-4 flex-1 space-y-1 overflow-y-auto px-3 pb-4">
           {globalNav.map((item) => (
             <NavLink
               key={item.to}
@@ -92,26 +102,31 @@ export default function Layout() {
 
           {currentRealm && realms?.some((r) => r.name === currentRealm) && (
             <>
-              <div className="mt-6 mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+              <div
+                className="mt-6 mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400"
+                aria-hidden="true"
+              >
                 {currentRealm}
               </div>
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end
-                  onClick={() => setSidebarOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-gray-800 text-white'
-                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                    }`
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              ))}
+              <nav aria-label={`${currentRealm} realm navigation`}>
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end
+                    onClick={() => setSidebarOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-gray-800 text-white'
+                          : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                      }`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
             </>
           )}
         </nav>
@@ -124,9 +139,11 @@ export default function Layout() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
+              aria-label="Open navigation menu"
+              aria-expanded={sidebarOpen}
               className="text-gray-500 hover:text-gray-700 md:hidden"
             >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
@@ -135,36 +152,44 @@ export default function Layout() {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setRealmDropdownOpen(!realmDropdownOpen)}
+                aria-haspopup="listbox"
+                aria-expanded={realmDropdownOpen}
+                aria-label={currentRealm ? `Current realm: ${currentRealm}. Switch realm` : 'Select realm'}
                 className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
-                <span>{currentRealm || 'Select Realm'}</span>
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <span aria-hidden="true">{currentRealm || 'Select Realm'}</span>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
               {realmDropdownOpen && realms && (
-                <div className="absolute left-0 z-20 mt-1 w-56 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                <ul
+                  role="listbox"
+                  aria-label="Realms"
+                  className="absolute left-0 z-20 mt-1 w-56 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+                >
                   {realms.map((realm) => (
-                    <button
-                      key={realm.id}
-                      onClick={() => {
-                        navigate(`/console/realms/${realm.name}`);
-                        setRealmDropdownOpen(false);
-                      }}
-                      className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 ${
-                        realm.name === currentRealm
-                          ? 'bg-indigo-50 font-medium text-indigo-700'
-                          : 'text-gray-700'
-                      }`}
-                    >
-                      {realm.displayName || realm.name}
-                    </button>
+                    <li key={realm.id} role="option" aria-selected={realm.name === currentRealm}>
+                      <button
+                        onClick={() => {
+                          navigate(`/console/realms/${realm.name}`);
+                          setRealmDropdownOpen(false);
+                        }}
+                        className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 ${
+                          realm.name === currentRealm
+                            ? 'bg-indigo-50 font-medium text-indigo-700'
+                            : 'text-gray-700'
+                        }`}
+                      >
+                        {realm.displayName || realm.name}
+                      </button>
+                    </li>
                   ))}
                   {realms.length === 0 && (
-                    <p className="px-4 py-2 text-sm text-gray-500">No realms found</p>
+                    <li className="px-4 py-2 text-sm text-gray-500">No realms found</li>
                   )}
-                </div>
+                </ul>
               )}
             </div>
           </div>
@@ -178,7 +203,7 @@ export default function Layout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <main id="main-content" className="flex-1 overflow-y-auto p-4 sm:p-6" tabIndex={-1}>
           <Breadcrumbs />
           <Outlet />
         </main>

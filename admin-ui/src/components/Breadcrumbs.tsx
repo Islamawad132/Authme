@@ -104,36 +104,41 @@ export default function Breadcrumbs() {
 
   return (
     <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1 text-sm text-gray-500">
-      {crumbs.map((crumb, index) => {
-        const isLast = index === crumbs.length - 1;
-        return (
-          <span key={index} className="flex items-center gap-1">
-            {index > 0 && (
-              <svg
-                className="h-4 w-4 flex-shrink-0 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            )}
-            {isLast || !crumb.to ? (
-              <span className={isLast ? 'font-medium text-gray-900' : 'text-gray-500'}>
-                {crumb.label}
-              </span>
-            ) : (
-              <Link
-                to={crumb.to}
-                className="hover:text-indigo-600 hover:underline"
-              >
-                {crumb.label}
-              </Link>
-            )}
-          </span>
-        );
-      })}
+      <ol className="flex items-center gap-1 list-none p-0 m-0">
+        {crumbs.map((crumb, index) => {
+          const isLast = index === crumbs.length - 1;
+          return (
+            <li key={index} className="flex items-center gap-1">
+              {index > 0 && (
+                <svg
+                  className="h-4 w-4 flex-shrink-0 text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
+              {isLast || !crumb.to ? (
+                <span
+                  className={isLast ? 'font-medium text-gray-900' : 'text-gray-500'}
+                  aria-current={isLast ? 'page' : undefined}
+                >
+                  {crumb.label}
+                </span>
+              ) : (
+                <Link
+                  to={crumb.to}
+                  className="hover:text-indigo-600 hover:underline"
+                >
+                  {crumb.label}
+                </Link>
+              )}
+            </li>
+          );
+        })}
+      </ol>
     </nav>
   );
 }
