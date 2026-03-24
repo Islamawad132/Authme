@@ -10,6 +10,9 @@ import {
 } from '../prisma/prisma.mock.js';
 import type { Realm } from '@prisma/client';
 
+/** Drain the microtask / promise queue so fire-and-forget work completes. */
+const flushPromises = () => new Promise<void>((resolve) => setImmediate(resolve));
+
 describe('BackchannelLogoutService', () => {
   let service: BackchannelLogoutService;
   let prisma: MockPrismaService;
@@ -50,7 +53,8 @@ describe('BackchannelLogoutService', () => {
     it('should return early when no clients have a backchannelLogoutUri', async () => {
       prisma.client.findMany.mockResolvedValue([]);
 
-      await service.sendLogoutTokens(mockRealm, 'user-1', 'session-1');
+      service.sendLogoutTokens(mockRealm, 'user-1', 'session-1');
+      await flushPromises();
 
       expect(prisma.client.findMany).toHaveBeenCalledWith({
         where: {
@@ -73,7 +77,8 @@ describe('BackchannelLogoutService', () => {
       ]);
       prisma.realmSigningKey.findFirst.mockResolvedValue(null);
 
-      await service.sendLogoutTokens(mockRealm, 'user-1', 'session-1');
+      service.sendLogoutTokens(mockRealm, 'user-1', 'session-1');
+      await flushPromises();
 
       expect(prisma.realmSigningKey.findFirst).toHaveBeenCalledWith({
         where: { realmId: 'realm-1', active: true },
@@ -103,7 +108,8 @@ describe('BackchannelLogoutService', () => {
       prisma.realmSigningKey.findFirst.mockResolvedValue(mockSigningKey);
       (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
 
-      await service.sendLogoutTokens(mockRealm, 'user-1', 'session-1');
+      service.sendLogoutTokens(mockRealm, 'user-1', 'session-1');
+      await flushPromises();
 
       expect(mockJwkService.signJwt).toHaveBeenCalledTimes(2);
       expect(global.fetch).toHaveBeenCalledTimes(2);
@@ -143,7 +149,8 @@ describe('BackchannelLogoutService', () => {
       prisma.realmSigningKey.findFirst.mockResolvedValue(mockSigningKey);
       (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
 
-      await service.sendLogoutTokens(mockRealm, 'user-1', 'session-1');
+      service.sendLogoutTokens(mockRealm, 'user-1', 'session-1');
+      await flushPromises();
 
       expect(mockJwkService.signJwt).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -173,7 +180,8 @@ describe('BackchannelLogoutService', () => {
       prisma.realmSigningKey.findFirst.mockResolvedValue(mockSigningKey);
       (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
 
-      await service.sendLogoutTokens(mockRealm, 'user-1', 'session-1');
+      service.sendLogoutTokens(mockRealm, 'user-1', 'session-1');
+      await flushPromises();
 
       const signCall = mockJwkService.signJwt.mock.calls[0][0];
       expect(signCall).not.toHaveProperty('sid');
@@ -201,10 +209,9 @@ describe('BackchannelLogoutService', () => {
       prisma.realmSigningKey.findFirst.mockResolvedValue(mockSigningKey);
       (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
-      // Should not throw even though fetch fails
-      await expect(
-        service.sendLogoutTokens(mockRealm, 'user-1', 'session-1'),
-      ).resolves.toBeUndefined();
+      // sendLogoutTokens is fire-and-forget (void); errors must not propagate
+      expect(() => service.sendLogoutTokens(mockRealm, 'user-1', 'session-1')).not.toThrow();
+      await flushPromises(); // confirm the background work also swallows the error
     });
 
     it('should handle non-ok response gracefully without throwing', async () => {
@@ -221,10 +228,9 @@ describe('BackchannelLogoutService', () => {
       prisma.realmSigningKey.findFirst.mockResolvedValue(mockSigningKey);
       (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 500 });
 
-      // Should not throw even though the response is not ok
-      await expect(
-        service.sendLogoutTokens(mockRealm, 'user-1', 'session-1'),
-      ).resolves.toBeUndefined();
+      // sendLogoutTokens is fire-and-forget (void); non-ok responses must not propagate
+      expect(() => service.sendLogoutTokens(mockRealm, 'user-1', 'session-1')).not.toThrow();
+      await flushPromises(); // confirm the background work also swallows the warning
     });
   });
 });

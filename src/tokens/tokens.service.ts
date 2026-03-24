@@ -238,9 +238,9 @@ export class TokensService {
       data: { revoked: true },
     });
 
-    // Send backchannel logout notifications
+    // Send backchannel logout notifications (fire-and-forget — must not block)
     if (userId) {
-      await this.backchannelLogout.sendLogoutTokens(realm, userId, sessionId);
+      this.backchannelLogout.sendLogoutTokens(realm, userId, sessionId);
     }
 
     // Record logout event before deleting session

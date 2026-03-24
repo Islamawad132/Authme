@@ -38,6 +38,12 @@ describe('Auth0ImporterService', () => {
         client_secret: 'super-secret',
         grant_types: ['client_credentials'],
       },
+      {
+        client_id: 'device-app',
+        name: 'Device App',
+        grant_types: ['urn:ietf:params:oauth:grant-type:device_code'],
+        token_endpoint_auth_method: 'none',
+      },
     ],
     roles: [
       { name: 'admin', description: 'Admin role' },
@@ -100,7 +106,7 @@ describe('Auth0ImporterService', () => {
 
   it('should import clients with correct types', async () => {
     const report = await service.importData(mockAuth0Export, { dryRun: false, targetRealm: 'test' });
-    expect(report.summary.clients.created).toBe(2);
+    expect(report.summary.clients.created).toBe(3);
     // SPA is public
     expect(prisma.client.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ clientId: 'spa-app', clientType: 'PUBLIC' }),
@@ -109,6 +115,25 @@ describe('Auth0ImporterService', () => {
     expect(prisma.client.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ clientId: 'api-service', clientType: 'CONFIDENTIAL' }),
     }));
+    // Device app has the full URN grant type so auth service validation passes
+    expect(prisma.client.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        clientId: 'device-app',
+        grantTypes: ['urn:ietf:params:oauth:grant-type:device_code'],
+      }),
+    }));
+  });
+
+  it('should map device_code grant type to the full URN used internally', async () => {
+    await service.importData(mockAuth0Export, { dryRun: false, targetRealm: 'test' });
+    const deviceAppCall = prisma.client.create.mock.calls.find(
+      (call: any[]) => call[0].data.clientId === 'device-app',
+    );
+    expect(deviceAppCall).toBeDefined();
+    expect(deviceAppCall[0].data.grantTypes).toContain(
+      'urn:ietf:params:oauth:grant-type:device_code',
+    );
+    expect(deviceAppCall[0].data.grantTypes).not.toContain('device_code');
   });
 
   it('should import roles', async () => {

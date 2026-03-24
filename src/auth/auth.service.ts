@@ -343,22 +343,34 @@ export class AuthService {
       'authorization_code',
     );
 
-    const authCode = await this.prisma.authorizationCode.findUnique({
-      where: { code },
-    });
-
-    if (
-      !authCode ||
-      authCode.clientId !== client.id ||
-      authCode.used ||
-      authCode.expiresAt < new Date()
-    ) {
-      if (authCode && !authCode.used) {
-        await this.prisma.authorizationCode.update({
-          where: { id: authCode.id },
-          data: { used: true },
-        });
+    // Atomically mark the code as used in a single conditional UPDATE so that
+    // concurrent requests racing to exchange the same code cannot both succeed.
+    // Prisma throws P2025 when no row matches the where clause, which happens
+    // when: (a) the code does not exist, (b) it was already used by a
+    // concurrent request, or (c) it has already expired.  All three cases are
+    // treated identically — the caller receives an "invalid or expired" error.
+    let authCode: Awaited<ReturnType<typeof this.prisma.authorizationCode.update>>;
+    try {
+      authCode = await this.prisma.authorizationCode.update({
+        where: {
+          code,
+          used: false,
+          expiresAt: { gt: new Date() },
+        },
+        data: { used: true },
+      });
+    } catch (err: unknown) {
+      const isPrismaNotFound =
+        typeof err === 'object' &&
+        err !== null &&
+        (err as { code?: string }).code === 'P2025';
+      if (isPrismaNotFound) {
+        throw new UnauthorizedException('Invalid or expired authorization code');
       }
+      throw err;
+    }
+
+    if (authCode.clientId !== client.id) {
       throw new UnauthorizedException('Invalid or expired authorization code');
     }
 
@@ -388,12 +400,6 @@ export class AuthService {
         throw new UnauthorizedException('Invalid code_verifier');
       }
     }
-
-    // Mark code as used
-    await this.prisma.authorizationCode.update({
-      where: { id: authCode.id },
-      data: { used: true },
-    });
 
     const user = await this.prisma.user.findUnique({
       where: { id: authCode.userId },
