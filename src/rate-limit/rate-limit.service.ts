@@ -70,6 +70,17 @@ export class RateLimitService {
     );
   }
 
+  /**
+   * IP-based rate limit for the admin login endpoint.
+   * Uses fixed conservative limits (5 req/min, 50 req/hour) with a
+   * dedicated key namespace — no realm DB lookup required.
+   */
+  async checkAdminIpLimit(ip: string): Promise<RateLimitResult> {
+    const ADMIN_LIMIT_PER_MINUTE = 5;
+    const ADMIN_LIMIT_PER_HOUR = 50;
+    return this.check(`admin:ip:${ip}`, ADMIN_LIMIT_PER_MINUTE, ADMIN_LIMIT_PER_HOUR);
+  }
+
   async checkIpLimit(ip: string, realmId: string): Promise<RateLimitResult> {
     const realm = await this.prisma.realm.findUnique({
       where: { id: realmId },

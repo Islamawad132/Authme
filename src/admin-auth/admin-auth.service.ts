@@ -1,20 +1,51 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
+import { RateLimitService } from '../rate-limit/rate-limit.service.js';
+import { BruteForceService } from '../brute-force/brute-force.service.js';
 
 @Injectable()
 export class AdminAuthService {
   private readonly logger = new Logger(AdminAuthService.name);
-  private readonly revokedTokens = new Set<string>();
+  /**
+   * Maps a raw admin token string to its expiry unix timestamp (seconds).
+   * Using a Map instead of a Set lets us evict only truly expired entries
+   * rather than clearing the entire collection when it grows large.
+   */
+  private readonly revokedTokens = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
     private readonly jwkService: JwkService,
+    private readonly rateLimitService: RateLimitService,
+    private readonly bruteForceService: BruteForceService,
   ) {}
 
-  async login(username: string, password: string) {
+  async login(username: string, password: string, ip: string = 'unknown'): Promise<{
+    access_token: string;
+    token_type: string;
+    expires_in: number;
+    rateLimitHeaders: Record<string, string>;
+  }> {
+    // ── IP-based rate limiting ────────────────────────────────────────────────
+    // Applied before any DB work so it protects at network-edge cost.
+    const rlResult = await this.rateLimitService.checkAdminIpLimit(ip);
+    const rateLimitHeaders = this.rateLimitService.computeHeaders(rlResult);
+
+    if (!rlResult.allowed) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          error: 'Too Many Requests',
+          message: 'Admin login rate limit exceeded. Please slow down.',
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // ── Realm & user lookup ───────────────────────────────────────────────────
     const masterRealm = await this.prisma.realm.findUnique({
       where: { name: 'master' },
     });
@@ -31,8 +62,25 @@ export class AdminAuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // ── Brute-force lockout check ─────────────────────────────────────────────
+    const lockStatus = this.bruteForceService.checkLocked(masterRealm as any, user as any);
+    if (lockStatus.locked) {
+      const lockedUntil = lockStatus.lockedUntil?.toISOString() ?? 'indefinitely';
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          error: 'Too Many Requests',
+          message: `Account locked due to too many failed login attempts. Locked until: ${lockedUntil}`,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // ── Password verification ─────────────────────────────────────────────────
     const valid = await this.crypto.verifyPassword(user.passwordHash, password);
     if (!valid) {
+      // Record the failure so brute-force protection can lock the account.
+      await this.bruteForceService.recordFailure(masterRealm as any, user.id, ip);
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -48,6 +96,9 @@ export class AdminAuthService {
     if (!roles.some((r) => ['super-admin', 'realm-admin', 'view-only'].includes(r))) {
       throw new UnauthorizedException('User does not have admin access');
     }
+
+    // ── Reset brute-force counters on successful login ────────────────────────
+    await this.bruteForceService.resetFailures(masterRealm.id, user.id);
 
     // Sign admin JWT with master realm signing key
     const signingKey = await this.prisma.realmSigningKey.findFirst({
@@ -77,21 +128,32 @@ export class AdminAuthService {
       access_token: token,
       token_type: 'Bearer',
       expires_in: 3600,
+      rateLimitHeaders,
     };
   }
 
-  revokeToken(token: string): void {
-    this.revokedTokens.add(token);
-    // Clean up expired tokens periodically to prevent unbounded growth
-    if (this.revokedTokens.size > 1000) {
-      this.revokedTokens.clear();
+  revokeToken(token: string, expiresInSeconds = 3600): void {
+    const expiresAt = Math.floor(Date.now() / 1000) + expiresInSeconds;
+    this.revokedTokens.set(token, expiresAt);
+    // Evict only expired entries to prevent unbounded growth.
+    // Never clear the whole map — that would make revoked tokens valid again.
+    this.evictExpiredRevokedTokens();
+  }
+
+  private evictExpiredRevokedTokens(): void {
+    const now = Math.floor(Date.now() / 1000);
+    for (const [token, expiresAt] of this.revokedTokens) {
+      if (expiresAt <= now) {
+        this.revokedTokens.delete(token);
+      }
     }
   }
 
   async validateAdminToken(
     token: string,
   ): Promise<{ userId: string; roles: string[] }> {
-    if (this.revokedTokens.has(token)) {
+    const revokedExpiry = this.revokedTokens.get(token);
+    if (revokedExpiry !== undefined && revokedExpiry > Math.floor(Date.now() / 1000)) {
       throw new UnauthorizedException('Token has been revoked');
     }
 
