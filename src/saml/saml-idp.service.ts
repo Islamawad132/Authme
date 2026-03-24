@@ -2,11 +2,14 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { createSign, createPrivateKey, randomUUID } from 'crypto';
 import { inflate } from 'zlib';
 import { promisify } from 'util';
+import { XMLParser } from 'fast-xml-parser';
 import type { Realm, SamlServiceProvider, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 
 const inflateAsync = promisify(inflate);
+
+const MAX_XML_SIZE = 256 * 1024; // 256 KB max to prevent XML bomb
 
 interface ParsedAuthnRequest {
   id: string;
@@ -40,13 +43,34 @@ export class SamlIdpService {
         xml = decoded.toString('utf-8');
       }
 
-      // Parse key fields from the AuthnRequest XML
-      const id = this.extractXmlAttribute(xml, 'AuthnRequest', 'ID') ?? randomUUID();
-      const issuer = this.extractXmlElement(xml, 'Issuer') ?? '';
-      const acsUrl =
-        this.extractXmlAttribute(xml, 'AuthnRequest', 'AssertionConsumerServiceURL') ?? null;
-      const nameIdPolicy =
-        this.extractXmlAttribute(xml, 'NameIDPolicy', 'Format') ?? null;
+      // Guard against XML bomb / oversized payloads
+      if (xml.length > MAX_XML_SIZE) {
+        throw new BadRequestException('SAMLRequest exceeds maximum allowed size');
+      }
+
+      // Parse with a proper XML parser — XXE protection is built in
+      // (fast-xml-parser does not resolve external entities by default)
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: '@_',
+        removeNSPrefix: true, // strip namespace prefixes for easier access
+      });
+
+      const doc = parser.parse(xml);
+      const authnRequest = doc['AuthnRequest'];
+      if (!authnRequest) {
+        throw new BadRequestException('Invalid AuthnRequest: root element not found');
+      }
+
+      const id = authnRequest['@_ID'] ?? randomUUID();
+      const issuer =
+        typeof authnRequest['Issuer'] === 'string'
+          ? authnRequest['Issuer']
+          : authnRequest['Issuer']?.['#text'] ?? '';
+      const acsUrl = authnRequest['@_AssertionConsumerServiceURL']
+        ?? authnRequest['@_AssertionConsumerServiceURL']
+        ?? null;
+      const nameIdPolicy = authnRequest['NameIDPolicy']?.['@_Format'] ?? null;
 
       if (!issuer) {
         throw new BadRequestException('AuthnRequest missing Issuer');
