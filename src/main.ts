@@ -37,7 +37,11 @@ async function bootstrap() {
           upgradeInsecureRequests: null,
         },
       },
-      hsts: false,
+      hsts: {
+        maxAge: 31536000, // 1 year in seconds
+        includeSubDomains: true,
+        preload: true,
+      },
       crossOriginOpenerPolicy: false,
       crossOriginResourcePolicy: false,
     }),

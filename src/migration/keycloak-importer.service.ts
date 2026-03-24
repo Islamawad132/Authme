@@ -3,6 +3,9 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import type { KeycloakRealmExport, KeycloakUser, KeycloakClient, KeycloakGroup } from './keycloak-types.js';
 import { createEmptyReport, type MigrationReport } from './migration-report.js';
+import type { Prisma } from '@prisma/client';
+
+type PrismaTx = Prisma.TransactionClient;
 
 export interface KeycloakImportOptions {
   dryRun: boolean;
@@ -25,30 +28,46 @@ export class KeycloakImporterService {
     const report = createEmptyReport('keycloak', options.dryRun);
     const realmName = options.targetRealm ?? data.realm;
 
-    // 1. Create or find realm
-    const realmId = await this.importRealmEntity(data, realmName, report, options.dryRun);
-    if (!realmId) {
-      report.completedAt = new Date();
-      return report;
+    if (options.dryRun) {
+      // Dry-run: simulate without writing — no transaction needed.
+      const realmId = await this.importRealmEntity(data, realmName, report, true);
+      if (!realmId) {
+        report.completedAt = new Date();
+        return report;
+      }
+      await this.importRoles(data, realmId, report, true);
+      await this.importGroups(data.groups ?? [], realmId, null, report, true);
+      await this.importClientScopes(data, realmId, report, true);
+      await this.importClients(data, realmId, report, true);
+      await this.importUsers(data, realmId, report, true);
+      await this.importIdentityProviders(data, realmId, report, true);
+    } else {
+      // Real import: wrap every write in a single transaction so that any
+      // failure causes a full rollback, preventing partial/corrupt data.
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          const realmId = await this.importRealmEntity(data, realmName, report, false, tx);
+          if (!realmId) {
+            // A fatal realm-level error was already recorded; abort the transaction.
+            throw new Error(`Failed to create realm '${realmName}' — rolling back`);
+          }
+
+          await this.importRoles(data, realmId, report, false, tx);
+          await this.importGroups(data.groups ?? [], realmId, null, report, false, tx);
+          await this.importClientScopes(data, realmId, report, false, tx);
+          await this.importClients(data, realmId, report, false, tx);
+          await this.importUsers(data, realmId, report, false, tx);
+          await this.importIdentityProviders(data, realmId, report, false, tx);
+        });
+      } catch (error: any) {
+        // If the error was injected by us to trigger a rollback it is already
+        // recorded in report.errors.  For any other unexpected error, add it.
+        const alreadyRecorded = report.errors.some(e => e.error === error.message);
+        if (!alreadyRecorded) {
+          report.errors.push({ entity: 'realm', name: realmName, error: error.message });
+        }
+      }
     }
-
-    // 2. Import roles
-    await this.importRoles(data, realmId, report, options.dryRun);
-
-    // 3. Import groups
-    await this.importGroups(data.groups ?? [], realmId, null, report, options.dryRun);
-
-    // 4. Import client scopes
-    await this.importClientScopes(data, realmId, report, options.dryRun);
-
-    // 5. Import clients
-    await this.importClients(data, realmId, report, options.dryRun);
-
-    // 6. Import users
-    await this.importUsers(data, realmId, report, options.dryRun);
-
-    // 7. Import identity providers
-    await this.importIdentityProviders(data, realmId, report, options.dryRun);
 
     report.completedAt = new Date();
     return report;
@@ -59,9 +78,11 @@ export class KeycloakImporterService {
     realmName: string,
     report: MigrationReport,
     dryRun: boolean,
+    tx?: PrismaTx,
   ): Promise<string | null> {
+    const db = tx ?? this.prisma;
     try {
-      const existing = await this.prisma.realm.findUnique({ where: { name: realmName } });
+      const existing = await db.realm.findUnique({ where: { name: realmName } });
       if (existing) {
         report.summary.realms.skipped++;
         report.warnings.push({ entity: 'realm', message: `Realm '${realmName}' already exists, using existing` });
@@ -73,7 +94,7 @@ export class KeycloakImporterService {
         return 'dry-run-realm-id';
       }
 
-      const realm = await this.prisma.realm.create({
+      const realm = await db.realm.create({
         data: {
           name: realmName,
           displayName: data.displayName,
@@ -90,7 +111,7 @@ export class KeycloakImporterService {
             smtpSsl: data.smtpServer.ssl === 'true',
           }),
           ...(data.bruteForceProtected && {
-            bruteForceProtected: true,
+            bruteForceEnabled: true,
             maxLoginFailures: data.failureFactor ?? 5,
           }),
         },
@@ -110,13 +131,15 @@ export class KeycloakImporterService {
     realmId: string,
     report: MigrationReport,
     dryRun: boolean,
+    tx?: PrismaTx,
   ): Promise<void> {
+    const db = tx ?? this.prisma;
     for (const role of data.roles?.realm ?? []) {
       if (['offline_access', 'uma_authorization', 'default-roles-' + data.realm].includes(role.name)) {
         continue; // Skip Keycloak built-in roles
       }
       try {
-        const existing = await this.prisma.role.findFirst({
+        const existing = await db.role.findFirst({
           where: { realmId, name: role.name, clientId: null },
         });
         if (existing) {
@@ -124,7 +147,7 @@ export class KeycloakImporterService {
           continue;
         }
         if (!dryRun) {
-          await this.prisma.role.create({
+          await db.role.create({
             data: { realmId, name: role.name, description: role.description },
           });
         }
@@ -142,29 +165,31 @@ export class KeycloakImporterService {
     parentId: string | null,
     report: MigrationReport,
     dryRun: boolean,
+    tx?: PrismaTx,
   ): Promise<void> {
+    const db = tx ?? this.prisma;
     for (const group of groups) {
       try {
-        const existing = await this.prisma.group.findFirst({
+        const existing = await db.group.findFirst({
           where: { realmId, name: group.name, parentId },
         });
         if (existing) {
           report.summary.groups.skipped++;
           if (group.subGroups?.length) {
-            await this.importGroups(group.subGroups, realmId, existing.id, report, dryRun);
+            await this.importGroups(group.subGroups, realmId, existing.id, report, dryRun, tx);
           }
           continue;
         }
         let groupId = 'dry-run-group-id';
         if (!dryRun) {
-          const created = await this.prisma.group.create({
+          const created = await db.group.create({
             data: { realmId, name: group.name, parentId },
           });
           groupId = created.id;
         }
         report.summary.groups.created++;
         if (group.subGroups?.length) {
-          await this.importGroups(group.subGroups, realmId, dryRun ? null : groupId, report, dryRun);
+          await this.importGroups(group.subGroups, realmId, dryRun ? null : groupId, report, dryRun, tx);
         }
       } catch (error: any) {
         report.summary.groups.failed++;
@@ -178,10 +203,12 @@ export class KeycloakImporterService {
     realmId: string,
     report: MigrationReport,
     dryRun: boolean,
+    tx?: PrismaTx,
   ): Promise<void> {
+    const db = tx ?? this.prisma;
     for (const scope of data.clientScopes ?? []) {
       try {
-        const existing = await this.prisma.clientScope.findFirst({
+        const existing = await db.clientScope.findFirst({
           where: { realmId, name: scope.name },
         });
         if (existing) {
@@ -189,7 +216,7 @@ export class KeycloakImporterService {
           continue;
         }
         if (!dryRun) {
-          await this.prisma.clientScope.create({
+          await db.clientScope.create({
             data: {
               realmId,
               name: scope.name,
@@ -211,11 +238,13 @@ export class KeycloakImporterService {
     realmId: string,
     report: MigrationReport,
     dryRun: boolean,
+    tx?: PrismaTx,
   ): Promise<void> {
+    const db = tx ?? this.prisma;
     for (const client of data.clients ?? []) {
       if (this.isKeycloakBuiltinClient(client.clientId)) continue;
       try {
-        const existing = await this.prisma.client.findFirst({
+        const existing = await db.client.findFirst({
           where: { realmId, clientId: client.clientId },
         });
         if (existing) {
@@ -225,7 +254,7 @@ export class KeycloakImporterService {
         if (!dryRun) {
           const grantTypes = this.mapKeycloakGrantTypes(client);
           const secretHash = client.secret ? await this.crypto.hashPassword(client.secret) : null;
-          await this.prisma.client.create({
+          await db.client.create({
             data: {
               realmId,
               clientId: client.clientId,
@@ -254,10 +283,12 @@ export class KeycloakImporterService {
     realmId: string,
     report: MigrationReport,
     dryRun: boolean,
+    tx?: PrismaTx,
   ): Promise<void> {
+    const db = tx ?? this.prisma;
     for (const user of data.users ?? []) {
       try {
-        const existing = await this.prisma.user.findFirst({
+        const existing = await db.user.findFirst({
           where: { realmId, username: user.username },
         });
         if (existing) {
@@ -269,7 +300,7 @@ export class KeycloakImporterService {
         const hash = (needsHashing && rawHash) ? await this.crypto.hashPassword(rawHash) : rawHash;
 
         if (!dryRun) {
-          const created = await this.prisma.user.create({
+          const created = await db.user.create({
             data: {
               realmId,
               username: user.username,
@@ -286,11 +317,11 @@ export class KeycloakImporterService {
           // Assign realm roles
           if (user.realmRoles?.length) {
             for (const roleName of user.realmRoles) {
-              const role = await this.prisma.role.findFirst({
+              const role = await db.role.findFirst({
                 where: { realmId, name: roleName, clientId: null },
               });
               if (role) {
-                await this.prisma.userRole.create({
+                await db.userRole.create({
                   data: { userId: created.id, roleId: role.id },
                 }).catch(() => {}); // Ignore duplicate
               }
@@ -329,10 +360,12 @@ export class KeycloakImporterService {
     realmId: string,
     report: MigrationReport,
     dryRun: boolean,
+    tx?: PrismaTx,
   ): Promise<void> {
+    const db = tx ?? this.prisma;
     for (const idp of data.identityProviders ?? []) {
       try {
-        const existing = await this.prisma.identityProvider.findFirst({
+        const existing = await db.identityProvider.findFirst({
           where: { realmId, alias: idp.alias },
         });
         if (existing) {
@@ -341,7 +374,7 @@ export class KeycloakImporterService {
         }
         if (!dryRun) {
           const providerType = this.mapKeycloakProviderType(idp.providerId);
-          await this.prisma.identityProvider.create({
+          await db.identityProvider.create({
             data: {
               realmId,
               alias: idp.alias,

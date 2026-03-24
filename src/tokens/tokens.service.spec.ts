@@ -68,7 +68,7 @@ describe('TokensService', () => {
       blacklistToken: jest.fn(),
     };
     const backchannelLogoutService = {
-      sendLogoutTokens: jest.fn().mockResolvedValue(undefined),
+      sendLogoutTokens: jest.fn(),
     };
     const eventsService = {
       recordLoginEvent: jest.fn().mockResolvedValue(undefined),

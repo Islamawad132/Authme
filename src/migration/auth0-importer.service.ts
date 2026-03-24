@@ -249,7 +249,7 @@ export class Auth0ImporterService {
       'client_credentials': 'client_credentials',
       'password': 'password',
       'refresh_token': 'refresh_token',
-      'urn:ietf:params:oauth:grant-type:device_code': 'device_code',
+      'urn:ietf:params:oauth:grant-type:device_code': 'urn:ietf:params:oauth:grant-type:device_code',
     };
     return grantTypes.map(g => map[g] ?? g).filter(Boolean);
   }
