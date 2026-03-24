@@ -70,6 +70,9 @@ describe('UsersService', () => {
       getSubject: jest.fn().mockReturnValue('Verify Your Email — AuthMe'),
       renderEmail: jest.fn().mockReturnValue('<html>verify</html>'),
     };
+    const bruteForceService = {
+      resetFailures: jest.fn().mockResolvedValue(undefined),
+    };
     service = new UsersService(
       prisma as any,
       cryptoService as any,
@@ -78,6 +81,7 @@ describe('UsersService', () => {
       configService as any,
       passwordPolicyService as any,
       themeEmailService as any,
+      bruteForceService as any,
     );
   });
 

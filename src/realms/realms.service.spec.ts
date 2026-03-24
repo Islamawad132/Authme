@@ -14,10 +14,34 @@ import {
   MockPrismaService,
 } from '../prisma/prisma.mock.js';
 
+function createMockCacheService() {
+  return {
+    getCachedClientConfig: jest.fn().mockResolvedValue(null),
+    cacheClientConfig: jest.fn().mockResolvedValue(undefined),
+    invalidateClientCache: jest.fn().mockResolvedValue(undefined),
+    getCachedRealmConfig: jest.fn().mockResolvedValue(null),
+    cacheRealmConfig: jest.fn().mockResolvedValue(undefined),
+    invalidateRealmCache: jest.fn().mockResolvedValue(undefined),
+    getCachedRealmByName: jest.fn().mockResolvedValue(null),
+    cacheRealmByName: jest.fn().mockResolvedValue(undefined),
+    getCachedJWKS: jest.fn().mockResolvedValue(null),
+    cacheJWKS: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
+function createMockThemeService() {
+  return {
+    getAvailableThemes: jest.fn().mockReturnValue([]),
+    getTheme: jest.fn().mockReturnValue(null),
+  };
+}
+
 describe('RealmsService', () => {
   let service: RealmsService;
   let prisma: MockPrismaService;
   let jwkService: { generateRsaKeyPair: jest.Mock };
+  let cacheService: ReturnType<typeof createMockCacheService>;
+  let themeService: ReturnType<typeof createMockThemeService>;
 
   const mockRealm = {
     id: 'realm-1',
@@ -41,12 +65,20 @@ describe('RealmsService', () => {
     jwkService = {
       generateRsaKeyPair: jest.fn(),
     };
+    cacheService = createMockCacheService();
+    themeService = createMockThemeService();
     const scopeSeedService = {
       seedDefaultScopes: jest.fn().mockResolvedValue(undefined),
       getDefaultScopeNames: jest.fn().mockReturnValue(['openid', 'profile', 'email', 'roles']),
       getOptionalScopeNames: jest.fn().mockReturnValue(['web-origins', 'offline_access']),
     };
-    service = new RealmsService(prisma as any, jwkService as any, scopeSeedService as any);
+    service = new RealmsService(
+      prisma as any,
+      jwkService as any,
+      scopeSeedService as any,
+      themeService as any,
+      cacheService as any,
+    );
   });
 
   describe('create', () => {

@@ -1,5 +1,6 @@
 jest.mock('../crypto/jwk.service.js', () => ({ JwkService: jest.fn() }));
 
+import { UnauthorizedException } from '@nestjs/common';
 import { TokensController } from './tokens.controller.js';
 import type { Realm } from '@prisma/client';
 
@@ -98,27 +99,17 @@ describe('TokensController', () => {
       expect(result).toEqual(expected);
     });
 
-    it('should return an error object when Authorization header is missing', () => {
+    it('should throw UnauthorizedException when Authorization header is missing', () => {
       const req = { headers: {} };
 
-      const result = controller.userinfo(realm, req as any);
-
-      expect(result).toEqual({
-        error: 'invalid_token',
-        error_description: 'Missing Bearer token',
-      });
+      expect(() => controller.userinfo(realm, req as any)).toThrow(UnauthorizedException);
       expect(mockTokensService.userinfo).not.toHaveBeenCalled();
     });
 
-    it('should return an error object when Authorization header does not start with Bearer', () => {
+    it('should throw UnauthorizedException when Authorization header does not start with Bearer', () => {
       const req = { headers: { authorization: 'Basic dXNlcjpwYXNz' } };
 
-      const result = controller.userinfo(realm, req as any);
-
-      expect(result).toEqual({
-        error: 'invalid_token',
-        error_description: 'Missing Bearer token',
-      });
+      expect(() => controller.userinfo(realm, req as any)).toThrow(UnauthorizedException);
       expect(mockTokensService.userinfo).not.toHaveBeenCalled();
     });
   });

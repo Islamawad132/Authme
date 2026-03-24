@@ -7,6 +7,7 @@ describe('HealthController', () => {
   let healthCheckService: { check: jest.Mock };
   let prismaHealth: { isHealthy: jest.Mock };
   let memoryHealth: { checkHeap: jest.Mock };
+  let redisHealth: { isHealthy: jest.Mock };
 
   beforeEach(() => {
     healthCheckService = {
@@ -14,11 +15,13 @@ describe('HealthController', () => {
     };
     prismaHealth = { isHealthy: jest.fn() };
     memoryHealth = { checkHeap: jest.fn() };
+    redisHealth = { isHealthy: jest.fn() };
 
     controller = new HealthController(
       healthCheckService as any,
       memoryHealth as any,
       prismaHealth as any,
+      redisHealth as any,
     );
   });
 
