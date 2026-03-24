@@ -24,4 +24,12 @@ export function registerHandlebarsHelpers(): void {
 
     return text;
   });
+
+  // {{#if_eq a b}}...{{else}}...{{/if_eq}} — equality block helper
+  hbs.registerHelper('if_eq', function (this: unknown, a: unknown, b: unknown, options: any) {
+    if (a === b) {
+      return options.fn(this);
+    }
+    return options.inverse(this);
+  });
 }

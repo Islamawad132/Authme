@@ -49,6 +49,60 @@
     <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password">
   </div>
 
+  {{#if customAttributes}}
+  {{#each customAttributes}}
+  <div class="form-group">
+    <label for="attr_{{name}}">{{displayName}}{{#if required}} <span style="color: #ef4444;" aria-label="required">*</span>{{/if}}</label>
+
+    {{#if_eq type "boolean"}}
+    <select id="attr_{{name}}" name="attr_{{name}}"{{#if required}} required{{/if}}>
+      <option value="">-- Select --</option>
+      <option value="true"{{#if_eq value "true"}} selected{{/if_eq}}>Yes</option>
+      <option value="false"{{#if_eq value "false"}} selected{{/if_eq}}>No</option>
+    </select>
+    {{else}}
+    {{#if_eq type "select"}}
+    <select id="attr_{{name}}" name="attr_{{name}}"{{#if required}} required{{/if}}>
+      <option value="">-- Select --</option>
+      {{#each options}}
+      <option value="{{this}}"{{#if_eq ../value this}} selected{{/if_eq}}>{{this}}</option>
+      {{/each}}
+    </select>
+    {{else}}
+    {{#if_eq type "multi-select"}}
+    <select id="attr_{{name}}" name="attr_{{name}}" multiple{{#if required}} required{{/if}}>
+      {{#each options}}
+      <option value="{{this}}">{{this}}</option>
+      {{/each}}
+    </select>
+    {{else}}
+    {{#if_eq type "number"}}
+    <input type="number" id="attr_{{name}}" name="attr_{{name}}"{{#if required}} required{{/if}} value="{{value}}">
+    {{else}}
+    <input type="text" id="attr_{{name}}" name="attr_{{name}}"{{#if required}} required{{/if}} value="{{value}}">
+    {{/if_eq}}
+    {{/if_eq}}
+    {{/if_eq}}
+    {{/if_eq}}
+  </div>
+  {{/each}}
+  {{/if}}
+
+  {{#if termsOfServiceUrl}}
+  <div class="form-group" style="display: flex; align-items: flex-start; gap: 0.5rem;">
+    <input type="checkbox" id="terms_accepted" name="terms_accepted" value="1" required style="margin-top: 0.2rem; flex-shrink: 0;">
+    <label for="terms_accepted" style="font-weight: normal; margin: 0;">
+      I agree to the <a href="{{termsOfServiceUrl}}" target="_blank" rel="noopener noreferrer" style="color: var(--primary-color);">Terms of Service</a>
+    </label>
+  </div>
+  {{/if}}
+
+  {{#if registrationApprovalRequired}}
+  <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 0.375rem; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.875rem; color: #92400e;">
+    Note: Your account will require administrator approval before you can sign in.
+  </div>
+  {{/if}}
+
   <button type="submit" class="btn-primary">{{msg "registerCreateAccount"}}</button>
 </form>
 

@@ -10,10 +10,14 @@ export interface UserClaimSource {
 /**
  * Build the full claims object for a user, then filter to only
  * those claims allowed by the granted scopes.
+ * Custom attribute claims (via mapToOidcClaim) are always included
+ * when present — they bypass the scope-based filter since the admin
+ * explicitly mapped them.
  */
 export function resolveUserClaims(
   user: UserClaimSource,
   allowedClaims: Set<string>,
+  customAttributeClaims?: Record<string, string>,
 ): Record<string, unknown> {
   const allClaims: Record<string, unknown> = {
     sub: user.id,
@@ -34,5 +38,15 @@ export function resolveUserClaims(
       filtered[key] = value;
     }
   }
+
+  // Merge custom attribute OIDC claims — always included when mapped
+  if (customAttributeClaims) {
+    for (const [claim, value] of Object.entries(customAttributeClaims)) {
+      if (value !== undefined && value !== '') {
+        filtered[claim] = value;
+      }
+    }
+  }
+
   return filtered;
 }

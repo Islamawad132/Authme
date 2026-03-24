@@ -154,6 +154,8 @@ model User {
   webAuthnCredentials WebAuthnCredential[]
   attributes          UserAttribute[]
 
+  attributes          UserAttribute[]
+
   @@unique([realmId, username])
   @@unique([realmId, email])
   @@map("users")
@@ -941,4 +943,5 @@ model UserAttribute {
   @@index([userId])
   @@map("user_attributes")
 }
+
 
