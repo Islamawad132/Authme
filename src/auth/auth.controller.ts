@@ -17,6 +17,7 @@ import { TokenRequestDto } from './dto/token-request.dto.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
+import { RateLimitGuard, RateLimitByClient } from '../rate-limit/rate-limit.guard.js';
 
 @ApiTags('Authentication')
 @Controller('realms/:realmName/protocol/openid-connect')
@@ -30,6 +31,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Token endpoint (password, client_credentials, refresh_token, authorization_code)' })
   @ApiConsumes('application/x-www-form-urlencoded', 'application/json')
   @ApiBody({ type: TokenRequestDto })
+  @UseGuards(RateLimitGuard)
+  @RateLimitByClient()
   async token(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,

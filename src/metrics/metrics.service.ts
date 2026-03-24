@@ -16,6 +16,8 @@ export class MetricsService implements OnModuleInit {
   readonly authLoginTotal: Counter;
   readonly authTokenIssuedTotal: Counter;
   readonly activeSessionsTotal: Gauge;
+  readonly rateLimitHitsTotal: Counter;
+  readonly rateLimitChecksTotal: Counter;
 
   constructor() {
     this.httpRequestsTotal = new Counter({
@@ -51,6 +53,20 @@ export class MetricsService implements OnModuleInit {
       name: 'active_sessions_total',
       help: 'Number of active sessions',
       labelNames: ['realm'],
+      registers: [this.registry],
+    });
+
+    this.rateLimitHitsTotal = new Counter({
+      name: 'rate_limit_hits_total',
+      help: 'Total number of rate limit rejections (429)',
+      labelNames: ['type', 'realm'],
+      registers: [this.registry],
+    });
+
+    this.rateLimitChecksTotal = new Counter({
+      name: 'rate_limit_checks_total',
+      help: 'Total number of rate limit checks performed',
+      labelNames: ['type', 'realm'],
       registers: [this.registry],
     });
   }

@@ -16,6 +16,7 @@ import { Prisma, type Realm } from '@prisma/client';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
+import { RateLimitGuard, RateLimitByIp } from '../rate-limit/rate-limit.guard.js';
 import { LoginService } from './login.service.js';
 import { OAuthService } from '../oauth/oauth.service.js';
 import { ConsentService } from '../consent/consent.service.js';
@@ -83,6 +84,8 @@ export class LoginController {
   }
 
   @Post('login')
+  @UseGuards(RateLimitGuard)
+  @RateLimitByIp()
   async handleLogin(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
