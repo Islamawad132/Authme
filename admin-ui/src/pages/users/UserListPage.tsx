@@ -58,33 +58,45 @@ export default function UserListPage() {
       </div>
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-gray-200" aria-label="Users">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Username
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Email
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Name
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Enabled
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Created
               </th>
             </tr>
           </thead>
-          <tbody className={`divide-y divide-gray-200${isPlaceholderData ? ' opacity-60' : ''}`}>
+          <tbody
+            className={`divide-y divide-gray-200${isPlaceholderData ? ' opacity-60' : ''}`}
+            aria-busy={isPlaceholderData}
+          >
             {users.length > 0 ? (
               users.map((user) => (
                 <tr
                   key={user.id}
                   onClick={() => navigate(`/console/realms/${name}/users/${user.id}`)}
-                  className="cursor-pointer hover:bg-gray-50"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`/console/realms/${name}/users/${user.id}`);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`View user ${user.username}`}
+                  className="cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
                 >
                   <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-indigo-600">
                     {user.username}
@@ -123,8 +135,11 @@ export default function UserListPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-6 py-3">
-            <p className="text-sm text-gray-700">
+          <nav
+            aria-label="Users pagination"
+            className="flex items-center justify-between border-t border-gray-200 bg-white px-6 py-3"
+          >
+            <p className="text-sm text-gray-700" aria-live="polite" aria-atomic="true">
               Showing{' '}
               <span className="font-medium">{(page - 1) * PAGE_SIZE + 1}</span>
               {' '}&ndash;{' '}
@@ -136,6 +151,7 @@ export default function UserListPage() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
+                aria-label="Previous page"
                 className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Previous
@@ -143,12 +159,13 @@ export default function UserListPage() {
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
+                aria-label="Next page"
                 className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Next
               </button>
             </div>
-          </div>
+          </nav>
         )}
       </div>
     </div>

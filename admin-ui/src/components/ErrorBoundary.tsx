@@ -32,6 +32,8 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <div
           role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
           style={{
             display: 'flex',
             flexDirection: 'column',

@@ -243,7 +243,7 @@ function RealmStatsSection({ realmName }: { realmName: string }) {
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-semibold text-gray-900">Recent Events</h2>
-          <span className="text-xs text-gray-400">Auto-refreshes every 30s</span>
+          <span className="text-xs text-gray-400" aria-live="polite" aria-atomic="true">Auto-refreshes every 30s</span>
         </div>
         {eventsLoading ? (
           <div className="h-40 animate-pulse rounded-lg border border-gray-200 bg-gray-100" />
@@ -254,13 +254,13 @@ function RealmStatsSection({ realmName }: { realmName: string }) {
         ) : (
           <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <table className="min-w-full divide-y divide-gray-200 text-sm" aria-label="Recent events">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Time</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Detail</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">IP</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Time</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Type</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Detail</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">IP</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">

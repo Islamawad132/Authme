@@ -128,7 +128,12 @@ export default function LoginPage() {
             )}
 
             {error && (
-              <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+              <div
+                role="alert"
+                aria-live="assertive"
+                aria-atomic="true"
+                className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700"
+              >
                 {error}
               </div>
             )}

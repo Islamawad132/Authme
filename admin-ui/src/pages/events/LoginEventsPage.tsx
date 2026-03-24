@@ -133,9 +133,9 @@ export default function LoginEventsPage() {
 
       {/* Loading State */}
       {isLoading && (
-        <div className="flex items-center justify-center rounded-md border bg-white py-12">
+        <div className="flex items-center justify-center rounded-md border bg-white py-12" aria-busy="true" aria-label="Loading login events">
           <div className="text-center">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" aria-hidden="true" />
             <p className="mt-3 text-sm text-gray-500">Loading login events...</p>
           </div>
         </div>
@@ -143,7 +143,12 @@ export default function LoginEventsPage() {
 
       {/* Error State */}
       {isError && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-4">
+        <div
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
+          className="rounded-md border border-red-200 bg-red-50 p-4"
+        >
           <div className="flex">
             <div className="ml-3">
               <h3 className="text-sm font-medium text-red-800">Failed to load login events</h3>
