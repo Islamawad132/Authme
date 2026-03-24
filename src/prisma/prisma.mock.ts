@@ -276,6 +276,21 @@ export function createMockPrismaService(): MockPrismaService {
       upsert: jest.fn(),
       deleteMany: jest.fn(),
     },
+    serviceAccount: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    apiKey: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
     $connect: jest.fn(),
     $disconnect: jest.fn(),
   } as any;
