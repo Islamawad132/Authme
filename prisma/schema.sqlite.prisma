@@ -121,6 +121,11 @@ model Realm {
   // Session management
   maxSessionsPerUser Int @default(10) @map("max_sessions_per_user")
 
+  // Adaptive authentication / risk assessment
+  adaptiveAuthEnabled  Boolean @default(false) @map("adaptive_auth_enabled")
+  riskThresholdStepUp  Int     @default(50)    @map("risk_threshold_step_up")
+  riskThresholdBlock   Int     @default(80)    @map("risk_threshold_block")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -145,6 +150,9 @@ model Realm {
   policies             Policy[]
   customAttributes     CustomAttribute[]
   authenticationFlows  AuthenticationFlow[]
+  loginRiskAssessments  LoginRiskAssessment[]
+  userLoginProfiles     UserLoginProfile[]
+  organizations         Organization[]
 
   @@map("realms")
 }
@@ -160,7 +168,8 @@ model User {
   firstName     String? @map("first_name")
   lastName      String? @map("last_name")
   enabled       Boolean @default(true)
-  passwordHash  String? @map("password_hash")
+  passwordHash      String? @map("password_hash")
+  passwordAlgorithm String  @default("argon2") @map("password_algorithm")
 
   federationLink String? @map("federation_link")
 
@@ -215,6 +224,10 @@ model Client {
   // Backchannel logout
   backchannelLogoutUri             String?  @map("backchannel_logout_uri")
   backchannelLogoutSessionRequired Boolean  @default(true) @map("backchannel_logout_session_required")
+
+  // Step-up authentication
+  requiredAcr         String? @map("required_acr")
+  stepUpCacheDuration Int     @default(900) @map("step_up_cache_duration")
 
   // Service account
   serviceAccountUserId String? @map("service_account_user_id")
@@ -319,6 +332,7 @@ model AuthorizationCode {
   codeChallenge       String? @map("code_challenge")
   codeChallengeMethod String? @map("code_challenge_method")
   nonce               String?
+  acrValues           String? @map("acr_values")
   used                Boolean @default(false)
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -365,6 +379,20 @@ model LoginSession {
   realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
 
   @@map("login_sessions")
+}
+
+// ─── STEP-UP AUTHENTICATION ──────────────────────────────
+
+model StepUpRecord {
+  id          String   @id @default(uuid())
+  sessionId   String   @map("session_id")
+  acrLevel    String   @map("acr_level")
+  completedAt DateTime @default(now()) @map("completed_at")
+  expiresAt   DateTime @map("expires_at")
+
+  @@index([sessionId])
+  @@index([expiresAt])
+  @@map("step_up_records")
 }
 
 // ─── USER CONSENT ────────────────────────────────────────
@@ -1049,4 +1077,135 @@ model InstalledPlugin {
   updatedAt   DateTime @updatedAt      @map("updated_at")
 
   @@map("installed_plugins")
+}
+
+// ─── RISK ASSESSMENT ──────────────────────────────────────
+
+model LoginRiskAssessment {
+  id                String   @id @default(uuid())
+  loginEventId      String?  @map("login_event_id")
+  userId            String   @map("user_id")
+  realmId           String   @map("realm_id")
+  riskScore         Int      @map("risk_score")
+  riskLevel         String   @map("risk_level")      // LOW, MEDIUM, HIGH, CRITICAL
+  // SQLite: Json → String (JSON-serialised text)
+  signals           String   @default("[]")           // Array of RiskSignal objects
+  action            String                             // ALLOW, STEP_UP, BLOCK
+  ipAddress         String?  @map("ip_address")
+  userAgent         String?  @map("user_agent")
+  geoLocation       String?  @map("geo_location")    // "city, country" or null
+  deviceFingerprint String?  @map("device_fingerprint")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([realmId, createdAt])
+  @@index([riskLevel])
+  @@map("login_risk_assessments")
+}
+
+model UserLoginProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique @map("user_id")
+  realmId           String   @map("realm_id")
+  // SQLite: Json → String (JSON-serialised text)
+  knownIps          String   @default("[]") @map("known_ips")
+  knownDevices      String   @default("[]") @map("known_devices")
+  loginTimes        String   @default("[]") @map("login_times")
+  lastLocations     String   @default("[]") @map("last_locations")
+  avgLoginFrequency Float    @default(0)   @map("avg_login_frequency")
+  updatedAt         DateTime @updatedAt    @map("updated_at")
+
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([realmId])
+  @@map("user_login_profiles")
+}
+
+// ─── ORGANIZATIONS ────────────────────────────────────────
+
+model Organization {
+  id          String  @id @default(uuid())
+  realmId     String  @map("realm_id")
+  realm       Realm   @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  name        String
+  slug        String
+  displayName String? @map("display_name")
+  description String?
+  enabled     Boolean @default(true)
+
+  // Branding
+  logoUrl      String? @map("logo_url")
+  primaryColor String? @map("primary_color")
+
+  // Auth policies
+  requireMfa Boolean @default(false) @map("require_mfa")
+
+  // Domain verification
+  // SQLite: String[] → String (JSON array text)
+  verifiedDomains String @default("[]") @map("verified_domains")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  members        OrganizationMember[]
+  invitations    OrganizationInvitation[]
+  ssoConnections OrganizationSsoConnection[]
+
+  @@unique([realmId, slug])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  role           String       @default("member")
+  joinedAt       DateTime     @default(now()) @map("joined_at")
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+model OrganizationInvitation {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String       @default("member")
+  token          String       @unique
+  expiresAt      DateTime     @map("expires_at")
+  acceptedAt     DateTime?    @map("accepted_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@map("organization_invitations")
+}
+
+model OrganizationSsoConnection {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  type           String
+  name           String
+  enabled        Boolean      @default(true)
+  // SQLite: Json → String (JSON-serialised text)
+  config         String       @default("{}")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@map("organization_sso_connections")
+}
+
+// ─── REVOKED TOKENS (token blacklist) ────────────────────
+
+model RevokedToken {
+  jti       String   @id
+  expiresAt DateTime @map("expires_at")
+  revokedAt DateTime @default(now()) @map("revoked_at")
+
+  @@index([expiresAt])
+  @@map("revoked_tokens")
 }

@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   Optional,
   UnauthorizedException,
   BadRequestException,
@@ -35,6 +36,8 @@ export interface TokenResponse {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
@@ -83,6 +86,12 @@ export class AuthService {
     ip?: string,
     userAgent?: string,
   ): Promise<TokenResponse> {
+    this.logger.warn(
+      `Password grant type used by client "${body['client_id']}" in realm "${realm.name}" — ` +
+        'this grant is deprecated by OAuth 2.1 and will be removed in a future release. ' +
+        'Migrate to the authorization_code grant with PKCE.',
+    );
+
     const { client_id, client_secret, username, password, scope } = body;
 
     await this.validateClient(realm, client_id, client_secret, 'password');

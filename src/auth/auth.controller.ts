@@ -41,6 +41,18 @@ export class AuthController {
   ) {
     res.set('Cache-Control', 'no-store');
     res.set('Pragma', 'no-cache');
+
+    if (body['grant_type'] === 'password') {
+      res.set(
+        'Deprecation',
+        'true',
+      );
+      res.set(
+        'Warning',
+        '299 - "The OAuth 2.0 password grant is deprecated by OAuth 2.1 and will be removed in a future release. Migrate to authorization_code with PKCE."',
+      );
+    }
+
     return this.authService.handleTokenRequest(
       realm,
       body,

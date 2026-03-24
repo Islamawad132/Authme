@@ -122,6 +122,7 @@ describe('ClientsService', () => {
       });
 
       expect(result.clientSecret).toBe('raw-secret-hex');
+      expect(result.secretDisplayedOnce).toBe(true);
       expect(result.secretWarning).toBeDefined();
       expect(cryptoService.generateSecret).toHaveBeenCalled();
       expect(cryptoService.hashPassword).toHaveBeenCalledWith('raw-secret-hex');
@@ -226,6 +227,15 @@ describe('ClientsService', () => {
         },
         select: expect.any(Object),
       });
+    });
+
+    it('should NOT include clientSecret in the select projection (secret never exposed via GET)', async () => {
+      prisma.client.findUnique.mockResolvedValue(mockClient);
+
+      await service.findByClientId(mockRealm, 'my-app');
+
+      const callArgs = prisma.client.findUnique.mock.calls[0][0] as { select: Record<string, unknown> };
+      expect(callArgs.select).not.toHaveProperty('clientSecret');
     });
 
     it('should throw NotFoundException when client does not exist', async () => {

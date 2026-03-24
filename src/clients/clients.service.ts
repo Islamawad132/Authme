@@ -110,7 +110,12 @@ export class ClientsService {
     return {
       ...client,
       ...(rawSecret
-        ? { clientSecret: rawSecret, secretWarning: 'Store this secret securely. It will not be shown again.' }
+        ? {
+            clientSecret: rawSecret,
+            secretDisplayedOnce: true,
+            secretWarning:
+              'This is the only time the client secret will be shown. Store it securely — it cannot be retrieved again.',
+          }
         : {}),
     };
   }
