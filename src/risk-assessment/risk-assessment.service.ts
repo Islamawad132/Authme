@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EmailService } from '../email/email.service.js';
 import { ImpossibleTravelService } from './impossible-travel.service.js';
@@ -127,7 +128,7 @@ export class RiskAssessmentService {
         realmId: context.realmId,
         riskScore,
         riskLevel,
-        signals: signals as any,
+        signals: signals as unknown as Prisma.InputJsonValue,
         action,
         ipAddress: context.ipAddress ?? null,
         userAgent: context.userAgent ?? null,
@@ -197,10 +198,10 @@ export class RiskAssessmentService {
     await this.prisma.userLoginProfile.update({
       where: { userId },
       data: {
-        knownIps: knownIps as any,
-        knownDevices: knownDevices as any,
-        loginTimes: updatedTimes as any,
-        lastLocations: lastLocations as any,
+        knownIps: knownIps as Prisma.InputJsonValue,
+        knownDevices: knownDevices as Prisma.InputJsonValue,
+        loginTimes: updatedTimes as Prisma.InputJsonValue,
+        lastLocations: lastLocations as Prisma.InputJsonValue,
         avgLoginFrequency: newAvg,
       },
     });

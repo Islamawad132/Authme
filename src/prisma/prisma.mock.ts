@@ -331,5 +331,5 @@ export function createMockPrismaService(): MockPrismaService {
     $connect: jest.fn(),
     $disconnect: jest.fn(),
     $transaction: jest.fn(),
-  } as any;
+  } as unknown as MockPrismaService;
 }

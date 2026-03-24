@@ -77,7 +77,7 @@ export class BrokerService {
     };
 
     const stateJwt = await this.jwkService.signJwt(
-      { ...brokerState, typ: 'broker_state' } as any,
+      { ...brokerState, typ: 'broker_state' } as Record<string, unknown>,
       signingKey.privateKey,
       signingKey.kid,
       600, // 10 minutes

@@ -60,9 +60,9 @@ export class LoginService {
       let valid = await this.crypto.verifyPassword(user.passwordHash, password);
 
       // If Argon2 fails, try migrated password format
-      if (!valid && (user as any).passwordAlgorithm && (user as any).passwordAlgorithm !== 'argon2' && this.passwordMigration) {
+      if (!valid && user.passwordAlgorithm && user.passwordAlgorithm !== 'argon2' && this.passwordMigration) {
         valid = await this.passwordMigration.verifyMigratedPassword(
-          password, user.passwordHash, (user as any).passwordAlgorithm,
+          password, user.passwordHash, user.passwordAlgorithm,
         );
         if (valid) {
           // Upgrade hash to Argon2 on successful migrated login
@@ -104,7 +104,7 @@ export class LoginService {
     ip?: string,
     userAgent?: string,
   ): Promise<string> {
-    const maxSessions = (realm as any).maxSessionsPerUser as number | undefined;
+    const maxSessions = realm.maxSessionsPerUser;
     if (maxSessions !== undefined && maxSessions > 0) {
       // Count active SSO (login) sessions for this user in this realm
       const activeSessions = await this.prisma.loginSession.findMany({

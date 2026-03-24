@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export interface ExportLoginEventsParams {
@@ -87,7 +88,7 @@ export class AuditExportService {
     }
 
     const events = await this.prisma.loginEvent.findMany({
-      where: where as any,
+      where: where as Prisma.LoginEventWhereInput,
       orderBy: { createdAt: 'desc' },
       skip: params.offset,
       take: params.limit,
@@ -137,7 +138,7 @@ export class AuditExportService {
     }
 
     const events = await this.prisma.adminEvent.findMany({
-      where: where as any,
+      where: where as Prisma.AdminEventWhereInput,
       orderBy: { createdAt: 'desc' },
       skip: params.offset,
       take: params.limit,

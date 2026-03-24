@@ -32,7 +32,7 @@ export class ApiKeyGuard implements CanActivate {
     const keyPrefix = plainKey.slice(0, 8);
     const apiKey = await this.serviceAccountsService.validateApiKey(keyPrefix, plainKey);
 
-    (request as any).apiKey = apiKey;
+    (request as Request & { apiKey: typeof apiKey }).apiKey = apiKey;
     return true;
   }
 }

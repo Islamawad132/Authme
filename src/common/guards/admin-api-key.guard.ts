@@ -33,13 +33,16 @@ export class AdminApiKeyGuard implements CanActivate {
       return true;
     }
 
+    type AdminRequest = Request & { adminUser?: { userId: string; roles: string[] } };
+    const adminReq = request as AdminRequest;
+
     // Try Bearer token (admin JWT) first
     const authHeader = request.headers['authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.slice(7);
       try {
         const adminUser = await this.adminAuthService.validateAdminToken(token);
-        (request as any)['adminUser'] = adminUser;
+        adminReq.adminUser = adminUser;
         return true;
       } catch {
         // Fall through to API key check
@@ -55,7 +58,7 @@ export class AdminApiKeyGuard implements CanActivate {
         apiKey.length === expectedKey.length &&
         timingSafeEqual(Buffer.from(apiKey), Buffer.from(expectedKey))
       ) {
-        (request as any)['adminUser'] = { userId: 'api-key', roles: ['super-admin'] };
+        adminReq.adminUser = { userId: 'api-key', roles: ['super-admin'] };
         return true;
       }
     }

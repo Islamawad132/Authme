@@ -4,9 +4,87 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
+import { Prisma, type ClientType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
 import { ScopeSeedService } from '../scopes/scope-seed.service.js';
+
+/** Shape of each item in the clientScopes / roles / clients / groups / idps /
+ *  clientScopeAssignments / users arrays inside the import payload. */
+interface ImportedScope {
+  name: string;
+  description?: string;
+  protocol?: string;
+  builtIn?: boolean;
+  protocolMappers?: Array<{
+    name: string;
+    protocol?: string;
+    mapperType: string;
+    config?: Record<string, unknown>;
+  }>;
+}
+
+interface ImportedRole {
+  name: string;
+  description?: string;
+  clientId?: string;
+}
+
+interface ImportedClient {
+  clientId: string;
+  clientType?: ClientType;
+  clientSecret?: string;
+  name?: string;
+  description?: string;
+  enabled?: boolean;
+  requireConsent?: boolean;
+  redirectUris?: string[];
+  webOrigins?: string[];
+  grantTypes?: string[];
+  backchannelLogoutUri?: string;
+  backchannelLogoutSessionRequired?: boolean;
+}
+
+interface ImportedGroup {
+  name: string;
+  description?: string;
+  parentName?: string;
+}
+
+interface ImportedIdp {
+  alias: string;
+  displayName?: string;
+  enabled?: boolean;
+  providerType?: string;
+  clientId: string;
+  clientSecret?: string;
+  authorizationUrl: string;
+  tokenUrl: string;
+  userinfoUrl?: string;
+  jwksUrl?: string;
+  issuer?: string;
+  defaultScopes?: string;
+  trustEmail?: boolean;
+  linkOnly?: boolean;
+  syncUserProfile?: boolean;
+}
+
+interface ImportedScopeAssignment {
+  clientId: string;
+  defaultScopes?: string[];
+  optionalScopes?: string[];
+}
+
+interface ImportedUser {
+  username: string;
+  email?: string;
+  emailVerified?: boolean;
+  firstName?: string;
+  lastName?: string;
+  enabled?: boolean;
+  roles?: Array<{ name: string; clientId?: string }>;
+  groups?: string[];
+}
 
 export interface ImportOptions {
   overwrite?: boolean;
@@ -77,7 +155,7 @@ export class RealmImportService {
         eventsEnabled: (realmData['eventsEnabled'] as boolean) ?? false,
         eventsExpiration: (realmData['eventsExpiration'] as number) ?? 604800,
         adminEventsEnabled: (realmData['adminEventsEnabled'] as boolean) ?? false,
-        theme: (realmData['theme'] as any) ?? {},
+        theme: (realmData['theme'] as Prisma.InputJsonValue) ?? {},
         signingKeys: {
           create: {
             kid: keyPair.kid,
@@ -91,7 +169,7 @@ export class RealmImportService {
 
     // 2. Create client scopes
     const scopeIdMap = new Map<string, string>(); // name → id
-    const scopes = (payload['clientScopes'] ?? []) as any[];
+    const scopes = (payload['clientScopes'] ?? []) as ImportedScope[];
     for (const s of scopes) {
       const scope = await this.prisma.clientScope.create({
         data: {
@@ -113,7 +191,7 @@ export class RealmImportService {
               name: m.name,
               protocol: m.protocol ?? 'openid-connect',
               mapperType: m.mapperType,
-              config: m.config ?? {},
+              config: (m.config ?? {}) as Prisma.InputJsonValue,
             },
           });
         }
@@ -127,10 +205,10 @@ export class RealmImportService {
 
     // 3. Create roles
     const clientIdMap = new Map<string, string>(); // clientId string → db id
-    const roles = (payload['roles'] ?? []) as any[];
+    const roles = (payload['roles'] ?? []) as ImportedRole[];
 
     // First create clients (needed for client roles)
-    const clients = (payload['clients'] ?? []) as any[];
+    const clients = (payload['clients'] ?? []) as ImportedClient[];
     for (const c of clients) {
       const client = await this.prisma.client.create({
         data: {
@@ -179,7 +257,7 @@ export class RealmImportService {
 
     // 4. Create groups
     const groupIdMap = new Map<string, string>(); // name → id
-    const groups = (payload['groups'] ?? []) as any[];
+    const groups = (payload['groups'] ?? []) as ImportedGroup[];
     // First pass: create groups without parents
     for (const g of groups) {
       if (!g.parentName) {
@@ -210,7 +288,7 @@ export class RealmImportService {
     }
 
     // 5. Create identity providers
-    const idps = (payload['identityProviders'] ?? []) as any[];
+    const idps = (payload['identityProviders'] ?? []) as ImportedIdp[];
     for (const idp of idps) {
       await this.prisma.identityProvider.create({
         data: {
@@ -235,7 +313,7 @@ export class RealmImportService {
     }
 
     // 6. Client scope assignments
-    const assignments = (payload['clientScopeAssignments'] ?? []) as any[];
+    const assignments = (payload['clientScopeAssignments'] ?? []) as ImportedScopeAssignment[];
     for (const a of assignments) {
       const dbClientId = clientIdMap.get(a.clientId);
       if (!dbClientId) continue;
@@ -260,7 +338,7 @@ export class RealmImportService {
     }
 
     // 7. Import users (if present)
-    const users = (payload['users'] ?? []) as any[];
+    const users = (payload['users'] ?? []) as ImportedUser[];
     for (const u of users) {
       const user = await this.prisma.user.create({
         data: {

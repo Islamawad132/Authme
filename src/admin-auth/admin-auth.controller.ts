@@ -47,7 +47,7 @@ export class AdminAuthController {
   @Get('me')
   @ApiOperation({ summary: 'Get current admin user info' })
   async getMe(@Req() req: Request) {
-    const adminUser = (req as any)['adminUser'];
+    const adminUser = (req as Request & { adminUser?: { userId: string; roles: string[] } })['adminUser'];
     if (!adminUser) {
       throw new UnauthorizedException('Not authenticated');
     }

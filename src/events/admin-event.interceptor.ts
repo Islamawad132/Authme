@@ -61,8 +61,13 @@ export class AdminEventInterceptor implements NestInterceptor {
     }
     if (request.path.includes('/admin/auth/')) return next.handle();
 
-    const realm = (request as any).realm;
-    const adminUser = (request as any).adminUser;
+    type AdminRequest = Request & {
+      realm?: { id: string };
+      adminUser?: { userId?: string; id?: string };
+    };
+    const adminReq = request as AdminRequest;
+    const realm = adminReq.realm;
+    const adminUser = adminReq.adminUser;
 
     if (!realm || !adminUser) return next.handle();
 
@@ -96,9 +101,9 @@ export class AdminEventInterceptor implements NestInterceptor {
     return null;
   }
 
-  private redactBody(body: any): Record<string, unknown> | undefined {
+  private redactBody(body: unknown): Record<string, unknown> | undefined {
     if (!body || typeof body !== 'object') return undefined;
-    const redacted = { ...body };
+    const redacted: Record<string, unknown> = { ...(body as Record<string, unknown>) };
     const sensitiveKeys = ['password', 'clientSecret', 'smtpPassword', 'client_secret', 'currentPassword', 'newPassword'];
     for (const key of sensitiveKeys) {
       if (key in redacted) redacted[key] = '[REDACTED]';

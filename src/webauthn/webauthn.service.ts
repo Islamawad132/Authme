@@ -21,6 +21,7 @@ import type {
   AuthenticatorTransportFuture,
 } from '@simplewebauthn/server';
 import type { Realm, User, WebAuthnCredential } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 
@@ -332,7 +333,7 @@ export class WebAuthnService {
       data: {
         tokenHash,
         type: actionType,
-        data: { key, realmId, challenge } as any,
+        data: { key, realmId, challenge } as unknown as Prisma.InputJsonValue,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5-minute TTL
       },
     });
@@ -358,7 +359,7 @@ export class WebAuthnService {
 
     await this.prisma.pendingAction.delete({ where: { id: action.id } });
 
-    const data = action.data as any;
-    return data.challenge as string;
+    const data = action.data as Record<string, unknown>;
+    return data['challenge'] as string;
   }
 }

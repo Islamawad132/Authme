@@ -1,4 +1,5 @@
 import { Injectable, Logger, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import type { Realm } from '@prisma/client';
 import { AuthFlowService, FlowStep, FlowContext } from './auth-flow.service.js';
 import { LoginService } from '../login/login.service.js';
 import { MfaService } from '../mfa/mfa.service.js';
@@ -83,7 +84,7 @@ export class FlowExecutorService {
     session: FlowSession,
     stepId: string,
     credentials: Record<string, unknown>,
-    realm: { id: string; name: string } & Record<string, unknown>,
+    realm: Realm,
   ): Promise<StepResult> {
     if (session.complete) {
       throw new BadRequestException('Authentication flow is already complete');
@@ -163,11 +164,11 @@ export class FlowExecutorService {
     step: FlowStep,
     credentials: Record<string, unknown>,
     session: FlowSession,
-    realm: { id: string; name: string } & Record<string, unknown>,
+    realm: Realm,
   ): Promise<{ success: boolean; data?: Record<string, unknown> }> {
     switch (step.type) {
       case 'password':
-        return this.handlePasswordStep(step, credentials, session, realm as any);
+        return this.handlePasswordStep(step, credentials, session, realm);
 
       case 'totp':
         return this.handleTotpStep(credentials, session);
@@ -180,7 +181,7 @@ export class FlowExecutorService {
 
       case 'ldap':
         // LDAP is delegated to LoginService.validateCredentials (federation path)
-        return this.handlePasswordStep(step, credentials, session, realm as any);
+        return this.handlePasswordStep(step, credentials, session, realm);
 
       case 'social':
       case 'email_otp':
@@ -190,7 +191,7 @@ export class FlowExecutorService {
         return { success: true, data: { pending: true, stepType: step.type } };
 
       default:
-        this.logger.warn(`Unknown step type: ${(step as any).type}`);
+        this.logger.warn(`Unknown step type: ${(step as FlowStep).type}`);
         return { success: false };
     }
   }
@@ -243,7 +244,7 @@ export class FlowExecutorService {
   private async handleWebAuthnStep(
     credentials: Record<string, unknown>,
     session: FlowSession,
-  ): Promise<{ success: boolean }> {
+  ): Promise<{ success: boolean; data?: Record<string, unknown> }> {
     // The WebAuthn assertion is completed by the /webauthn/authenticate endpoint.
     // If the assertion result is already on the context (placed there by that
     // controller), we accept it here.
@@ -257,7 +258,7 @@ export class FlowExecutorService {
     }
 
     // Signal that the caller must redirect to WebAuthn challenge
-    return { success: false, data: { redirect: 'webauthn_challenge' } } as any;
+    return { success: false, data: { redirect: 'webauthn_challenge' } };
   }
 
   // ── Session advancement ─────────────────────────────────

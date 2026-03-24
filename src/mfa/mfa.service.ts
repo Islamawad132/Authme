@@ -2,9 +2,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as OTPAuth from 'otpauth';
 import * as QRCode from 'qrcode';
 import { Interval } from '@nestjs/schedule';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import type { Realm } from '@prisma/client';
+
+/** The shape of the JSON object stored in PendingAction.data for MFA challenges. */
+interface MfaChallengeData {
+  userId: string;
+  realmId: string;
+  oauthParams?: Record<string, string>;
+  attempts: number;
+}
 
 @Injectable()
 export class MfaService {
@@ -162,11 +171,12 @@ export class MfaService {
     const token = this.crypto.generateSecret(32);
     const tokenHash = this.crypto.sha256(token);
 
+    const challengeData: MfaChallengeData = { userId, realmId, oauthParams, attempts: 0 };
     await this.prisma.pendingAction.create({
       data: {
         tokenHash,
         type: 'mfa_challenge',
-        data: { userId, realmId, oauthParams, attempts: 0 } as any,
+        data: challengeData as unknown as Prisma.InputJsonValue,
         expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 min TTL
       },
     });
@@ -192,7 +202,7 @@ export class MfaService {
     // Consume the challenge (one-time use)
     await this.prisma.pendingAction.delete({ where: { id: action.id } });
 
-    const data = action.data as any;
+    const data = action.data as unknown as MfaChallengeData;
     return { userId: data.userId, realmId: data.realmId, oauthParams: data.oauthParams };
   }
 
@@ -215,7 +225,7 @@ export class MfaService {
       return null;
     }
 
-    const data = action.data as any;
+    const data = action.data as unknown as MfaChallengeData;
     const attempts = (data.attempts ?? 0) + 1;
 
     if (attempts > MfaService.MAX_MFA_ATTEMPTS) {
@@ -226,9 +236,10 @@ export class MfaService {
     }
 
     // Update attempt counter (keep the challenge alive for retries)
+    const updatedData: MfaChallengeData = { ...data, attempts };
     await this.prisma.pendingAction.update({
       where: { id: action.id },
-      data: { data: { ...data, attempts } as any },
+      data: { data: updatedData as unknown as Prisma.InputJsonValue },
     });
 
     return { userId: data.userId, realmId: data.realmId, oauthParams: data.oauthParams };

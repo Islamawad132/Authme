@@ -63,7 +63,7 @@ export class AdminAuthService {
     }
 
     // ── Brute-force lockout check ─────────────────────────────────────────────
-    const lockStatus = this.bruteForceService.checkLocked(masterRealm as any, user as any);
+    const lockStatus = this.bruteForceService.checkLocked(masterRealm, user);
     if (lockStatus.locked) {
       const lockedUntil = lockStatus.lockedUntil?.toISOString() ?? 'indefinitely';
       throw new HttpException(
@@ -80,7 +80,7 @@ export class AdminAuthService {
     const valid = await this.crypto.verifyPassword(user.passwordHash, password);
     if (!valid) {
       // Record the failure so brute-force protection can lock the account.
-      await this.bruteForceService.recordFailure(masterRealm as any, user.id, ip);
+      await this.bruteForceService.recordFailure(masterRealm, user.id, ip);
       throw new UnauthorizedException('Invalid credentials');
     }
 

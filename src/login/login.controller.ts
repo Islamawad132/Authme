@@ -14,7 +14,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiExcludeController } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import { Prisma, type Realm } from '@prisma/client';
+import { Prisma, type Realm, type User } from '@prisma/client';
+import type { AuthorizeParams } from '../oauth/oauth.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
@@ -103,7 +104,7 @@ export class LoginController {
     this.themeRender.render(res, realm, 'login', 'login', {
       pageTitle: 'Sign In',
       registrationAllowed: realm.registrationAllowed,
-      webAuthnEnabled: (realm as any).webAuthnEnabled ?? false,
+      webAuthnEnabled: realm.webAuthnEnabled ?? false,
       client_id: query['client_id'] ?? '',
       redirect_uri: query['redirect_uri'] ?? '',
       response_type: query['response_type'] ?? '',
@@ -137,7 +138,7 @@ export class LoginController {
       );
 
       // ── Adaptive authentication / risk assessment ──────────────────────────
-      if ((realm as any).adaptiveAuthEnabled && this.riskAssessmentService) {
+      if (realm.adaptiveAuthEnabled && this.riskAssessmentService) {
         const riskContext = {
           userId: user.id,
           realmId: realm.id,
@@ -289,17 +290,18 @@ export class LoginController {
 
       // No MFA needed — proceed to create session
       return await this.completeLogin(realm, user, body, oauthParams, req, res);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errMessage = err instanceof Error ? err.message : 'Invalid credentials';
       this.eventsService.recordLoginEvent({
         realmId: realm.id,
         type: LoginEventType.LOGIN_ERROR,
         clientId: body['client_id'],
         ipAddress: req.ip,
-        error: err.message ?? 'Invalid credentials',
+        error: errMessage,
       });
 
       const params = new URLSearchParams();
-      params.set('error', err.message ?? 'Invalid username or password');
+      params.set('error', errMessage);
       for (const key of ['client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method']) {
         if (body[key]) params.set(key, body[key]);
       }
@@ -309,7 +311,7 @@ export class LoginController {
 
   private async completeLogin(
     realm: Realm,
-    user: any,
+    user: User,
     body: Record<string, string>,
     oauthParams: Record<string, string>,
     req: Request,
@@ -318,7 +320,7 @@ export class LoginController {
     // Validate OAuth request (including redirect_uri) BEFORE creating session
     let client;
     if (oauthParams['client_id']) {
-      client = await this.oauthService.validateAuthRequest(realm, oauthParams as any);
+      client = await this.oauthService.validateAuthRequest(realm, oauthParams as unknown as AuthorizeParams);
     }
 
     const sessionToken = await this.loginService.createLoginSession(
@@ -362,7 +364,7 @@ export class LoginController {
       }
     }
 
-    const result = await this.oauthService.authorizeWithUser(realm, user, oauthParams as any);
+    const result = await this.oauthService.authorizeWithUser(realm, user, oauthParams as unknown as AuthorizeParams);
     res.redirect(302, result.redirectUrl);
   }
 
@@ -617,7 +619,7 @@ export class LoginController {
     const result = await this.oauthService.authorizeWithUser(
       realm,
       user,
-      consentReq.oauthParams as any,
+      consentReq.oauthParams as unknown as AuthorizeParams,
     );
 
     res.redirect(302, result.redirectUrl);
@@ -674,8 +676,8 @@ export class LoginController {
         options: a.options ?? [],
         value: query[`attr_${a.name}`] ?? '',
       })),
-      termsOfServiceUrl: (realm as any).termsOfServiceUrl ?? null,
-      registrationApprovalRequired: (realm as any).registrationApprovalRequired ?? false,
+      termsOfServiceUrl: realm.termsOfServiceUrl ?? null,
+      registrationApprovalRequired: realm.registrationApprovalRequired ?? false,
       csrfToken,
     }, req);
   }
@@ -731,10 +733,9 @@ export class LoginController {
     }
 
     // Check allowed email domains
-    const realmAny = realm as any;
-    if (realmAny.allowedEmailDomains && (realmAny.allowedEmailDomains as string[]).length > 0) {
+    if (realm.allowedEmailDomains.length > 0) {
       const emailDomain = email.split('@')[1]?.toLowerCase() ?? '';
-      const allowed = (realmAny.allowedEmailDomains as string[]).map((d: string) => d.toLowerCase());
+      const allowed = realm.allowedEmailDomains.map((d: string) => d.toLowerCase());
       if (!allowed.includes(emailDomain)) {
         return res.redirect(
           `/realms/${realm.name}/register?error=${encodeURIComponent(`Registration is only allowed for email domains: ${allowed.join(', ')}`)}${preserveFields}`,
@@ -743,7 +744,7 @@ export class LoginController {
     }
 
     // Terms of service acceptance
-    if (realmAny.termsOfServiceUrl && !body['terms_accepted']) {
+    if (realm.termsOfServiceUrl && !body['terms_accepted']) {
       return res.redirect(
         `/realms/${realm.name}/register?error=${encodeURIComponent('You must accept the terms of service to register.')}${preserveFields}`,
       );
@@ -794,7 +795,7 @@ export class LoginController {
     }
 
     // If approval is required, create user as disabled
-    const requiresApproval = realmAny.registrationApprovalRequired === true;
+    const requiresApproval = realm.registrationApprovalRequired === true;
 
     // Create user
     const passwordHash = await this.crypto.hashPassword(password);

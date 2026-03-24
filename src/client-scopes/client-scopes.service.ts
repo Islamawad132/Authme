@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Realm } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateClientScopeDto } from './dto/create-client-scope.dto.js';
 import { UpdateClientScopeDto } from './dto/update-client-scope.dto.js';
@@ -84,7 +85,7 @@ export class ClientScopesService {
         name: data.name,
         mapperType: data.mapperType,
         protocol: data.protocol ?? 'openid-connect',
-        config: (data.config ?? {}) as any,
+        config: (data.config ?? {}) as unknown as Prisma.InputJsonValue,
       },
     });
   }
@@ -98,7 +99,7 @@ export class ClientScopesService {
       where: { id: mapperId },
       data: {
         name: data.name,
-        config: data.config as any,
+        config: data.config as unknown as Prisma.InputJsonValue | undefined,
       },
     });
   }

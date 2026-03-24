@@ -9,7 +9,7 @@ import {
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { Realm } from '@prisma/client';
-import { OAuthService } from './oauth.service.js';
+import { OAuthService, type AuthorizeParams } from './oauth.service.js';
 import { LoginService } from '../login/login.service.js';
 import { ConsentService } from '../consent/consent.service.js';
 import { StepUpService } from '../step-up/step-up.service.js';
@@ -42,7 +42,7 @@ export class OAuthController {
     @Res() res: Response,
   ) {
     // Validate OAuth params (client_id, redirect_uri, etc.) early
-    const client = await this.oauthService.validateAuthRequest(realm, query as any);
+    const client = await this.oauthService.validateAuthRequest(realm, query as unknown as AuthorizeParams);
 
     // Check for existing SSO session cookie
     const sessionCookie = (req.cookies as Record<string, string>)?.['AUTHME_SESSION'];
@@ -57,7 +57,7 @@ export class OAuthController {
         const requestedAcr = query['acr_values']
           ? query['acr_values'].split(' ')[0]   // take the highest-preference value
           : null;
-        const clientRequiredAcr = (client as any).requiredAcr ?? null;
+        const clientRequiredAcr = client.requiredAcr ?? null;
 
         // Prefer the stronger of the two requirements
         const requiredAcr = this.resolveRequiredAcr(requestedAcr, clientRequiredAcr);
@@ -109,7 +109,7 @@ export class OAuthController {
         }
 
         // SSO: user already logged in and consent is granted, issue code directly
-        const result = await this.oauthService.authorizeWithUser(realm, user, query as any);
+        const result = await this.oauthService.authorizeWithUser(realm, user, query as unknown as AuthorizeParams);
         return res.redirect(302, result.redirectUrl);
       }
     }

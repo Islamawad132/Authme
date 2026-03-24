@@ -54,7 +54,7 @@ export class ThemeRenderService {
     realm: Realm,
     themeType: ThemeType,
     templateName: string,
-    data: Record<string, any>,
+    data: Record<string, unknown>,
     req?: Request,
   ): void {
     const themeName = this.themeService.getRealmThemeName(realm, themeType);
@@ -66,7 +66,7 @@ export class ThemeRenderService {
     // Resolve locale: prefer request-based detection, fall back to realm default, then 'en'
     const locale = req
       ? this.i18n.detectLocale(req)
-      : ((realm as any).defaultLocale ?? 'en');
+      : (realm.defaultLocale ?? 'en');
     const messages = this.messageService.getMessages(themeName, themeType, locale);
     const isRtl = this.i18n.isRtl(locale);
 

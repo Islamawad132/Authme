@@ -53,14 +53,15 @@ export class ThemeService implements OnModuleInit {
         const themeJsonPath = join(this.themesDir, entry.name, 'theme.json');
         try {
           const raw = await readFile(themeJsonPath, 'utf-8');
-          const theme = JSON.parse(raw) as ThemeDefinition;
+          const parsed = JSON.parse(raw) as Record<string, unknown>;
           // Normalize: ensure parent and types exist
-          if (!('parent' in theme)) {
-            (theme as any).parent = null;
+          if (!parsed['parent']) {
+            parsed['parent'] = null;
           }
-          if (!theme.types) {
-            theme.types = {};
+          if (!parsed['types']) {
+            parsed['types'] = {};
           }
+          const theme = parsed as unknown as ThemeDefinition;
           this.themes.set(theme.name, theme);
           this.logger.log(`Loaded theme: ${theme.name} (${theme.displayName})`);
         } catch {

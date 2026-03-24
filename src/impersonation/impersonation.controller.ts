@@ -18,7 +18,7 @@ import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 
 function getAdminUserId(req: Request): string {
-  const adminUser = (req as any)['adminUser'];
+  const adminUser = (req as Request & { adminUser?: { userId?: string } })['adminUser'];
   if (!adminUser?.userId) {
     throw new UnauthorizedException('Admin identity could not be determined');
   }

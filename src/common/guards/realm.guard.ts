@@ -34,7 +34,7 @@ export class RealmGuard implements CanActivate {
       throw new ForbiddenException('Realm is disabled');
     }
 
-    (request as any).realm = realm;
+    (request as Request & { realm: typeof realm }).realm = realm;
     return true;
   }
 }
