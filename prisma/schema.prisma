@@ -945,4 +945,18 @@ model UserAttribute {
   @@map("user_attributes")
 }
 
+// ─── PLUGINS ──────────────────────────────────────────────
+
+model InstalledPlugin {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  version     String
+  type        String   // "auth-provider" | "event-listener" | "token-enrichment" | "theme"
+  enabled     Boolean  @default(true)
+  config      Json?
+  installedAt DateTime @default(now()) @map("installed_at")
+  updatedAt   DateTime @updatedAt      @map("updated_at")
+
+  @@map("installed_plugins")
+}
 

@@ -257,6 +257,25 @@ export function createMockPrismaService(): MockPrismaService {
       deleteMany: jest.fn(),
       count: jest.fn(),
     },
+    installedPlugin: {
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    customAttribute: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    userAttribute: {
+      findMany: jest.fn(),
+      upsert: jest.fn(),
+      deleteMany: jest.fn(),
+    },
     $connect: jest.fn(),
     $disconnect: jest.fn(),
   } as any;

@@ -2,6 +2,7 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { LoginEventTypeValue, OperationTypeValue, ResourceTypeValue } from './event-types.js';
 import type { WebhooksService } from '../webhooks/webhooks.service.js';
+import type { PluginManagerService } from '../plugins/plugin-manager.service.js';
 
 export interface RecordLoginEventParams {
   realmId: string;
@@ -52,6 +53,7 @@ export class EventsService {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly webhooksService?: WebhooksService,
+    @Optional() private readonly pluginManager?: PluginManagerService,
   ) {}
 
   async recordLoginEvent(params: RecordLoginEventParams): Promise<void> {
@@ -90,6 +92,18 @@ export class EventsService {
         error: params.error,
         details: params.details,
       },
+    });
+
+    // Dispatch to event-listener plugins (non-blocking, best-effort)
+    this.pluginManager?.dispatchEvent({
+      type: `user.${params.type.toLowerCase()}`,
+      realmId: params.realmId,
+      userId: params.userId,
+      sessionId: params.sessionId,
+      clientId: params.clientId,
+      ipAddress: params.ipAddress,
+      error: params.error,
+      details: params.details,
     });
   }
 

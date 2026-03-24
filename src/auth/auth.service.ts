@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Optional,
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
@@ -16,6 +17,7 @@ import { MetricsService } from '../metrics/metrics.service.js';
 import { LoginEventType } from '../events/event-types.js';
 import { resolveUserClaims, type UserClaimSource } from '../scopes/claims.resolver.js';
 import { CustomAttributesService } from '../custom-attributes/custom-attributes.service.js';
+import type { PluginManagerService } from '../plugins/plugin-manager.service.js';
 import type { Realm } from '@prisma/client';
 import type { JWTPayload } from 'jose';
 
@@ -44,6 +46,7 @@ export class AuthService {
     private readonly eventsService: EventsService,
     private readonly metricsService: MetricsService,
     private readonly customAttributesService: CustomAttributesService,
+    @Optional() private readonly pluginManager?: PluginManagerService,
   ) {}
 
   async handleTokenRequest(
@@ -659,8 +662,17 @@ export class AuthService {
       ...mapperClaims,
     };
 
+    // Allow token-enrichment plugins to add custom claims (non-blocking)
+    const enrichedPayload = this.pluginManager
+      ? await this.pluginManager.enrichToken(
+          accessTokenPayload as Record<string, unknown>,
+          user,
+          realm.name,
+        )
+      : accessTokenPayload;
+
     const accessToken = await this.jwkService.signJwt(
-      accessTokenPayload,
+      enrichedPayload as JWTPayload,
       signingKey.privateKey,
       signingKey.kid,
       realm.accessTokenLifespan,
