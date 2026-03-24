@@ -9,7 +9,7 @@ import { join } from 'path';
 import { AppModule } from './app.module.js';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter.js';
 import { registerHandlebarsHelpers } from './theme/handlebars-helpers.js';
-import { PrismaService } from './prisma/prisma.service.js';
+import { CorsOriginService } from './cors/cors-origin.service.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -42,9 +42,12 @@ async function bootstrap() {
       crossOriginResourcePolicy: false,
     }),
   );
-  // Dynamic CORS: validate Origin against client webOrigins stored in the database.
-  // This replaces the previous `app.enableCors()` which allowed all origins (*).
-  const prisma = app.get(PrismaService);
+  // Dynamic CORS: validate Origin against the cached set of client webOrigins.
+  // Origins are loaded from the database once and cached in Redis (TTL 300 s) plus
+  // an in-process Set.  This avoids a DB round-trip on every cross-origin request.
+  // The cache is invalidated automatically whenever a client is created, updated,
+  // or deleted (see ClientsService).
+  const corsOriginService = app.get(CorsOriginService);
   app.enableCors({
     origin: async (
       origin: string | undefined,
@@ -57,19 +60,8 @@ async function bootstrap() {
       }
 
       try {
-        // Check if any enabled client has '*' (allow all) or the specific origin in webOrigins
-        const matchingClient = await prisma.client.findFirst({
-          where: {
-            enabled: true,
-            OR: [
-              { webOrigins: { has: origin } },
-              { webOrigins: { has: '*' } },
-            ],
-          },
-          select: { id: true },
-        });
-
-        callback(null, !!matchingClient);
+        const allowed = await corsOriginService.isOriginAllowed(origin);
+        callback(null, allowed);
       } catch {
         callback(null, false);
       }

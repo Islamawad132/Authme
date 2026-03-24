@@ -7,6 +7,7 @@ const KEY = {
   realmByName: (name: string) => `realm:name:${name}`,
   client: (clientId: string) => `client:config:${clientId}`,
   jwks: (realmId: string) => `realm:jwks:${realmId}`,
+  corsOrigins: 'cors:allowed-origins',
 } as const;
 
 @Injectable()
@@ -74,6 +75,33 @@ export class CacheService {
 
   async getCachedJWKS<T = unknown>(realmId: string): Promise<T | null> {
     return this.getJson<T>(KEY.jwks(realmId), 'jwks');
+  }
+
+  // ─── CORS allowed origins ────────────────────────────────────────────────
+
+  /**
+   * Persist the full set of allowed CORS origins to Redis.
+   * @param origins - flat array of origin strings (e.g. ["https://app.example.com", "*"])
+   * @param ttl     - seconds until expiry (default 300 s)
+   */
+  async cacheCorsOrigins(origins: string[], ttl = 300): Promise<void> {
+    if (!this.redis.isAvailable()) return;
+    await this.redis.set(KEY.corsOrigins, JSON.stringify(origins), ttl);
+  }
+
+  /**
+   * Retrieve the cached set of allowed CORS origins.
+   * Returns null when there is no entry (cache miss or Redis unavailable).
+   */
+  async getCachedCorsOrigins(): Promise<string[] | null> {
+    return this.getJson<string[]>(KEY.corsOrigins, 'cors_origins');
+  }
+
+  /** Remove the CORS origins cache entry so the next request re-fetches from the DB. */
+  async invalidateCorsOrigins(): Promise<void> {
+    if (!this.redis.isAvailable()) return;
+    await this.redis.del(KEY.corsOrigins);
+    this.logger.debug('Invalidated CORS allowed-origins cache');
   }
 
   // ─── Internal helpers ────────────────────────────────────────────────────

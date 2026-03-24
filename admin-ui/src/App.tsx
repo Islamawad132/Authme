@@ -32,6 +32,7 @@ import LoginEventsPage from './pages/events/LoginEventsPage';
 import AdminEventsPage from './pages/events/AdminEventsPage';
 import AuthFlowListPage from './pages/auth-flows/AuthFlowListPage';
 import AuthFlowEditorPage from './pages/auth-flows/AuthFlowEditorPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 function ProtectedRoute() {
   const apiKey = sessionStorage.getItem('adminApiKey');
@@ -81,11 +82,13 @@ export default function App() {
           <Route path="/console/realms/:name/saml-providers/:id" element={<SamlSpDetailPage />} />
           <Route path="/console/realms/:name/auth-flows" element={<AuthFlowListPage />} />
           <Route path="/console/realms/:name/auth-flows/:flowId" element={<AuthFlowEditorPage />} />
+          {/* Catch-all for unknown /console/... paths — rendered inside the Layout shell */}
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>
 
-      {/* Catch-all: redirect to console */}
-      <Route path="*" element={<Navigate to="/console/" replace />} />
+      {/* Catch-all for every other URL (e.g. bare / or unknown top-level paths) */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }
