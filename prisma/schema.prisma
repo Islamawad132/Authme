@@ -143,7 +143,7 @@ model Realm {
   impersonationSessions ImpersonationSession[]
   policies              Policy[]
   customAttributes      CustomAttribute[]
-  webAuthnCredentials WebAuthnCredential[]
+  authenticationFlows   AuthenticationFlow[]
 
   @@map("realms")
 }
@@ -218,10 +218,14 @@ model Client {
   // Service account
   serviceAccountUserId String? @map("service_account_user_id")
 
+  // Auth flow assignment (optional override; falls back to realm default)
+  authFlowId String? @map("auth_flow_id")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   realm          Realm               @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  authFlow       AuthenticationFlow? @relation(fields: [authFlowId], references: [id], onDelete: SetNull)
   clientRoles    Role[]
   authCodes      AuthorizationCode[]
   consents       UserConsent[]
@@ -970,6 +974,26 @@ model UserAttribute {
   @@unique([userId, attributeId])
   @@index([userId])
   @@map("user_attributes")
+}
+
+// ─── AUTHENTICATION FLOWS ────────────────────────────────
+
+model AuthenticationFlow {
+  id          String   @id @default(uuid())
+  realmId     String   @map("realm_id")
+  realm       Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  isDefault   Boolean  @default(false) @map("is_default")
+  steps       Json     // Array of flow step definitions
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  clients Client[]
+
+  @@unique([realmId, name])
+  @@map("authentication_flows")
 }
 
 // ─── PLUGINS ──────────────────────────────────────────────
