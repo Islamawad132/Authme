@@ -8,8 +8,8 @@ import ClientCreatePage from '../ClientCreatePage';
 
 function renderPage(realm = 'test-realm') {
   return render(<ClientCreatePage />, {
-    initialUrl: `/console/realms/${realm}/clients/create`,
-    routePattern: '/console/realms/:name/clients/create',
+    initialUrl: `/console/realms/${realm}/clients/new`,
+    routePattern: '/console/realms/:name/clients/new',
   });
 }
 

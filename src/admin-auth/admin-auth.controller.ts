@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { Public } from '../common/decorators/public.decorator.js';
 import { AdminAuthService } from './admin-auth.service.js';
+import { resolveClientIp } from '../common/utils/proxy-ip.util.js';
 
 @ApiTags('Admin Auth')
 @Controller('admin/auth')
@@ -18,10 +19,7 @@ export class AdminAuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const ip =
-      (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ??
-      req.socket?.remoteAddress ??
-      'unknown';
+    const ip = resolveClientIp(req);
 
     const { rateLimitHeaders, ...tokenResponse } = await this.adminAuthService.login(
       body.username,

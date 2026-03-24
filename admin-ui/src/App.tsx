@@ -62,7 +62,6 @@ export default function App() {
           <Route path="/console/realms/:name/users/:id" element={<UserDetailPage />} />
           <Route path="/console/realms/:name/clients" element={<ClientListPage />} />
           <Route path="/console/realms/:name/clients/new" element={<ClientCreatePage />} />
-          <Route path="/console/realms/:name/clients/create" element={<ClientCreatePage />} />
           <Route path="/console/realms/:name/clients/:id" element={<ClientDetailPage />} />
           <Route path="/console/realms/:name/roles" element={<RoleListPage />} />
           <Route path="/console/realms/:name/groups" element={<GroupListPage />} />

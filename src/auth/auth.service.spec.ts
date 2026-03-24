@@ -1014,6 +1014,211 @@ describe('AuthService', () => {
   });
 
   // -----------------------------------------------------------------------
+  // Device code grant — polling interval enforcement (RFC 8628 §3.5)
+  // -----------------------------------------------------------------------
+
+  describe('handleTokenRequest - device_code grant', () => {
+    const deviceClientId = 'device-client';
+    const deviceClientSecret = 'device-secret';
+
+    const deviceClient = {
+      ...dbClient,
+      clientId: deviceClientId,
+      clientSecret: '$argon2id$hashed-device-secret',
+      grantTypes: ['urn:ietf:params:oauth:grant-type:device_code'],
+    };
+
+    function makeDeviceCode(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'dc-1',
+        deviceCode: 'test-device-code',
+        userCode: 'ABCD-EFGH',
+        clientId: deviceClient.id,
+        realmId: realm.id,
+        scope: 'openid',
+        userId: dbUser.id,
+        approved: true,
+        denied: false,
+        interval: 5,
+        lastPolledAt: null as Date | null,
+        expiresAt: new Date(Date.now() + 600_000),
+        createdAt: new Date(),
+        ...overrides,
+      };
+    }
+
+    function setupDeviceClient() {
+      prisma.client.findUnique.mockResolvedValue(deviceClient as any);
+      crypto.verifyPassword.mockResolvedValue(true);
+    }
+
+    it('should throw BadRequestException with slow_down when polled before the interval elapses', async () => {
+      setupDeviceClient();
+      prisma.deviceCode.findUnique.mockResolvedValue(
+        makeDeviceCode({
+          // lastPolledAt is only 2 seconds ago — interval is 5 s, so too soon
+          lastPolledAt: new Date(Date.now() - 2_000),
+        }) as any,
+      );
+      prisma.deviceCode.update.mockResolvedValue({} as any);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          device_code: 'test-device-code',
+          client_id: deviceClientId,
+          client_secret: deviceClientSecret,
+        }),
+      ).rejects.toThrow('slow_down');
+    });
+
+    it('should increase the polling interval by 5 seconds when returning slow_down', async () => {
+      setupDeviceClient();
+      const dc = makeDeviceCode({
+        lastPolledAt: new Date(Date.now() - 2_000),
+        interval: 5,
+      });
+      prisma.deviceCode.findUnique.mockResolvedValue(dc as any);
+      prisma.deviceCode.update.mockResolvedValue({} as any);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          device_code: 'test-device-code',
+          client_id: deviceClientId,
+          client_secret: deviceClientSecret,
+        }),
+      ).rejects.toThrow('slow_down');
+
+      // The update must bump the interval by 5
+      expect(prisma.deviceCode.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ interval: 10, lastPolledAt: expect.any(Date) }),
+        }),
+      );
+    });
+
+    it('should not throw slow_down when polled after the full interval has elapsed', async () => {
+      setupForTokenIssuance(deviceClient as any);
+      const dc = makeDeviceCode({
+        // 6 seconds ago — safely past the 5 s interval
+        lastPolledAt: new Date(Date.now() - 6_000),
+      });
+      prisma.deviceCode.findUnique.mockResolvedValue(dc as any);
+      prisma.deviceCode.update.mockResolvedValue({} as any);
+      prisma.user.findUnique.mockResolvedValue(dbUser as any);
+
+      const result = await service.handleTokenRequest(realm, {
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+        device_code: 'test-device-code',
+        client_id: deviceClientId,
+        client_secret: deviceClientSecret,
+      });
+
+      expect(result.access_token).toBeDefined();
+    });
+
+    it('should not throw slow_down on the very first poll (no lastPolledAt)', async () => {
+      setupForTokenIssuance(deviceClient as any);
+      const dc = makeDeviceCode({ lastPolledAt: null });
+      prisma.deviceCode.findUnique.mockResolvedValue(dc as any);
+      prisma.deviceCode.update.mockResolvedValue({} as any);
+      prisma.user.findUnique.mockResolvedValue(dbUser as any);
+
+      const result = await service.handleTokenRequest(realm, {
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+        device_code: 'test-device-code',
+        client_id: deviceClientId,
+        client_secret: deviceClientSecret,
+      });
+
+      expect(result.access_token).toBeDefined();
+    });
+
+    it('should record the poll timestamp on a normal (non-slow) poll', async () => {
+      setupForTokenIssuance(deviceClient as any);
+      const dc = makeDeviceCode({ lastPolledAt: null });
+      prisma.deviceCode.findUnique.mockResolvedValue(dc as any);
+      prisma.deviceCode.update.mockResolvedValue({} as any);
+      prisma.user.findUnique.mockResolvedValue(dbUser as any);
+
+      await service.handleTokenRequest(realm, {
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+        device_code: 'test-device-code',
+        client_id: deviceClientId,
+        client_secret: deviceClientSecret,
+      });
+
+      // The first update call must set lastPolledAt without changing interval
+      expect(prisma.deviceCode.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ lastPolledAt: expect.any(Date) }),
+        }),
+      );
+    });
+
+    it('should throw BadRequestException with authorization_pending when not yet approved', async () => {
+      setupDeviceClient();
+      prisma.deviceCode.findUnique.mockResolvedValue(
+        makeDeviceCode({ approved: false, userId: null }) as any,
+      );
+      prisma.deviceCode.update.mockResolvedValue({} as any);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          device_code: 'test-device-code',
+          client_id: deviceClientId,
+          client_secret: deviceClientSecret,
+        }),
+      ).rejects.toThrow('authorization_pending');
+    });
+
+    it('should throw BadRequestException with access_denied when device is denied', async () => {
+      setupDeviceClient();
+      prisma.deviceCode.findUnique.mockResolvedValue(
+        makeDeviceCode({ denied: true }) as any,
+      );
+      prisma.deviceCode.update.mockResolvedValue({} as any);
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          device_code: 'test-device-code',
+          client_id: deviceClientId,
+          client_secret: deviceClientSecret,
+        }),
+      ).rejects.toThrow('access_denied');
+    });
+
+    it('should throw BadRequestException with expired_token when device code is expired', async () => {
+      setupDeviceClient();
+      prisma.deviceCode.findUnique.mockResolvedValue(
+        makeDeviceCode({ expiresAt: new Date(Date.now() - 1_000) }) as any,
+      );
+
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          device_code: 'test-device-code',
+          client_id: deviceClientId,
+          client_secret: deviceClientSecret,
+        }),
+      ).rejects.toThrow('expired_token');
+    });
+
+    it('should throw BadRequestException when device_code parameter is missing', async () => {
+      await expect(
+        service.handleTokenRequest(realm, {
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          client_id: deviceClientId,
+          client_secret: deviceClientSecret,
+        }),
+      ).rejects.toThrow('device_code is required');
+    });
+  });
+
+  // -----------------------------------------------------------------------
   // issueTokens - ID token generation and scope filtering
   // -----------------------------------------------------------------------
 

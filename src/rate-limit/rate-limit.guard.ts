@@ -10,6 +10,7 @@ import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
 import { RateLimitService } from './rate-limit.service.js';
 import { MetricsService } from '../metrics/metrics.service.js';
+import { resolveClientIp } from '../common/utils/proxy-ip.util.js';
 
 export const RATE_LIMIT_TYPE_KEY = 'rateLimitType';
 export const RATE_LIMIT_REALM_KEY = 'rateLimitRealm';
@@ -119,10 +120,6 @@ export class RateLimitGuard implements CanActivate {
   }
 
   private extractIp(request: Request): string {
-    return (
-      (request.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ??
-      request.socket?.remoteAddress ??
-      'unknown'
-    );
+    return resolveClientIp(request);
   }
 }

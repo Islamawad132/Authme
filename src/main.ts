@@ -79,6 +79,27 @@ async function bootstrap() {
 
   app.useLogger(app.get(Logger));
 
+  // ── Reverse-proxy trust configuration ──────────────────────────────────────
+  // Configure Express's built-in "trust proxy" setting to match the
+  // TRUSTED_PROXIES environment variable.  Express uses this to populate
+  // req.ip / req.ips from X-Forwarded-For, but our own resolveClientIp()
+  // utility performs the same check independently and is the authoritative
+  // source for all rate-limiting decisions.
+  //
+  // Setting trust proxy here ensures that other Express-level code (e.g.
+  // session middleware) that reads req.ip also behaves correctly.
+  const trustedProxiesEnv = process.env['TRUSTED_PROXIES'];
+  if (trustedProxiesEnv && trustedProxiesEnv.trim() !== '') {
+    if (trustedProxiesEnv.trim() === '*') {
+      app.set('trust proxy', true);
+    } else {
+      // Provide the list directly; Express accepts a comma-separated string.
+      app.set('trust proxy', trustedProxiesEnv);
+    }
+  }
+  // When TRUSTED_PROXIES is not set we leave "trust proxy" at its default
+  // (false), so Express never touches X-Forwarded-For.
+
   // Enable URI-based versioning: versioned routes are accessible at /api/v{N}/...
   // Unversioned routes continue to work (backward-compatible) but carry
   // Deprecation + Sunset headers injected by DeprecationInterceptor.
