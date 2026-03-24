@@ -1157,3 +1157,12 @@ model OrganizationSsoConnection {
 
   @@map("organization_sso_connections")
 }
+
+model RevokedToken {
+  jti       String   @id
+  expiresAt DateTime @map("expires_at")
+  revokedAt DateTime @default(now()) @map("revoked_at")
+
+  @@index([expiresAt])
+  @@map("revoked_tokens")
+}
