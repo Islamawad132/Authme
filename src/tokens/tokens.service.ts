@@ -8,6 +8,7 @@ import { CryptoService } from '../crypto/crypto.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
 import { ScopesService } from '../scopes/scopes.service.js';
 import { resolveUserClaims } from '../scopes/claims.resolver.js';
+import { CustomAttributesService } from '../custom-attributes/custom-attributes.service.js';
 import { TokenBlacklistService } from './token-blacklist.service.js';
 import { BackchannelLogoutService } from './backchannel-logout.service.js';
 import { EventsService } from '../events/events.service.js';
@@ -23,6 +24,7 @@ export class TokensService {
     private readonly blacklist: TokenBlacklistService,
     private readonly backchannelLogout: BackchannelLogoutService,
     private readonly eventsService: EventsService,
+    private readonly customAttributesService: CustomAttributesService,
   ) {}
 
   async introspect(realm: Realm, token: string) {
@@ -243,7 +245,8 @@ export class TokensService {
     const scopes = this.scopesService.parseAndValidate(scopeString);
     const effectiveScopes = scopes.length > 0 ? scopes : ['openid'];
     const allowedClaims = this.scopesService.getClaimsForScopes(effectiveScopes);
+    const customAttrClaims = await this.customAttributesService.getOidcClaimsForUser(user.id);
 
-    return resolveUserClaims(user, allowedClaims);
+    return resolveUserClaims(user, allowedClaims, customAttrClaims);
   }
 }

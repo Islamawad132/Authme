@@ -169,6 +169,10 @@ describe('AuthService', () => {
       activeSessionsTotal: { inc: jest.fn(), dec: jest.fn() },
     };
 
+    const customAttributesService = {
+      getOidcClaimsForUser: jest.fn().mockResolvedValue({}),
+    };
+
     service = new AuthService(
       prisma as any,
       crypto as any,
@@ -180,6 +184,7 @@ describe('AuthService', () => {
       protocolMapperExecutor as any,
       eventsService as any,
       metricsService as any,
+      customAttributesService as any,
     );
   });
 

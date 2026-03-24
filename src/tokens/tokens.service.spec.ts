@@ -74,6 +74,10 @@ describe('TokensService', () => {
       recordLoginEvent: jest.fn().mockResolvedValue(undefined),
       recordAdminEvent: jest.fn().mockResolvedValue(undefined),
     };
+    const customAttributesService = {
+      getOidcClaimsForUser: jest.fn().mockResolvedValue({}),
+    };
+
     service = new TokensService(
       prisma as any,
       cryptoService as any,
@@ -82,6 +86,7 @@ describe('TokensService', () => {
       blacklistService as any,
       backchannelLogoutService as any,
       eventsService as any,
+      customAttributesService as any,
     );
   });
 

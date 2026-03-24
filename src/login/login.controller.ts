@@ -30,6 +30,7 @@ import { ThemeRenderService } from '../theme/theme-render.service.js';
 import { ThemeEmailService } from '../theme/theme-email.service.js';
 import { EventsService } from '../events/events.service.js';
 import { LoginEventType } from '../events/event-types.js';
+import { CustomAttributesService } from '../custom-attributes/custom-attributes.service.js';
 
 const SCOPE_DESCRIPTIONS: Record<string, string> = {
   openid: 'Verify your identity',
@@ -57,6 +58,7 @@ export class LoginController {
     private readonly themeRender: ThemeRenderService,
     private readonly themeEmail: ThemeEmailService,
     private readonly eventsService: EventsService,
+    private readonly customAttributesService: CustomAttributesService,
   ) {}
 
   // ─── LOGIN ──────────────────────────────────────────────
@@ -71,6 +73,7 @@ export class LoginController {
     this.themeRender.render(res, realm, 'login', 'login', {
       pageTitle: 'Sign In',
       registrationAllowed: realm.registrationAllowed,
+      webAuthnEnabled: (realm as any).webAuthnEnabled ?? false,
       client_id: query['client_id'] ?? '',
       redirect_uri: query['redirect_uri'] ?? '',
       response_type: query['response_type'] ?? '',
@@ -501,7 +504,7 @@ export class LoginController {
   // ─── REGISTRATION ──────────────────────────────────────
 
   @Get('register')
-  showRegistrationForm(
+  async showRegistrationForm(
     @CurrentRealm() realm: Realm,
     @Query() query: Record<string, string>,
     @Req() req: Request,
@@ -519,6 +522,8 @@ export class LoginController {
     if (realm.passwordRequireLowercase) hints.push('a lowercase letter');
     if (realm.passwordRequireDigits) hints.push('a digit');
     if (realm.passwordRequireSpecialChars) hints.push('a special character');
+
+    const customAttributes = await this.customAttributesService.getRegistrationAttributes(realm.id);
 
     this.themeRender.render(res, realm, 'login', 'register', {
       pageTitle: 'Create Account',
@@ -538,6 +543,16 @@ export class LoginController {
       nonce: query['nonce'] ?? '',
       code_challenge: query['code_challenge'] ?? '',
       code_challenge_method: query['code_challenge_method'] ?? '',
+      customAttributes: customAttributes.map((a) => ({
+        name: a.name,
+        displayName: a.displayName,
+        type: a.type,
+        required: a.required,
+        options: a.options ?? [],
+        value: query[`attr_${a.name}`] ?? '',
+      })),
+      termsOfServiceUrl: (realm as any).termsOfServiceUrl ?? null,
+      registrationApprovalRequired: (realm as any).registrationApprovalRequired ?? false,
     }, req);
   }
 
@@ -589,6 +604,25 @@ export class LoginController {
       );
     }
 
+    // Check allowed email domains
+    const realmAny = realm as any;
+    if (realmAny.allowedEmailDomains && (realmAny.allowedEmailDomains as string[]).length > 0) {
+      const emailDomain = email.split('@')[1]?.toLowerCase() ?? '';
+      const allowed = (realmAny.allowedEmailDomains as string[]).map((d: string) => d.toLowerCase());
+      if (!allowed.includes(emailDomain)) {
+        return res.redirect(
+          `/realms/${realm.name}/register?error=${encodeURIComponent(`Registration is only allowed for email domains: ${allowed.join(', ')}`)}${preserveFields}`,
+        );
+      }
+    }
+
+    // Terms of service acceptance
+    if (realmAny.termsOfServiceUrl && !body['terms_accepted']) {
+      return res.redirect(
+        `/realms/${realm.name}/register?error=${encodeURIComponent('You must accept the terms of service to register.')}${preserveFields}`,
+      );
+    }
+
     if (!password) {
       return res.redirect(
         `/realms/${realm.name}/register?error=${encodeURIComponent('Password is required.')}${preserveFields}`,
@@ -609,6 +643,17 @@ export class LoginController {
       );
     }
 
+    // Validate required custom attributes before creating the user
+    const registrationAttributes = await this.customAttributesService.getRegistrationAttributes(realm.id);
+    for (const attr of registrationAttributes) {
+      const value = (body[`attr_${attr.name}`] ?? '').trim();
+      if (attr.required && !value) {
+        return res.redirect(
+          `/realms/${realm.name}/register?error=${encodeURIComponent(`'${attr.displayName}' is required.`)}${preserveFields}`,
+        );
+      }
+    }
+
     // Check for duplicate username or email — use a generic message to prevent enumeration
     const existingByUsername = await this.prisma.user.findUnique({
       where: { realmId_username: { realmId: realm.id, username } },
@@ -622,6 +667,9 @@ export class LoginController {
       );
     }
 
+    // If approval is required, create user as disabled
+    const requiresApproval = realmAny.registrationApprovalRequired === true;
+
     // Create user
     const passwordHash = await this.crypto.hashPassword(password);
     let user;
@@ -633,7 +681,7 @@ export class LoginController {
           email,
           firstName: firstName || undefined,
           lastName: lastName || undefined,
-          enabled: true,
+          enabled: !requiresApproval,
           passwordHash,
           passwordChangedAt: new Date(),
         },
@@ -651,6 +699,17 @@ export class LoginController {
     if (realm.passwordHistoryCount > 0) {
       await this.passwordPolicyService.recordHistory(
         user.id, realm.id, passwordHash, realm.passwordHistoryCount,
+      );
+    }
+
+    // Save custom attribute values
+    try {
+      await this.customAttributesService.validateAndSaveRegistrationAttributes(realm, user.id, body);
+    } catch {
+      // If attribute saving fails, clean up the user and redirect with error
+      await this.prisma.user.delete({ where: { id: user.id } }).catch(() => undefined);
+      return res.redirect(
+        `/realms/${realm.name}/register?error=${encodeURIComponent('Failed to save custom attribute values. Please try again.')}${preserveFields}`,
       );
     }
 
@@ -681,9 +740,14 @@ export class LoginController {
       }
     }
 
-    const message = realm.requireEmailVerification
-      ? 'Account created successfully! Please check your email to verify your account, then sign in.'
-      : 'Account created successfully! You can now sign in.';
+    let message: string;
+    if (requiresApproval) {
+      message = 'Account created successfully! Your account is pending approval by an administrator.';
+    } else if (realm.requireEmailVerification) {
+      message = 'Account created successfully! Please check your email to verify your account, then sign in.';
+    } else {
+      message = 'Account created successfully! You can now sign in.';
+    }
     const info = encodeURIComponent(message);
     res.redirect(`/realms/${realm.name}/login?info=${info}${oauthSuffix}`);
   }

@@ -15,6 +15,7 @@ import { EventsService } from '../events/events.service.js';
 import { MetricsService } from '../metrics/metrics.service.js';
 import { LoginEventType } from '../events/event-types.js';
 import { resolveUserClaims, type UserClaimSource } from '../scopes/claims.resolver.js';
+import { CustomAttributesService } from '../custom-attributes/custom-attributes.service.js';
 import type { Realm } from '@prisma/client';
 import type { JWTPayload } from 'jose';
 
@@ -42,6 +43,7 @@ export class AuthService {
     private readonly protocolMapperExecutor: ProtocolMapperExecutor,
     private readonly eventsService: EventsService,
     private readonly metricsService: MetricsService,
+    private readonly customAttributesService: CustomAttributesService,
   ) {}
 
   async handleTokenRequest(
@@ -580,7 +582,8 @@ export class AuthService {
 
     // Resolve scope-filtered user claims
     const allowedClaims = this.scopesService.getClaimsForScopes(effectiveScopes);
-    const userClaims = resolveUserClaims(user, allowedClaims);
+    const customAttrClaims = await this.customAttributesService.getOidcClaimsForUser(user.id);
+    const userClaims = resolveUserClaims(user, allowedClaims, customAttrClaims);
 
     // Build role claims (direct user roles + group-inherited roles)
     const userRoles = await this.prisma.userRole.findMany({
@@ -721,7 +724,8 @@ export class AuthService {
     signingKey: { privateKey: string; kid: string };
   }): Promise<string> {
     const allowedClaims = this.scopesService.getClaimsForScopes(params.scopes);
-    const userClaims = resolveUserClaims(params.user, allowedClaims);
+    const customAttrClaims = await this.customAttributesService.getOidcClaimsForUser(params.user.id);
+    const userClaims = resolveUserClaims(params.user, allowedClaims, customAttrClaims);
 
     const idTokenPayload: JWTPayload = {
       iss: this.getIssuer(params.realm),

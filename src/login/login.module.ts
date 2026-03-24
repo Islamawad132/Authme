@@ -4,9 +4,10 @@ import { LoginService } from './login.service.js';
 import { OAuthModule } from '../oauth/oauth.module.js';
 import { UserFederationModule } from '../user-federation/user-federation.module.js';
 import { ThemeModule } from '../theme/theme.module.js';
+import { CustomAttributesModule } from '../custom-attributes/custom-attributes.module.js';
 
 @Module({
-  imports: [forwardRef(() => OAuthModule), UserFederationModule, ThemeModule],
+  imports: [forwardRef(() => OAuthModule), UserFederationModule, ThemeModule, CustomAttributesModule],
   controllers: [LoginController],
   providers: [LoginService],
   exports: [LoginService],
