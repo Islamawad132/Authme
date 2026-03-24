@@ -89,3 +89,179 @@
   </a>
   {{/if}}
 </div>
+
+{{#if webAuthnEnabled}}
+<div style="border-top: 1px solid #e5e7eb; padding-top: 1.25rem; margin-top: 1.5rem;" id="passkeys-section">
+  <h3 style="font-size: 0.95rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">Passkeys (Passwordless)</h3>
+  <p style="color: #6b7280; font-size: 0.85rem; margin-bottom: 1rem;">Passkeys let you sign in using your device's biometrics (fingerprint, face, or PIN) without a password.</p>
+
+  <div id="passkeys-list" style="margin-bottom: 1rem;">
+    {{#if webAuthnCredentials}}
+      {{#each webAuthnCredentials}}
+      <div style="display: flex; align-items: center; justify-content: space-between; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 0.5rem;">
+        <div>
+          <div style="font-weight: 500; color: #111827;">
+            {{#if this.friendlyName}}{{this.friendlyName}}{{else}}Passkey{{/if}}
+            {{#if this.backedUp}}<span style="font-size: 0.7rem; color: #166534; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 3px; padding: 0.1rem 0.3rem; margin-left: 0.4rem;">Synced</span>{{/if}}
+          </div>
+          <div style="font-size: 0.8rem; color: #6b7280; margin-top: 0.2rem;">
+            Added {{this.createdAt}}
+            {{#if this.lastUsedAt}} &middot; Last used {{this.lastUsedAt}}{{/if}}
+          </div>
+        </div>
+        <button
+          type="button"
+          onclick="removePasskey('{{this.id}}')"
+          style="background: none; border: 1px solid #fca5a5; color: #dc2626; border-radius: 4px; padding: 0.3rem 0.75rem; cursor: pointer; font-size: 0.85rem;"
+        >Remove</button>
+      </div>
+      {{/each}}
+    {{else}}
+      <p style="color: #6b7280; font-size: 0.875rem; font-style: italic;">No passkeys registered yet.</p>
+    {{/if}}
+  </div>
+
+  <div id="passkey-status" style="margin-bottom: 0.75rem; display: none;"></div>
+
+  <button type="button" id="register-passkey-btn" class="btn-primary" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    Add a passkey
+  </button>
+
+  <div id="passkey-name-form" style="display: none; margin-top: 1rem;">
+    <div class="form-group">
+      <label for="passkey-name">Passkey name (optional)</label>
+      <input type="text" id="passkey-name" placeholder="e.g. MacBook Touch ID, iPhone Face ID" style="margin-bottom: 0.5rem;">
+    </div>
+    <button type="button" id="confirm-register-passkey-btn" class="btn-primary">Register passkey</button>
+    <button type="button" id="cancel-register-passkey-btn" style="background: none; border: 1px solid #d1d5db; color: #374151; border-radius: 6px; padding: 0.6rem 1.25rem; margin-left: 0.5rem; cursor: pointer;">Cancel</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  const realmName = '{{realmName}}';
+
+  function showStatus(msg, isError) {
+    const el = document.getElementById('passkey-status');
+    el.style.display = 'block';
+    el.style.background = isError ? '#fef2f2' : '#f0fdf4';
+    el.style.border = '1px solid ' + (isError ? '#fca5a5' : '#bbf7d0');
+    el.style.color = isError ? '#dc2626' : '#166534';
+    el.style.borderRadius = '6px';
+    el.style.padding = '0.6rem 1rem';
+    el.textContent = msg;
+  }
+
+  // Show name form when "Add passkey" clicked
+  document.getElementById('register-passkey-btn').addEventListener('click', function() {
+    document.getElementById('passkey-name-form').style.display = 'block';
+    this.style.display = 'none';
+  });
+
+  document.getElementById('cancel-register-passkey-btn').addEventListener('click', function() {
+    document.getElementById('passkey-name-form').style.display = 'none';
+    document.getElementById('register-passkey-btn').style.display = 'inline-flex';
+    document.getElementById('passkey-status').style.display = 'none';
+  });
+
+  document.getElementById('confirm-register-passkey-btn').addEventListener('click', async function() {
+    const friendlyName = document.getElementById('passkey-name').value.trim();
+    const btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Waiting for device...';
+
+    try {
+      // Get options from server
+      const optRes = await fetch('/realms/' + realmName + '/webauthn/register/options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ friendlyName }),
+        credentials: 'same-origin',
+      });
+      if (!optRes.ok) throw new Error((await optRes.json()).message || 'Failed to get registration options');
+      const options = await optRes.json();
+
+      // Convert base64url strings to ArrayBuffers as required by WebAuthn API
+      options.user.id = base64urlToBuffer(options.user.id);
+      options.challenge = base64urlToBuffer(options.challenge);
+      if (options.excludeCredentials) {
+        options.excludeCredentials = options.excludeCredentials.map(function(c) {
+          return Object.assign({}, c, { id: base64urlToBuffer(c.id) });
+        });
+      }
+
+      // Create credential via browser API
+      const credential = await navigator.credentials.create({ publicKey: options });
+      if (!credential) throw new Error('Passkey creation was cancelled');
+
+      // Encode response for server
+      const response = encodeCredential(credential);
+
+      // Send to server for verification
+      const verifyRes = await fetch('/realms/' + realmName + '/webauthn/register/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response, friendlyName: friendlyName || undefined }),
+        credentials: 'same-origin',
+      });
+      if (!verifyRes.ok) throw new Error((await verifyRes.json()).message || 'Verification failed');
+
+      showStatus('Passkey registered successfully! Reloading...', false);
+      setTimeout(function() { window.location.reload(); }, 1200);
+    } catch (err) {
+      showStatus('Error: ' + (err.message || 'Registration failed'), true);
+      btn.disabled = false;
+      btn.textContent = 'Register passkey';
+    }
+  });
+
+  window.removePasskey = async function(credentialId) {
+    if (!confirm('Remove this passkey? You will no longer be able to use it to sign in.')) return;
+    try {
+      const res = await fetch('/realms/' + realmName + '/account/webauthn/credentials/' + credentialId, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+      if (!res.ok) throw new Error('Failed to remove passkey');
+      window.location.reload();
+    } catch (err) {
+      showStatus('Error removing passkey: ' + err.message, true);
+    }
+  };
+
+  // Helpers
+  function base64urlToBuffer(base64url) {
+    if (base64url instanceof ArrayBuffer) return base64url;
+    const b64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    const bin = atob(b64);
+    const buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return buf.buffer;
+  }
+
+  function bufferToBase64url(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let str = '';
+    for (let i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  function encodeCredential(credential) {
+    const response = credential.response;
+    const obj = {
+      id: credential.id,
+      rawId: bufferToBase64url(credential.rawId),
+      type: credential.type,
+      response: {
+        clientDataJSON: bufferToBase64url(response.clientDataJSON),
+        attestationObject: bufferToBase64url(response.attestationObject),
+      },
+    };
+    if (response.getTransports) obj.response.transports = response.getTransports();
+    if (credential.authenticatorAttachment) obj.authenticatorAttachment = credential.authenticatorAttachment;
+    return obj;
+  }
+})();
+</script>
+{{/if}}

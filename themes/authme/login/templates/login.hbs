@@ -38,6 +38,142 @@
   <button type="submit" class="btn-primary">{{msg "loginSignIn"}}</button>
 </form>
 
+{{#if webAuthnEnabled}}
+<div style="margin-top: 1rem; text-align: center;">
+  <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
+    <div style="flex: 1; height: 1px; background: #e5e7eb;"></div>
+    <span style="color: #9ca3af; font-size: 0.8rem;">or</span>
+    <div style="flex: 1; height: 1px; background: #e5e7eb;"></div>
+  </div>
+  <div id="passkey-login-status" style="display: none; margin-bottom: 0.75rem;"></div>
+  <button
+    type="button"
+    id="passkey-login-btn"
+    style="width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; background: #ffffff; color: #374151; border: 1px solid #d1d5db; border-radius: 6px; padding: 0.65rem 1.25rem; font-size: 0.95rem; cursor: pointer; font-weight: 500;"
+    onclick="passkeyLogin()"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+    </svg>
+    Sign in with a passkey
+  </button>
+</div>
+
+<script>
+(function() {
+  var realmName = '{{realmName}}';
+  var oauthParams = {
+    client_id: '{{client_id}}',
+    redirect_uri: '{{redirect_uri}}',
+    response_type: '{{response_type}}',
+    scope: '{{scope}}',
+    state: '{{state}}',
+    nonce: '{{nonce}}',
+    code_challenge: '{{code_challenge}}',
+    code_challenge_method: '{{code_challenge_method}}'
+  };
+
+  function showPasskeyStatus(msg, isError) {
+    var el = document.getElementById('passkey-login-status');
+    el.style.display = 'block';
+    el.style.background = isError ? '#fef2f2' : '#f0fdf4';
+    el.style.border = '1px solid ' + (isError ? '#fca5a5' : '#bbf7d0');
+    el.style.color = isError ? '#dc2626' : '#166534';
+    el.style.borderRadius = '6px';
+    el.style.padding = '0.5rem 1rem';
+    el.style.fontSize = '0.875rem';
+    el.textContent = msg;
+  }
+
+  window.passkeyLogin = async function() {
+    var btn = document.getElementById('passkey-login-btn');
+    btn.disabled = true;
+    btn.textContent = 'Waiting for device...';
+
+    try {
+      // Get authentication options (usernameless / resident key flow)
+      var optRes = await fetch('/realms/' + realmName + '/webauthn/authenticate/options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+        credentials: 'same-origin',
+      });
+      if (!optRes.ok) throw new Error((await optRes.json()).message || 'Failed to get options');
+      var options = await optRes.json();
+
+      options.challenge = base64urlToBuffer(options.challenge);
+      if (options.allowCredentials) {
+        options.allowCredentials = options.allowCredentials.map(function(c) {
+          return Object.assign({}, c, { id: base64urlToBuffer(c.id) });
+        });
+      }
+
+      var assertion = await navigator.credentials.get({ publicKey: options });
+      if (!assertion) throw new Error('Passkey authentication was cancelled');
+
+      var response = encodeAssertion(assertion);
+      var body = Object.assign({}, oauthParams, { response: response });
+
+      var verifyRes = await fetch('/realms/' + realmName + '/webauthn/authenticate/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'same-origin',
+      });
+
+      if (!verifyRes.ok) {
+        var errData = await verifyRes.json();
+        throw new Error(errData.message || 'Authentication failed');
+      }
+
+      var data = await verifyRes.json();
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+      } else {
+        showPasskeyStatus('Signed in! Redirecting...', false);
+        window.location.href = '/realms/' + realmName + '/account';
+      }
+    } catch (err) {
+      showPasskeyStatus(err.message || 'Passkey authentication failed', true);
+      btn.disabled = false;
+      btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg> Sign in with a passkey';
+    }
+  };
+
+  function base64urlToBuffer(base64url) {
+    if (base64url instanceof ArrayBuffer) return base64url;
+    var b64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    var bin = atob(b64);
+    var buf = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return buf.buffer;
+  }
+
+  function bufferToBase64url(buffer) {
+    var bytes = new Uint8Array(buffer);
+    var str = '';
+    for (var i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  function encodeAssertion(assertion) {
+    var response = assertion.response;
+    return {
+      id: assertion.id,
+      rawId: bufferToBase64url(assertion.rawId),
+      type: assertion.type,
+      response: {
+        clientDataJSON: bufferToBase64url(response.clientDataJSON),
+        authenticatorData: bufferToBase64url(response.authenticatorData),
+        signature: bufferToBase64url(response.signature),
+        userHandle: response.userHandle ? bufferToBase64url(response.userHandle) : null,
+      },
+    };
+  }
+})();
+</script>
+{{/if}}
+
 {{#if registrationAllowed}}
 <div style="text-align: center; margin-top: 1rem;">
   <a href="/realms/{{realmName}}/register?client_id={{client_id}}&redirect_uri={{redirect_uri}}&response_type={{response_type}}&scope={{scope}}&state={{state}}&nonce={{nonce}}&code_challenge={{code_challenge}}&code_challenge_method={{code_challenge_method}}" style="color: var(--primary-color); text-decoration: none; font-size: 0.85rem;">{{msg "loginNoAccount"}}</a>

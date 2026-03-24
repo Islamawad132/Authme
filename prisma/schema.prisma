@@ -114,6 +114,7 @@ model Realm {
   impersonationSessions ImpersonationSession[]
   policies              Policy[]
   customAttributes      CustomAttribute[]
+  webAuthnCredentials WebAuthnCredential[]
 
   @@map("realms")
 }
