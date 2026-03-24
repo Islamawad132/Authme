@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { LoginEventTypeValue, OperationTypeValue, ResourceTypeValue } from './event-types.js';
+import type { WebhooksService } from '../webhooks/webhooks.service.js';
 
 export interface RecordLoginEventParams {
   realmId: string;
@@ -48,7 +49,10 @@ export interface QueryAdminEventsParams {
 export class EventsService {
   private readonly logger = new Logger(EventsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly webhooksService?: WebhooksService,
+  ) {}
 
   async recordLoginEvent(params: RecordLoginEventParams): Promise<void> {
     const realm = await this.prisma.realm.findUnique({
@@ -73,6 +77,20 @@ export class EventsService {
     } catch (err) {
       this.logger.warn(`Failed to record login event: ${(err as Error).message}`);
     }
+
+    // Dispatch webhook event (non-blocking, best-effort)
+    this.webhooksService?.dispatchEvent({
+      realmId: params.realmId,
+      eventType: `user.${params.type.toLowerCase()}`,
+      payload: {
+        userId: params.userId,
+        sessionId: params.sessionId,
+        clientId: params.clientId,
+        ipAddress: params.ipAddress,
+        error: params.error,
+        details: params.details,
+      },
+    });
   }
 
   async recordAdminEvent(params: RecordAdminEventParams): Promise<void> {
