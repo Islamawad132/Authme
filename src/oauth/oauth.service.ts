@@ -18,6 +18,8 @@ export interface AuthorizeParams {
   code_challenge?: string;
   code_challenge_method?: string;
   nonce?: string;
+  /** Space-separated list of requested ACR values (highest preference first). */
+  acr_values?: string;
 }
 
 @Injectable()
@@ -111,6 +113,7 @@ export class OAuthService {
         codeChallenge: params.code_challenge,
         codeChallengeMethod: params.code_challenge_method,
         nonce: params.nonce,
+        acrValues: params.acr_values ?? null,
         expiresAt: new Date(Date.now() + 60 * 1000),
       },
     });

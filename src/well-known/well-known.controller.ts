@@ -7,6 +7,7 @@ import { CacheService } from '../cache/cache.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
+import { ACR_VALUES_SUPPORTED } from '../step-up/step-up.service.js';
 
 @ApiTags('OIDC Discovery')
 @Controller('realms/:realmName')
@@ -61,6 +62,7 @@ export class WellKnownController {
         'nonce',
         'at_hash',
         'acr',
+        'amr',
         'azp',
         'name',
         'email',
@@ -74,6 +76,11 @@ export class WellKnownController {
       code_challenge_methods_supported: ['S256'],
       backchannel_logout_supported: true,
       backchannel_logout_session_supported: true,
+      // Step-up authentication (OIDC Core §3.1.2.1 acr_values_supported)
+      acr_values_supported: ACR_VALUES_SUPPORTED,
+      // Step-up endpoints
+      step_up_challenge_endpoint: `${realmUrl}/step-up/challenge`,
+      step_up_verify_endpoint: `${realmUrl}/step-up/verify`,
       // WebAuthn / FIDO2 support
       webauthn_registration_endpoint: `${realmUrl}/webauthn/register/options`,
       webauthn_authentication_endpoint: `${realmUrl}/webauthn/authenticate/options`,

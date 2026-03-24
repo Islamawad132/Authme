@@ -51,6 +51,7 @@ import { CustomAttributesModule } from './custom-attributes/custom-attributes.mo
 import { PluginsModule } from './plugins/plugins.module.js';
 import { AuthFlowModule } from './auth-flow/auth-flow.module.js';
 import { VersioningModule } from './versioning/versioning.module.js';
+import { StepUpModule } from './step-up/step-up.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
 import { AdminEventInterceptor } from './events/admin-event.interceptor.js';
 import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
@@ -112,6 +113,7 @@ import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
     PluginsModule,
     AuthFlowModule,
     VersioningModule,
+    StepUpModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
