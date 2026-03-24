@@ -1,9 +1,3 @@
-import { IsString, IsNotEmpty } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
-
-export class StartImpersonationDto {
-  @ApiProperty({ description: 'The ID of the admin user initiating impersonation' })
-  @IsString()
-  @IsNotEmpty()
-  adminUserId!: string;
-}
+// StartImpersonation no longer requires a request body.
+// The admin identity is derived from the authenticated session.
+// This file is kept for potential future fields (e.g., reason, scope).
