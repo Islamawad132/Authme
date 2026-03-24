@@ -10,6 +10,17 @@ describe('EventsController', () => {
     clearLoginEvents: jest.Mock;
     queryAdminEvents: jest.Mock;
   };
+  let mockAuditExportService: {
+    exportLoginEvents: jest.Mock;
+    exportAdminEvents: jest.Mock;
+  };
+  let mockAuditStreamsService: {
+    create: jest.Mock;
+    findAll: jest.Mock;
+    findOne: jest.Mock;
+    update: jest.Mock;
+    remove: jest.Mock;
+  };
 
   const realm = {
     id: 'realm-1',
@@ -23,8 +34,23 @@ describe('EventsController', () => {
       clearLoginEvents: jest.fn(),
       queryAdminEvents: jest.fn(),
     };
+    mockAuditExportService = {
+      exportLoginEvents: jest.fn().mockResolvedValue(undefined),
+      exportAdminEvents: jest.fn().mockResolvedValue(undefined),
+    };
+    mockAuditStreamsService = {
+      create: jest.fn(),
+      findAll: jest.fn(),
+      findOne: jest.fn(),
+      update: jest.fn(),
+      remove: jest.fn(),
+    };
 
-    controller = new EventsController(mockEventsService as any);
+    controller = new EventsController(
+      mockEventsService as any,
+      mockAuditExportService as any,
+      mockAuditStreamsService as any,
+    );
   });
 
   describe('getLoginEvents', () => {
@@ -162,6 +188,97 @@ describe('EventsController', () => {
         max: undefined,
       });
       expect(result).toEqual(expected);
+    });
+  });
+
+  describe('exportLoginEvents', () => {
+    it('should delegate to auditExportService.exportLoginEvents', async () => {
+      const mockRes = {} as any;
+      const query = {
+        format: 'csv' as const,
+        offset: 0,
+        limit: 500,
+        dateFrom: '2025-01-01',
+        dateTo: '2025-12-31',
+        eventType: 'LOGIN',
+        userId: 'user-1',
+        clientId: undefined,
+        ipAddress: undefined,
+      };
+
+      await controller.exportLoginEvents(realm, query, mockRes);
+
+      expect(mockAuditExportService.exportLoginEvents).toHaveBeenCalledWith(
+        expect.objectContaining({
+          realmId: 'realm-1',
+          format: 'csv',
+          offset: 0,
+          limit: 500,
+          dateFrom: new Date('2025-01-01'),
+          dateTo: new Date('2025-12-31'),
+          eventType: 'LOGIN',
+          userId: 'user-1',
+        }),
+        mockRes,
+      );
+    });
+  });
+
+  describe('exportAdminEvents', () => {
+    it('should delegate to auditExportService.exportAdminEvents', async () => {
+      const mockRes = {} as any;
+      const query = {
+        format: 'json' as const,
+        offset: 0,
+        limit: 1000,
+        dateFrom: undefined,
+        dateTo: undefined,
+        eventType: undefined,
+        userId: undefined,
+        clientId: undefined,
+        ipAddress: undefined,
+      };
+
+      await controller.exportAdminEvents(realm, query, mockRes);
+
+      expect(mockAuditExportService.exportAdminEvents).toHaveBeenCalledWith(
+        expect.objectContaining({ realmId: 'realm-1', format: 'json' }),
+        mockRes,
+      );
+    });
+  });
+
+  describe('audit streams', () => {
+    it('createStream should delegate to auditStreamsService.create', () => {
+      const dto = { name: 'S', streamType: 'http' as const };
+      mockAuditStreamsService.create.mockReturnValue({});
+      controller.createStream(realm, dto as any);
+      expect(mockAuditStreamsService.create).toHaveBeenCalledWith(realm, dto);
+    });
+
+    it('listStreams should delegate to auditStreamsService.findAll', () => {
+      mockAuditStreamsService.findAll.mockReturnValue([]);
+      controller.listStreams(realm);
+      expect(mockAuditStreamsService.findAll).toHaveBeenCalledWith(realm);
+    });
+
+    it('getStream should delegate to auditStreamsService.findOne', () => {
+      mockAuditStreamsService.findOne.mockReturnValue({});
+      controller.getStream(realm, 'stream-1');
+      expect(mockAuditStreamsService.findOne).toHaveBeenCalledWith(realm, 'stream-1');
+    });
+
+    it('updateStream should delegate to auditStreamsService.update', () => {
+      const dto = { enabled: false };
+      mockAuditStreamsService.update.mockReturnValue({});
+      controller.updateStream(realm, 'stream-1', dto as any);
+      expect(mockAuditStreamsService.update).toHaveBeenCalledWith(realm, 'stream-1', dto);
+    });
+
+    it('removeStream should delegate to auditStreamsService.remove', () => {
+      mockAuditStreamsService.remove.mockReturnValue(undefined);
+      controller.removeStream(realm, 'stream-1');
+      expect(mockAuditStreamsService.remove).toHaveBeenCalledWith(realm, 'stream-1');
     });
   });
 });
