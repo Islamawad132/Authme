@@ -48,6 +48,7 @@ import { CacheModule } from './cache/cache.module.js';
 import { WebAuthnModule } from './webauthn/webauthn.module.js';
 import { AuthorizationModule } from './authorization/authorization.module.js';
 import { CustomAttributesModule } from './custom-attributes/custom-attributes.module.js';
+import { PluginsModule } from './plugins/plugins.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
 import { AdminEventInterceptor } from './events/admin-event.interceptor.js';
 import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
@@ -106,6 +107,7 @@ import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
     WebAuthnModule,
     AuthorizationModule,
     CustomAttributesModule,
+    PluginsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
