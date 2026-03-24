@@ -1,30 +1,28 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Authme — primary Prisma schema (PostgreSQL)
+// MySQL / MariaDB variant of the Authme Prisma schema.
 //
-// This is the canonical schema used in production.  Two additional provider
-// variants live alongside it for alternative deployments:
+// Intended for deployments that require MySQL 8.0+ or MariaDB 10.5+.
+// For new projects, PostgreSQL is still the recommended provider.
 //
-//   prisma/schema.sqlite.prisma  — SQLite (development / CI, no Docker needed)
-//   prisma/schema.mysql.prisma   — MySQL 8+ / MariaDB 10.5+
+// Key differences from schema.prisma (PostgreSQL):
+//   - datasource provider is "mysql"
+//   - `String[]` / native PostgreSQL array fields → stored as JSON text
+//     (MySQL 8+ has a native JSON type; Prisma maps Json to JSON column)
+//   - @db.VarChar(n) annotations are kept or converted to @db.VarChar(n)
+//     for MySQL (same syntax, compatible)
+//   - Indexes on String columns that are used in @@unique must respect
+//     MySQL's default prefix limit (767 bytes / 191 chars for utf8mb4).
+//     Long String unique keys use @db.VarChar(191) where required.
+//   - Enum types are supported natively by MySQL and are kept as-is
+//   - Bytes fields are supported natively (mapped to LONGBLOB)
+//   - BigInt is supported natively
 //
-// To switch providers use the helper scripts:
-//   ./scripts/use-sqlite.sh      activate SQLite (copies sqlite variant here)
-//   ./scripts/use-mysql.sh       activate MySQL  (copies mysql variant here)
-//   git checkout prisma/schema.prisma   revert to PostgreSQL
+// Usage:
+//   ./scripts/use-mysql.sh         # copies this file → prisma/schema.prisma
+//   npx prisma migrate dev --name init
 //
-// Provider compatibility notes
-// ─────────────────────────────
-// The following Prisma / PostgreSQL features are NOT available in all providers
-// and are handled differently in the sqlite/mysql variants:
-//
-//   Feature              PostgreSQL      MySQL           SQLite
-//   ─────────────────────────────────────────────────────────────────────
-//   Json fields          native JSONB    native JSON     serialised String
-//   Bytes fields         native bytea    native LONGBLOB base64 String
-//   BigInt fields        native int8     native bigint   mapped to Int
-//   String[] arrays      native array    JSON column     JSON text String
-//   @db.VarChar(n)       supported       supported       ignored (omitted)
-//   enum types           native          native          stored as String
+// To switch back to PostgreSQL:
+//   git checkout prisma/schema.prisma
 // ─────────────────────────────────────────────────────────────────────────────
 
 generator client {
@@ -32,14 +30,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
 // ─── REALMS ───────────────────────────────────────────────
 
 model Realm {
-  id          String  @id @default(uuid())
-  name        String  @unique
+  id          String  @id @default(uuid()) @db.VarChar(36)
+  name        String  @unique @db.VarChar(191)
   displayName String? @map("display_name")
   enabled     Boolean @default(true)
 
@@ -54,13 +52,13 @@ model Realm {
   smtpSecure   Boolean  @default(false) @map("smtp_secure")
 
   // Password policies
-  passwordMinLength          Int     @default(8)    @map("password_min_length")
-  passwordRequireUppercase   Boolean @default(false) @map("password_require_uppercase")
-  passwordRequireLowercase   Boolean @default(false) @map("password_require_lowercase")
-  passwordRequireDigits      Boolean @default(false) @map("password_require_digits")
+  passwordMinLength           Int     @default(8)    @map("password_min_length")
+  passwordRequireUppercase    Boolean @default(false) @map("password_require_uppercase")
+  passwordRequireLowercase    Boolean @default(false) @map("password_require_lowercase")
+  passwordRequireDigits       Boolean @default(false) @map("password_require_digits")
   passwordRequireSpecialChars Boolean @default(false) @map("password_require_special_chars")
-  passwordHistoryCount       Int     @default(0)    @map("password_history_count")
-  passwordMaxAgeDays         Int     @default(0)    @map("password_max_age_days")
+  passwordHistoryCount        Int     @default(0)    @map("password_history_count")
+  passwordMaxAgeDays          Int     @default(0)    @map("password_max_age_days")
 
   // Brute force protection
   bruteForceEnabled     Boolean @default(false) @map("brute_force_enabled")
@@ -70,10 +68,11 @@ model Realm {
   permanentLockoutAfter Int     @default(0)     @map("permanent_lockout_after")
 
   // Registration
-  registrationAllowed          Boolean  @default(true)  @map("registration_allowed")
-  registrationApprovalRequired Boolean  @default(false) @map("registration_approval_required")
-  allowedEmailDomains          String[] @map("allowed_email_domains")
-  termsOfServiceUrl            String?  @map("terms_of_service_url")
+  registrationAllowed          Boolean @default(true)  @map("registration_allowed")
+  registrationApprovalRequired Boolean @default(false) @map("registration_approval_required")
+  // MySQL: native JSON column (MySQL 8+); stored as JSON array
+  allowedEmailDomains          Json    @default("[]") @map("allowed_email_domains")
+  termsOfServiceUrl            String? @map("terms_of_service_url")
 
   // Email verification
   requireEmailVerification Boolean @default(false) @map("require_email_verification")
@@ -82,9 +81,9 @@ model Realm {
   mfaRequired Boolean @default(false) @map("mfa_required")
 
   // WebAuthn / FIDO2
-  webAuthnEnabled Boolean  @default(false)  @map("webauthn_enabled")
-  webAuthnRpName  String?  @map("webauthn_rp_name")
-  webAuthnRpId    String?  @map("webauthn_rp_id")
+  webAuthnEnabled Boolean @default(false) @map("webauthn_enabled")
+  webAuthnRpName  String? @map("webauthn_rp_name")
+  webAuthnRpId    String? @map("webauthn_rp_id")
 
   // Offline tokens
   offlineTokenLifespan Int @default(2592000) @map("offline_token_lifespan")
@@ -94,11 +93,11 @@ model Realm {
   impersonationMaxDuration Int     @default(1800)  @map("impersonation_max_duration")
 
   // Events configuration
-  eventsEnabled             Boolean @default(false) @map("events_enabled")
-  eventsExpiration          Int     @default(604800) @map("events_expiration")
-  adminEventsEnabled        Boolean @default(false) @map("admin_events_enabled")
-  loginEventRetentionDays   Int     @default(30)     @map("login_event_retention_days")
-  adminEventRetentionDays   Int     @default(90)     @map("admin_event_retention_days")
+  eventsEnabled           Boolean @default(false) @map("events_enabled")
+  eventsExpiration        Int     @default(604800) @map("events_expiration")
+  adminEventsEnabled      Boolean @default(false) @map("admin_events_enabled")
+  loginEventRetentionDays Int     @default(30)    @map("login_event_retention_days")
+  adminEventRetentionDays Int     @default(90)    @map("admin_event_retention_days")
 
   // Rate limiting
   rateLimitEnabled         Boolean @default(false) @map("rate_limit_enabled")
@@ -117,33 +116,33 @@ model Realm {
   emailTheme   String  @default("authme") @map("email_theme") @db.VarChar(50)
 
   // Internationalization (i18n)
-  defaultLocale    String   @default("en") @map("default_locale") @db.VarChar(10)
-  supportedLocales String[] @default(["en"]) @map("supported_locales")
+  defaultLocale    String @default("en") @map("default_locale") @db.VarChar(10)
+  // MySQL: JSON array (MySQL 8+ native JSON)
+  supportedLocales Json   @default("[\"en\"]") @map("supported_locales")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users              User[]
-  clients            Client[]
-  roles              Role[]
-  signingKeys        RealmSigningKey[]
-  loginSessions      LoginSession[]
-  identityProviders  IdentityProvider[]
-  groups             Group[]
-  passwordHistories  PasswordHistory[]
-  loginFailures      LoginFailure[]
-  clientScopes       ClientScope[]
-  loginEvents        LoginEvent[]
-  adminEvents        AdminEvent[]
-  userFederations    UserFederation[]
+  users                User[]
+  clients              Client[]
+  roles                Role[]
+  signingKeys          RealmSigningKey[]
+  loginSessions        LoginSession[]
+  identityProviders    IdentityProvider[]
+  groups               Group[]
+  passwordHistories    PasswordHistory[]
+  loginFailures        LoginFailure[]
+  clientScopes         ClientScope[]
+  loginEvents          LoginEvent[]
+  adminEvents          AdminEvent[]
+  userFederations      UserFederation[]
   samlServiceProviders SamlServiceProvider[]
-  webhooks           Webhook[]
-  webAuthnCredentials WebAuthnCredential[]
+  webhooks             Webhook[]
+  webAuthnCredentials  WebAuthnCredential[]
   auditLogStreams       AuditLogStream[]
   impersonationSessions ImpersonationSession[]
-  policies              Policy[]
-  customAttributes      CustomAttribute[]
-  webAuthnCredentials WebAuthnCredential[]
+  policies             Policy[]
+  customAttributes     CustomAttribute[]
 
   @@map("realms")
 }
@@ -151,15 +150,15 @@ model Realm {
 // ─── USERS ────────────────────────────────────────────────
 
 model User {
-  id            String  @id @default(uuid())
-  realmId       String  @map("realm_id")
-  username      String
-  email         String?
+  id            String  @id @default(uuid()) @db.VarChar(36)
+  realmId       String  @map("realm_id") @db.VarChar(36)
+  username      String  @db.VarChar(191)
+  email         String? @db.VarChar(191)
   emailVerified Boolean @default(false) @map("email_verified")
   firstName     String? @map("first_name")
   lastName      String? @map("last_name")
   enabled       Boolean @default(true)
-  passwordHash  String? @map("password_hash")
+  passwordHash  String? @map("password_hash") @db.Text
 
   federationLink String? @map("federation_link")
 
@@ -197,31 +196,32 @@ enum ClientType {
 }
 
 model Client {
-  id           String     @id @default(uuid())
-  realmId      String     @map("realm_id")
-  clientId     String     @map("client_id")
+  id           String     @id @default(uuid()) @db.VarChar(36)
+  realmId      String     @map("realm_id") @db.VarChar(36)
+  clientId     String     @map("client_id") @db.VarChar(191)
   clientSecret String?    @map("client_secret")
   clientType   ClientType @default(CONFIDENTIAL) @map("client_type")
   name         String?
   description  String?
-  enabled        Boolean    @default(true)
-  requireConsent Boolean    @default(false) @map("require_consent")
+  enabled        Boolean @default(true)
+  requireConsent Boolean @default(false) @map("require_consent")
 
-  redirectUris String[] @map("redirect_uris")
-  webOrigins   String[] @map("web_origins")
-  grantTypes   String[] @default(["authorization_code"]) @map("grant_types")
+  // MySQL: JSON arrays (MySQL 8+ native JSON)
+  redirectUris Json @default("[]") @map("redirect_uris")
+  webOrigins   Json @default("[]") @map("web_origins")
+  grantTypes   Json @default("[\"authorization_code\"]") @map("grant_types")
 
   // Backchannel logout
   backchannelLogoutUri             String?  @map("backchannel_logout_uri")
   backchannelLogoutSessionRequired Boolean  @default(true) @map("backchannel_logout_session_required")
 
   // Service account
-  serviceAccountUserId String? @map("service_account_user_id")
+  serviceAccountUserId String? @map("service_account_user_id") @db.VarChar(36)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  realm          Realm               @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  realm          Realm                @relation(fields: [realmId], references: [id], onDelete: Cascade)
   clientRoles    Role[]
   authCodes      AuthorizationCode[]
   consents       UserConsent[]
@@ -235,10 +235,10 @@ model Client {
 // ─── ROLES ────────────────────────────────────────────────
 
 model Role {
-  id          String  @id @default(uuid())
-  realmId     String  @map("realm_id")
-  clientId    String? @map("client_id")
-  name        String
+  id          String  @id @default(uuid()) @db.VarChar(36)
+  realmId     String  @map("realm_id") @db.VarChar(36)
+  clientId    String? @map("client_id") @db.VarChar(36)
+  name        String  @db.VarChar(191)
   description String?
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -256,9 +256,9 @@ model Role {
 // ─── USER-ROLE ASSIGNMENT ─────────────────────────────────
 
 model UserRole {
-  id     String @id @default(uuid())
-  userId String @map("user_id")
-  roleId String @map("role_id")
+  id     String @id @default(uuid()) @db.VarChar(36)
+  userId String @map("user_id") @db.VarChar(36)
+  roleId String @map("role_id") @db.VarChar(36)
 
   assignedAt DateTime @default(now()) @map("assigned_at")
 
@@ -272,10 +272,10 @@ model UserRole {
 // ─── SESSIONS & REFRESH TOKENS ────────────────────────────
 
 model Session {
-  id        String  @id @default(uuid())
-  userId    String  @map("user_id")
+  id        String  @id @default(uuid()) @db.VarChar(36)
+  userId    String  @map("user_id") @db.VarChar(36)
   ipAddress String? @map("ip_address")
-  userAgent String? @map("user_agent")
+  userAgent String? @map("user_agent") @db.Text
 
   createdAt DateTime @default(now()) @map("created_at")
   expiresAt DateTime @map("expires_at")
@@ -287,9 +287,9 @@ model Session {
 }
 
 model RefreshToken {
-  id        String  @id @default(uuid())
-  sessionId String  @map("session_id")
-  tokenHash String  @unique @map("token_hash")
+  id        String  @id @default(uuid()) @db.VarChar(36)
+  sessionId String  @map("session_id") @db.VarChar(36)
+  tokenHash String  @unique @map("token_hash") @db.VarChar(191)
   scope     String?
   revoked   Boolean @default(false)
   isOffline Boolean @default(false) @map("is_offline")
@@ -305,11 +305,11 @@ model RefreshToken {
 // ─── AUTHORIZATION CODES ──────────────────────────────────
 
 model AuthorizationCode {
-  id                  String  @id @default(uuid())
-  code                String  @unique
-  clientId            String  @map("client_id")
-  userId              String  @map("user_id")
-  redirectUri         String  @map("redirect_uri")
+  id                  String  @id @default(uuid()) @db.VarChar(36)
+  code                String  @unique @db.VarChar(191)
+  clientId            String  @map("client_id") @db.VarChar(36)
+  userId              String  @map("user_id") @db.VarChar(36)
+  redirectUri         String  @map("redirect_uri") @db.Text
   scope               String?
   codeChallenge       String? @map("code_challenge")
   codeChallengeMethod String? @map("code_challenge_method")
@@ -327,13 +327,13 @@ model AuthorizationCode {
 // ─── REALM SIGNING KEYS ───────────────────────────────────
 
 model RealmSigningKey {
-  id        String  @id @default(uuid())
-  realmId   String  @map("realm_id")
-  kid       String
-  algorithm String  @default("RS256")
-  publicKey String  @map("public_key")
-  privateKey String @map("private_key")
-  active    Boolean @default(true)
+  id         String  @id @default(uuid()) @db.VarChar(36)
+  realmId    String  @map("realm_id") @db.VarChar(36)
+  kid        String  @db.VarChar(191)
+  algorithm  String  @default("RS256")
+  publicKey  String  @map("public_key") @db.Text
+  privateKey String  @map("private_key") @db.Text
+  active     Boolean @default(true)
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -346,12 +346,12 @@ model RealmSigningKey {
 // ─── LOGIN SESSIONS (browser SSO) ───────────────────────
 
 model LoginSession {
-  id        String  @id @default(uuid())
-  userId    String  @map("user_id")
-  realmId   String  @map("realm_id")
-  tokenHash String  @unique @map("token_hash")
+  id        String  @id @default(uuid()) @db.VarChar(36)
+  userId    String  @map("user_id") @db.VarChar(36)
+  realmId   String  @map("realm_id") @db.VarChar(36)
+  tokenHash String  @unique @map("token_hash") @db.VarChar(191)
   ipAddress String? @map("ip_address")
-  userAgent String? @map("user_agent")
+  userAgent String? @map("user_agent") @db.Text
 
   createdAt DateTime @default(now()) @map("created_at")
   expiresAt DateTime @map("expires_at")
@@ -365,10 +365,11 @@ model LoginSession {
 // ─── USER CONSENT ────────────────────────────────────────
 
 model UserConsent {
-  id       String   @id @default(uuid())
-  userId   String   @map("user_id")
-  clientId String   @map("client_id")
-  scopes   String[]
+  id       String @id @default(uuid()) @db.VarChar(36)
+  userId   String @map("user_id") @db.VarChar(36)
+  clientId String @map("client_id") @db.VarChar(36)
+  // MySQL: JSON array
+  scopes   Json   @default("[]")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -383,11 +384,11 @@ model UserConsent {
 // ─── GROUPS ─────────────────────────────────────────────
 
 model Group {
-  id          String  @id @default(uuid())
-  realmId     String  @map("realm_id")
-  name        String
+  id          String  @id @default(uuid()) @db.VarChar(36)
+  realmId     String  @map("realm_id") @db.VarChar(36)
+  name        String  @db.VarChar(191)
   description String?
-  parentId    String? @map("parent_id")
+  parentId    String? @map("parent_id") @db.VarChar(36)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -403,9 +404,9 @@ model Group {
 }
 
 model UserGroup {
-  id      String @id @default(uuid())
-  userId  String @map("user_id")
-  groupId String @map("group_id")
+  id      String @id @default(uuid()) @db.VarChar(36)
+  userId  String @map("user_id") @db.VarChar(36)
+  groupId String @map("group_id") @db.VarChar(36)
 
   assignedAt DateTime @default(now()) @map("assigned_at")
 
@@ -417,9 +418,9 @@ model UserGroup {
 }
 
 model GroupRole {
-  id      String @id @default(uuid())
-  groupId String @map("group_id")
-  roleId  String @map("role_id")
+  id      String @id @default(uuid()) @db.VarChar(36)
+  groupId String @map("group_id") @db.VarChar(36)
+  roleId  String @map("role_id") @db.VarChar(36)
 
   assignedAt DateTime @default(now()) @map("assigned_at")
 
@@ -433,9 +434,9 @@ model GroupRole {
 // ─── VERIFICATION TOKENS ────────────────────────────────
 
 model VerificationToken {
-  id        String   @id @default(uuid())
-  tokenHash String   @unique @map("token_hash")
-  userId    String   @map("user_id")
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  tokenHash String   @unique @map("token_hash") @db.VarChar(191)
+  userId    String   @map("user_id") @db.VarChar(36)
   type      String   // "email_verification" | "password_reset"
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
@@ -448,10 +449,10 @@ model VerificationToken {
 // ─── PASSWORD HISTORY ────────────────────────────────────
 
 model PasswordHistory {
-  id           String   @id @default(uuid())
-  userId       String   @map("user_id")
-  realmId      String   @map("realm_id")
-  passwordHash String   @map("password_hash")
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  userId       String   @map("user_id") @db.VarChar(36)
+  realmId      String   @map("realm_id") @db.VarChar(36)
+  passwordHash String   @map("password_hash") @db.Text
   createdAt    DateTime @default(now()) @map("created_at")
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -463,9 +464,9 @@ model PasswordHistory {
 // ─── LOGIN FAILURES (brute force) ────────────────────────
 
 model LoginFailure {
-  id        String   @id @default(uuid())
-  realmId   String   @map("realm_id")
-  userId    String?  @map("user_id")
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  realmId   String   @map("realm_id") @db.VarChar(36)
+  userId    String?  @map("user_id") @db.VarChar(36)
   ipAddress String?  @map("ip_address")
   failedAt  DateTime @default(now()) @map("failed_at")
 
@@ -479,8 +480,8 @@ model LoginFailure {
 // ─── MFA / TOTP ──────────────────────────────────────────
 
 model UserCredential {
-  id        String  @id @default(uuid())
-  userId    String  @map("user_id")
+  id        String  @id @default(uuid()) @db.VarChar(36)
+  userId    String  @map("user_id") @db.VarChar(36)
   type      String  @default("totp")
   secretKey String  @map("secret_key")
   algorithm String  @default("SHA1")
@@ -497,8 +498,8 @@ model UserCredential {
 }
 
 model RecoveryCode {
-  id       String  @id @default(uuid())
-  userId   String  @map("user_id")
+  id       String  @id @default(uuid()) @db.VarChar(36)
+  userId   String  @map("user_id") @db.VarChar(36)
   codeHash String  @map("code_hash")
   used     Boolean @default(false)
 
@@ -509,19 +510,20 @@ model RecoveryCode {
   @@map("recovery_codes")
 }
 
-
 // ─── WEBAUTHN / FIDO2 ────────────────────────────────────
 
 model WebAuthnCredential {
-  id           String    @id @default(uuid())
-  userId       String    @map("user_id")
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  userId       String    @map("user_id") @db.VarChar(36)
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  realmId      String    @map("realm_id")
+  realmId      String    @map("realm_id") @db.VarChar(36)
   realm        Realm     @relation(fields: [realmId], references: [id], onDelete: Cascade)
-  credentialId String    @map("credential_id")
+  credentialId String    @map("credential_id") @db.VarChar(191)
+  // MySQL: Bytes is mapped to LONGBLOB
   publicKey    Bytes     @map("public_key")
   counter      BigInt    @default(0)
-  transports   String[]
+  // MySQL: JSON array
+  transports   Json      @default("[]")
   deviceType   String    @map("device_type")
   backedUp     Boolean   @default(false)
   friendlyName String?   @map("friendly_name")
@@ -536,27 +538,27 @@ model WebAuthnCredential {
 // ─── IDENTITY PROVIDERS (Social Login) ───────────────────
 
 model IdentityProvider {
-  id            String  @id @default(uuid())
-  realmId       String  @map("realm_id")
-  alias         String
-  displayName   String? @map("display_name")
-  enabled       Boolean @default(true)
-  providerType  String  @default("oidc") @map("provider_type")
+  id           String  @id @default(uuid()) @db.VarChar(36)
+  realmId      String  @map("realm_id") @db.VarChar(36)
+  alias        String  @db.VarChar(191)
+  displayName  String? @map("display_name")
+  enabled      Boolean @default(true)
+  providerType String  @default("oidc") @map("provider_type")
 
   clientId         String  @map("idp_client_id")
   clientSecret     String  @map("idp_client_secret")
-  authorizationUrl String  @map("authorization_url")
-  tokenUrl         String  @map("token_url")
-  userinfoUrl      String? @map("userinfo_url")
-  jwksUrl          String? @map("jwks_url")
+  authorizationUrl String  @map("authorization_url") @db.Text
+  tokenUrl         String  @map("token_url") @db.Text
+  userinfoUrl      String? @map("userinfo_url") @db.Text
+  jwksUrl          String? @map("jwks_url") @db.Text
   issuer           String?
 
-  defaultScopes    String @default("openid email profile") @map("default_scopes")
-  trustEmail       Boolean @default(false) @map("trust_email")
-  linkOnly         Boolean @default(false) @map("link_only")
-  syncUserProfile  Boolean @default(true)  @map("sync_user_profile")
+  defaultScopes   String  @default("openid email profile") @map("default_scopes")
+  trustEmail      Boolean @default(false) @map("trust_email")
+  linkOnly        Boolean @default(false) @map("link_only")
+  syncUserProfile Boolean @default(true)  @map("sync_user_profile")
 
-  // SAML broker config (for providerType="saml")
+  // MySQL: Json? maps to JSON column
   samlConfig Json? @map("saml_config")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -572,10 +574,10 @@ model IdentityProvider {
 // ─── FEDERATED IDENTITIES ────────────────────────────────
 
 model FederatedIdentity {
-  id                 String  @id @default(uuid())
-  userId             String  @map("user_id")
-  identityProviderId String  @map("identity_provider_id")
-  externalUserId     String  @map("external_user_id")
+  id                 String  @id @default(uuid()) @db.VarChar(36)
+  userId             String  @map("user_id") @db.VarChar(36)
+  identityProviderId String  @map("identity_provider_id") @db.VarChar(36)
+  externalUserId     String  @map("external_user_id") @db.VarChar(191)
   externalUsername   String? @map("external_username")
   externalEmail      String? @map("external_email")
 
@@ -593,20 +595,22 @@ model FederatedIdentity {
 // ─── SAML SERVICE PROVIDERS (IdP mode) ──────────────────
 
 model SamlServiceProvider {
-  id          String  @id @default(uuid())
-  realmId     String  @map("realm_id")
-  entityId    String  @map("entity_id")
-  name        String
-  enabled     Boolean @default(true)
+  id       String  @id @default(uuid()) @db.VarChar(36)
+  realmId  String  @map("realm_id") @db.VarChar(36)
+  entityId String  @map("entity_id") @db.VarChar(191)
+  name     String
+  enabled  Boolean @default(true)
 
-  acsUrl              String   @map("acs_url")
-  sloUrl              String?  @map("slo_url")
-  certificate         String?
-  nameIdFormat        String   @default("urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress") @map("name_id_format")
-  signAssertions      Boolean  @default(true) @map("sign_assertions")
-  signResponses       Boolean  @default(true) @map("sign_responses")
-  attributeStatements Json     @default("{}") @map("attribute_statements")
-  validRedirectUris   String[] @map("valid_redirect_uris")
+  acsUrl         String  @map("acs_url") @db.Text
+  sloUrl         String? @map("slo_url") @db.Text
+  certificate    String? @db.Text
+  nameIdFormat   String  @default("urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress") @map("name_id_format")
+  signAssertions Boolean @default(true) @map("sign_assertions")
+  signResponses  Boolean @default(true) @map("sign_responses")
+  // MySQL: Json maps to JSON column
+  attributeStatements Json    @default("{}") @map("attribute_statements")
+  // MySQL: JSON array
+  validRedirectUris   Json    @default("[]") @map("valid_redirect_uris")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -620,9 +624,9 @@ model SamlServiceProvider {
 // ─── CLIENT SCOPES & PROTOCOL MAPPERS ──────────────────
 
 model ClientScope {
-  id          String  @id @default(uuid())
-  realmId     String  @map("realm_id")
-  name        String
+  id          String  @id @default(uuid()) @db.VarChar(36)
+  realmId     String  @map("realm_id") @db.VarChar(36)
+  name        String  @db.VarChar(191)
   description String?
   protocol    String  @default("openid-connect")
   builtIn     Boolean @default(false) @map("built_in")
@@ -630,21 +634,22 @@ model ClientScope {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  realm            Realm              @relation(fields: [realmId], references: [id], onDelete: Cascade)
-  protocolMappers  ProtocolMapper[]
-  defaultClients   ClientDefaultScope[]
-  optionalClients  ClientOptionalScope[]
+  realm           Realm                @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  protocolMappers ProtocolMapper[]
+  defaultClients  ClientDefaultScope[]
+  optionalClients ClientOptionalScope[]
 
   @@unique([realmId, name])
   @@map("client_scopes")
 }
 
 model ProtocolMapper {
-  id            String @id @default(uuid())
-  clientScopeId String @map("client_scope_id")
-  name          String
+  id            String @id @default(uuid()) @db.VarChar(36)
+  clientScopeId String @map("client_scope_id") @db.VarChar(36)
+  name          String @db.VarChar(191)
   protocol      String @default("openid-connect")
   mapperType    String @map("mapper_type")
+  // MySQL: Json maps to JSON column
   config        Json   @default("{}")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -657,9 +662,9 @@ model ProtocolMapper {
 }
 
 model ClientDefaultScope {
-  id            String @id @default(uuid())
-  clientId      String @map("client_id")
-  clientScopeId String @map("client_scope_id")
+  id            String @id @default(uuid()) @db.VarChar(36)
+  clientId      String @map("client_id") @db.VarChar(36)
+  clientScopeId String @map("client_scope_id") @db.VarChar(36)
 
   client      Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
   clientScope ClientScope @relation(fields: [clientScopeId], references: [id], onDelete: Cascade)
@@ -669,9 +674,9 @@ model ClientDefaultScope {
 }
 
 model ClientOptionalScope {
-  id            String @id @default(uuid())
-  clientId      String @map("client_id")
-  clientScopeId String @map("client_scope_id")
+  id            String @id @default(uuid()) @db.VarChar(36)
+  clientId      String @map("client_id") @db.VarChar(36)
+  clientScopeId String @map("client_scope_id") @db.VarChar(36)
 
   client      Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
   clientScope ClientScope @relation(fields: [clientScopeId], references: [id], onDelete: Cascade)
@@ -683,13 +688,13 @@ model ClientOptionalScope {
 // ─── DEVICE AUTHORIZATION GRANT ─────────────────────────
 
 model DeviceCode {
-  id           String    @id @default(uuid())
-  deviceCode   String    @unique @map("device_code")
-  userCode     String    @unique @map("user_code")
-  clientId     String    @map("client_id")
-  realmId      String    @map("realm_id")
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  deviceCode   String    @unique @map("device_code") @db.VarChar(191)
+  userCode     String    @unique @map("user_code") @db.VarChar(191)
+  clientId     String    @map("client_id") @db.VarChar(36)
+  realmId      String    @map("realm_id") @db.VarChar(36)
   scope        String?
-  userId       String?   @map("user_id")
+  userId       String?   @map("user_id") @db.VarChar(36)
   approved     Boolean   @default(false)
   denied       Boolean   @default(false)
   interval     Int       @default(5)
@@ -704,14 +709,15 @@ model DeviceCode {
 // ─── LOGIN EVENTS ────────────────────────────────────────
 
 model LoginEvent {
-  id        String   @id @default(uuid())
-  realmId   String   @map("realm_id")
-  userId    String?  @map("user_id")
-  sessionId String?  @map("session_id")
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  realmId   String   @map("realm_id") @db.VarChar(36)
+  userId    String?  @map("user_id") @db.VarChar(36)
+  sessionId String?  @map("session_id") @db.VarChar(36)
   type      String
-  clientId  String?  @map("client_id")
+  clientId  String?  @map("client_id") @db.VarChar(36)
   ipAddress String?  @map("ip_address")
   error     String?
+  // MySQL: Json? maps to JSON column
   details   Json?
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -726,35 +732,35 @@ model LoginEvent {
 // ─── USER FEDERATION ─────────────────────────────────────
 
 model UserFederation {
-  id              String  @id @default(uuid())
-  realmId         String  @map("realm_id")
-  name            String
-  providerType    String  @default("ldap") @map("provider_type")
-  enabled         Boolean @default(true)
-  priority        Int     @default(0)
+  id           String  @id @default(uuid()) @db.VarChar(36)
+  realmId      String  @map("realm_id") @db.VarChar(36)
+  name         String  @db.VarChar(191)
+  providerType String  @default("ldap") @map("provider_type")
+  enabled      Boolean @default(true)
+  priority     Int     @default(0)
 
   // LDAP connection
-  connectionUrl      String  @map("connection_url")
-  bindDn             String  @map("bind_dn")
-  bindCredential     String  @map("bind_credential")
-  startTls           Boolean @default(false) @map("start_tls")
-  connectionTimeout  Int     @default(5000) @map("connection_timeout")
+  connectionUrl     String  @map("connection_url")
+  bindDn            String  @map("bind_dn")
+  bindCredential    String  @map("bind_credential")
+  startTls          Boolean @default(false) @map("start_tls")
+  connectionTimeout Int     @default(5000) @map("connection_timeout")
 
   // LDAP search
-  usersDn            String  @map("users_dn")
-  userObjectClass    String  @default("inetOrgPerson") @map("user_object_class")
-  usernameLdapAttr   String  @default("uid") @map("username_ldap_attr")
-  rdnLdapAttr        String  @default("uid") @map("rdn_ldap_attr")
-  uuidLdapAttr       String  @default("entryUUID") @map("uuid_ldap_attr")
-  searchFilter       String? @map("search_filter")
+  usersDn          String  @map("users_dn")
+  userObjectClass  String  @default("inetOrgPerson") @map("user_object_class")
+  usernameLdapAttr String  @default("uid") @map("username_ldap_attr")
+  rdnLdapAttr      String  @default("uid") @map("rdn_ldap_attr")
+  uuidLdapAttr     String  @default("entryUUID") @map("uuid_ldap_attr")
+  searchFilter     String? @map("search_filter")
 
   // Sync
-  syncMode       String  @default("on_demand") @map("sync_mode")
-  syncPeriod     Int     @default(3600) @map("sync_period")
+  syncMode       String    @default("on_demand") @map("sync_mode")
+  syncPeriod     Int       @default(3600) @map("sync_period")
   lastSyncAt     DateTime? @map("last_sync_at")
   lastSyncStatus String?   @map("last_sync_status")
-  importEnabled  Boolean @default(true)  @map("import_enabled")
-  editMode       String  @default("READ_ONLY") @map("edit_mode")
+  importEnabled  Boolean   @default(true) @map("import_enabled")
+  editMode       String    @default("READ_ONLY") @map("edit_mode")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -767,13 +773,14 @@ model UserFederation {
 }
 
 model UserFederationMapper {
-  id            String  @id @default(uuid())
-  federationId  String  @map("federation_id")
-  name          String
-  mapperType    String  @map("mapper_type")
-  ldapAttribute String  @map("ldap_attribute")
-  userAttribute String  @map("user_attribute")
-  config        Json    @default("{}")
+  id            String @id @default(uuid()) @db.VarChar(36)
+  federationId  String @map("federation_id") @db.VarChar(36)
+  name          String @db.VarChar(191)
+  mapperType    String @map("mapper_type")
+  ldapAttribute String @map("ldap_attribute")
+  userAttribute String @map("user_attribute")
+  // MySQL: Json maps to JSON column
+  config        Json   @default("{}")
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -786,9 +793,10 @@ model UserFederationMapper {
 // ─── PENDING ACTIONS (cluster-safe ephemeral state) ─────
 
 model PendingAction {
-  id        String   @id @default(uuid())
-  tokenHash String   @unique @map("token_hash")
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  tokenHash String   @unique @map("token_hash") @db.VarChar(191)
   type      String   // "mfa_challenge" | "consent_request"
+  // MySQL: Json maps to JSON column
   data      Json
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
@@ -800,13 +808,14 @@ model PendingAction {
 // ─── WEBHOOKS ────────────────────────────────────────────
 
 model Webhook {
-  id          String   @id @default(uuid())
-  realmId     String   @map("realm_id")
-  realm       Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
-  url         String
+  id          String  @id @default(uuid()) @db.VarChar(36)
+  realmId     String  @map("realm_id") @db.VarChar(36)
+  realm       Realm   @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  url         String  @db.Text
   secret      String
-  enabled     Boolean  @default(true)
-  eventTypes  String[] @map("event_types")
+  enabled     Boolean @default(true)
+  // MySQL: JSON array
+  eventTypes  Json    @default("[]") @map("event_types")
   description String?
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -818,13 +827,14 @@ model Webhook {
 }
 
 model WebhookDelivery {
-  id          String   @id @default(uuid())
-  webhookId   String   @map("webhook_id")
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  webhookId   String   @map("webhook_id") @db.VarChar(36)
   webhook     Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
   eventType   String   @map("event_type")
+  // MySQL: Json maps to JSON column
   payload     Json
   statusCode  Int?     @map("status_code")
-  response    String?
+  response    String?  @db.Text
   success     Boolean  @default(false)
   attempts    Int      @default(0)
   lastAttempt DateTime? @map("last_attempt")
@@ -838,12 +848,13 @@ model WebhookDelivery {
 // ─── ADMIN EVENTS ────────────────────────────────────────
 
 model AdminEvent {
-  id             String   @id @default(uuid())
-  realmId        String   @map("realm_id")
-  adminUserId    String   @map("admin_user_id")
+  id             String   @id @default(uuid()) @db.VarChar(36)
+  realmId        String   @map("realm_id") @db.VarChar(36)
+  adminUserId    String   @map("admin_user_id") @db.VarChar(36)
   operationType  String   @map("operation_type")
   resourceType   String   @map("resource_type")
   resourcePath   String   @map("resource_path")
+  // MySQL: Json? maps to JSON column
   representation Json?
   ipAddress      String?  @map("ip_address")
   createdAt      DateTime @default(now()) @map("created_at")
@@ -858,18 +869,18 @@ model AdminEvent {
 // ─── IMPERSONATION SESSIONS ──────────────────────────────
 
 model ImpersonationSession {
-  id            String   @id @default(uuid())
-  realmId       String   @map("realm_id")
-  adminUserId   String   @map("admin_user_id")
-  targetUserId  String   @map("target_user_id")
-  sessionId     String   @map("session_id")
-  active        Boolean  @default(true)
-  expiresAt     DateTime @map("expires_at")
-  endedAt       DateTime? @map("ended_at")
+  id           String    @id @default(uuid()) @db.VarChar(36)
+  realmId      String    @map("realm_id") @db.VarChar(36)
+  adminUserId  String    @map("admin_user_id") @db.VarChar(36)
+  targetUserId String    @map("target_user_id") @db.VarChar(36)
+  sessionId    String    @map("session_id") @db.VarChar(36)
+  active       Boolean   @default(true)
+  expiresAt    DateTime  @map("expires_at")
+  endedAt      DateTime? @map("ended_at")
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  realm       Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
 
   @@index([realmId, adminUserId])
   @@index([realmId, targetUserId])
@@ -880,23 +891,24 @@ model ImpersonationSession {
 // ─── AUDIT LOG STREAMS ───────────────────────────────────
 
 model AuditLogStream {
-  id          String  @id @default(uuid())
-  realmId     String  @map("realm_id")
-  realm       Realm   @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  id      String @id @default(uuid()) @db.VarChar(36)
+  realmId String @map("realm_id") @db.VarChar(36)
+  realm   Realm  @relation(fields: [realmId], references: [id], onDelete: Cascade)
 
-  name        String
-  streamType  String  @map("stream_type")   // "syslog" | "http"
-  enabled     Boolean @default(true)
+  name       String
+  streamType String  @map("stream_type") // "syslog" | "http"
+  enabled    Boolean @default(true)
 
   // HTTP destination
-  url         String?
+  url         String? @db.Text
+  // MySQL: Json? maps to JSON column
   httpHeaders Json?   @map("http_headers")
 
   // Syslog destination
   syslogHost     String? @map("syslog_host")
   syslogPort     Int?    @map("syslog_port")
-  syslogProtocol String  @default("udp")  @map("syslog_protocol")  // "udp" | "tcp"
-  syslogFacility Int     @default(16)     @map("syslog_facility")   // local0
+  syslogProtocol String  @default("udp") @map("syslog_protocol") // "udp" | "tcp"
+  syslogFacility Int     @default(16)    @map("syslog_facility")  // local0
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt      @map("updated_at")
@@ -907,23 +919,23 @@ model AuditLogStream {
 // ─── ABAC POLICIES ───────────────────────────────────────
 
 model Policy {
-  id          String   @id @default(uuid())
-  realmId     String   @map("realm_id")
-  realm       Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
-  name        String
+  id          String  @id @default(uuid()) @db.VarChar(36)
+  realmId     String  @map("realm_id") @db.VarChar(36)
+  realm       Realm   @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  name        String  @db.VarChar(191)
   description String?
-  enabled     Boolean  @default(true)
-  effect      String   @default("ALLOW")   // "ALLOW" | "DENY"
-  priority    Int      @default(0)
+  enabled     Boolean @default(true)
+  effect      String  @default("ALLOW") // "ALLOW" | "DENY"
+  priority    Int     @default(0)
 
-  // Conditions (JSON)
-  subjectConditions     Json? @map("subject_conditions")      // user attributes, roles, groups
-  resourceConditions    Json? @map("resource_conditions")     // resource type, owner, attributes
-  actionConditions      Json? @map("action_conditions")       // read, write, delete, etc.
-  environmentConditions Json? @map("environment_conditions")  // time, IP range, etc.
+  // Conditions — MySQL: Json? maps to JSON column
+  subjectConditions     Json? @map("subject_conditions")
+  resourceConditions    Json? @map("resource_conditions")
+  actionConditions      Json? @map("action_conditions")
+  environmentConditions Json? @map("environment_conditions")
 
-  logic    String  @default("AND")  // "AND" | "OR" for combining conditions
-  clientId String? @map("client_id") // optional: scope to specific client
+  logic    String  @default("AND") // "AND" | "OR"
+  clientId String? @map("client_id") @db.VarChar(36)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -936,20 +948,21 @@ model Policy {
 // ─── CUSTOM ATTRIBUTES ──────────────────────────────────
 
 model CustomAttribute {
-  id          String   @id @default(uuid())
-  realmId     String   @map("realm_id")
-  realm       Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
-  name        String
-  displayName String   @map("display_name")
-  type        String   @default("text")
-  required    Boolean  @default(false)
-  showOnRegistration Boolean @default(false) @map("show_on_registration")
-  showOnProfile      Boolean @default(true)  @map("show_on_profile")
-  options     Json?
-  mapToOidcClaim String? @map("map_to_oidc_claim")
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt      @map("updated_at")
+  id                 String   @id @default(uuid()) @db.VarChar(36)
+  realmId            String   @map("realm_id") @db.VarChar(36)
+  realm              Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  name               String   @db.VarChar(191)
+  displayName        String   @map("display_name")
+  type               String   @default("text")
+  required           Boolean  @default(false)
+  showOnRegistration Boolean  @default(false) @map("show_on_registration")
+  showOnProfile      Boolean  @default(true)  @map("show_on_profile")
+  // MySQL: Json? maps to JSON column
+  options            Json?
+  mapToOidcClaim     String?  @map("map_to_oidc_claim")
+  sortOrder          Int      @default(0) @map("sort_order")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt      @map("updated_at")
 
   userAttributes UserAttribute[]
 
@@ -958,14 +971,14 @@ model CustomAttribute {
 }
 
 model UserAttribute {
-  id          String   @id @default(uuid())
-  userId      String   @map("user_id")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  attributeId String   @map("attribute_id")
+  id          String          @id @default(uuid()) @db.VarChar(36)
+  userId      String          @map("user_id") @db.VarChar(36)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attributeId String          @map("attribute_id") @db.VarChar(36)
   attribute   CustomAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
   value       String
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt      @map("updated_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt      @map("updated_at")
 
   @@unique([userId, attributeId])
   @@index([userId])
@@ -975,16 +988,15 @@ model UserAttribute {
 // ─── PLUGINS ──────────────────────────────────────────────
 
 model InstalledPlugin {
-  id          String   @id @default(uuid())
-  name        String   @unique
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  name        String   @unique @db.VarChar(191)
   version     String
   type        String   // "auth-provider" | "event-listener" | "token-enrichment" | "theme"
   enabled     Boolean  @default(true)
+  // MySQL: Json? maps to JSON column
   config      Json?
   installedAt DateTime @default(now()) @map("installed_at")
   updatedAt   DateTime @updatedAt      @map("updated_at")
 
   @@map("installed_plugins")
 }
-
-

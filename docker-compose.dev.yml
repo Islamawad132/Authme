@@ -1,5 +1,6 @@
 services:
-  # Redis is optional. Uncomment to enable the Redis cache/session layer.
+  # ── Redis (optional) ──────────────────────────────────────────────────────
+  # Uncomment to enable the Redis cache/session layer.
   # redis:
   #   image: redis:7-alpine
   #   command: ["redis-server", "--save", "", "--appendonly", "no"]
@@ -11,6 +12,7 @@ services:
   #     timeout: 3s
   #     retries: 5
 
+  # ── PostgreSQL (default / recommended for production) ─────────────────────
   db:
     image: postgres:16-alpine
     environment:
@@ -27,12 +29,45 @@ services:
       timeout: 3s
       retries: 5
 
+  # ── MySQL 8 (alternative — uncomment and comment-out the postgres service) ─
+  # Before switching: run ./scripts/use-mysql.sh to activate the MySQL schema.
+  # mysql:
+  #   image: mysql:8.0
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: authme
+  #     MYSQL_DATABASE: authme
+  #     MYSQL_USER: authme
+  #     MYSQL_PASSWORD: authme
+  #   command: >
+  #     --character-set-server=utf8mb4
+  #     --collation-server=utf8mb4_unicode_ci
+  #   ports:
+  #     - "3306:3306"
+  #   volumes:
+  #     - mysqldata:/var/lib/mysql
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "authme", "-pauthme"]
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 10
+
+  # ── SQLite (development only — no database service required) ──────────────
+  # SQLite requires no Docker service.  Simply set:
+  #   DATABASE_URL=file:./dev.db
+  # in your .env file and run: ./scripts/use-sqlite.sh
+  # Then: npx prisma migrate dev --name init
+
   app:
     build: .
     ports:
       - "3000:3000"
     environment:
+      # PostgreSQL (default):
       DATABASE_URL: postgresql://authme:authme@db:5432/authme
+      # MySQL — uncomment when using the mysql service above:
+      # DATABASE_URL: mysql://authme:authme@mysql:3306/authme
+      # SQLite — not recommended inside Docker; use host-mode dev instead:
+      # DATABASE_URL: file:./dev.db
       PORT: "3000"
       NODE_ENV: production
       ADMIN_API_KEY: ${ADMIN_API_KEY:-change-me-in-production}
@@ -51,3 +86,4 @@ services:
 
 volumes:
   pgdata:
+  # mysqldata:  # uncomment when using the MySQL service
