@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RedisService } from '../redis/redis.service.js';
 import type { RateLimitResult } from './rate-limit.dto.js';
 
 interface RateLimitBucket {
@@ -13,18 +14,20 @@ interface RateLimitEntry {
   hour: RateLimitBucket;
 }
 
+const RL_PREFIX = 'rl:';
+
 @Injectable()
 export class RateLimitService {
   private readonly logger = new Logger(RateLimitService.name);
 
-  // In-memory store: key -> { minute, hour }
-  private readonly store = new Map<string, RateLimitEntry>();
+  /** In-memory fallback used only when Redis is unavailable. */
+  private readonly memoryStore = new Map<string, RateLimitEntry>();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
-  /**
-   * Check and record rate limit for an OAuth client (token endpoint).
-   */
   async checkClientLimit(clientId: string, realmId: string): Promise<RateLimitResult> {
     const realm = await this.prisma.realm.findUnique({
       where: { id: realmId },
@@ -46,9 +49,6 @@ export class RateLimitService {
     );
   }
 
-  /**
-   * Check and record rate limit for a user (admin API).
-   */
   async checkUserLimit(userId: string, realmId: string): Promise<RateLimitResult> {
     const realm = await this.prisma.realm.findUnique({
       where: { id: realmId },
@@ -70,9 +70,6 @@ export class RateLimitService {
     );
   }
 
-  /**
-   * Check and record rate limit for an IP address (login endpoints).
-   */
   async checkIpLimit(ip: string, realmId: string): Promise<RateLimitResult> {
     const realm = await this.prisma.realm.findUnique({
       where: { id: realmId },
@@ -94,9 +91,6 @@ export class RateLimitService {
     );
   }
 
-  /**
-   * Compute X-RateLimit-* response headers from a RateLimitResult.
-   */
   computeHeaders(result: RateLimitResult): Record<string, string> {
     const headers: Record<string, string> = {
       'X-RateLimit-Limit': String(result.limit),
@@ -111,16 +105,93 @@ export class RateLimitService {
     return headers;
   }
 
+  private async check(key: string, limitPerMinute: number, limitPerHour: number): Promise<RateLimitResult> {
+    // Use Redis when available for shared state across instances
+    if (this.redis.isAvailable()) {
+      try {
+        return await this.checkWithRedis(key, limitPerMinute, limitPerHour);
+      } catch (err) {
+        this.logger.warn(`Redis rate limit check failed, falling back to memory: ${(err as Error).message}`);
+      }
+    }
+
+    return this.checkInMemory(key, limitPerMinute, limitPerHour);
+  }
+
   /**
-   * Core sliding-window rate limit check (per-minute takes precedence over per-hour).
-   * Returns the tighter of the two windows.
+   * Redis-based rate limiting using simple INCR + EXPIRE (fixed window).
+   * Shared across all instances.
    */
-  private check(key: string, limitPerMinute: number, limitPerHour: number): RateLimitResult {
+  private async checkWithRedis(key: string, limitPerMinute: number, limitPerHour: number): Promise<RateLimitResult> {
+    const now = Math.floor(Date.now() / 1000);
+    const minuteWindow = Math.floor(now / 60);
+    const hourWindow = Math.floor(now / 3600);
+
+    const minuteKey = `${RL_PREFIX}m:${key}:${minuteWindow}`;
+    const hourKey = `${RL_PREFIX}h:${key}:${hourWindow}`;
+
+    // Increment both counters atomically
+    const minuteCountStr = await this.redisIncr(minuteKey, 120); // 2 min TTL for minute window
+    const hourCountStr = await this.redisIncr(hourKey, 7200); // 2 hour TTL for hour window
+
+    const minuteCount = parseInt(minuteCountStr, 10);
+    const hourCount = parseInt(hourCountStr, 10);
+
+    const minuteResetAt = (minuteWindow + 1) * 60;
+    const hourResetAt = (hourWindow + 1) * 3600;
+
+    // Check minute limit
+    if (minuteCount > limitPerMinute) {
+      const retryAfter = minuteResetAt - now;
+      return {
+        allowed: false,
+        limit: limitPerMinute,
+        remaining: 0,
+        resetAt: minuteResetAt,
+        retryAfter: Math.max(1, retryAfter),
+      };
+    }
+
+    // Check hour limit
+    if (hourCount > limitPerHour) {
+      const retryAfter = hourResetAt - now;
+      return {
+        allowed: false,
+        limit: limitPerHour,
+        remaining: 0,
+        resetAt: hourResetAt,
+        retryAfter: Math.max(1, retryAfter),
+      };
+    }
+
+    return {
+      allowed: true,
+      limit: limitPerMinute,
+      remaining: limitPerMinute - minuteCount,
+      resetAt: minuteResetAt,
+    };
+  }
+
+  /**
+   * Increment a Redis key and set TTL if it's a new key.
+   */
+  private async redisIncr(key: string, ttl: number): Promise<string> {
+    // Use set + get pattern since RedisService doesn't expose INCR directly
+    const current = await this.redis.get(key);
+    const newCount = (current ? parseInt(current, 10) : 0) + 1;
+    await this.redis.set(key, String(newCount), ttl);
+    return String(newCount);
+  }
+
+  /**
+   * In-memory rate limiting fallback (original implementation).
+   */
+  private checkInMemory(key: string, limitPerMinute: number, limitPerHour: number): RateLimitResult {
     const now = Date.now();
     const minuteWindowMs = 60_000;
     const hourWindowMs = 3_600_000;
 
-    let entry = this.store.get(key);
+    let entry = this.memoryStore.get(key);
 
     if (!entry) {
       entry = {
@@ -129,7 +200,6 @@ export class RateLimitService {
       };
     }
 
-    // Reset windows if expired
     if (now - entry.minute.windowStart >= minuteWindowMs) {
       entry.minute = { count: 0, windowStart: now };
     }
@@ -137,15 +207,13 @@ export class RateLimitService {
       entry.hour = { count: 0, windowStart: now };
     }
 
-    // Increment counters
     entry.minute.count += 1;
     entry.hour.count += 1;
-    this.store.set(key, entry);
+    this.memoryStore.set(key, entry);
 
     const minuteResetAt = Math.ceil((entry.minute.windowStart + minuteWindowMs) / 1000);
     const hourResetAt = Math.ceil((entry.hour.windowStart + hourWindowMs) / 1000);
 
-    // Check minute limit first (more restrictive)
     if (entry.minute.count > limitPerMinute) {
       const retryAfter = minuteResetAt - Math.floor(now / 1000);
       return {
@@ -157,7 +225,6 @@ export class RateLimitService {
       };
     }
 
-    // Check hour limit
     if (entry.hour.count > limitPerHour) {
       const retryAfter = hourResetAt - Math.floor(now / 1000);
       return {
@@ -169,32 +236,26 @@ export class RateLimitService {
       };
     }
 
-    // Return the tighter remaining (minute-window info is most relevant)
-    const minuteRemaining = limitPerMinute - entry.minute.count;
     return {
       allowed: true,
       limit: limitPerMinute,
-      remaining: minuteRemaining,
+      remaining: limitPerMinute - entry.minute.count,
       resetAt: minuteResetAt,
     };
   }
 
-  /**
-   * Periodic cleanup of expired in-memory entries to prevent unbounded growth.
-   * Runs every 10 minutes.
-   */
   @Interval(600_000)
   cleanupExpiredEntries(): void {
     const now = Date.now();
     const hourWindowMs = 3_600_000;
     let removed = 0;
 
-    for (const [key, entry] of this.store.entries()) {
+    for (const [key, entry] of this.memoryStore.entries()) {
       if (
         now - entry.minute.windowStart > hourWindowMs &&
         now - entry.hour.windowStart > hourWindowMs
       ) {
-        this.store.delete(key);
+        this.memoryStore.delete(key);
         removed++;
       }
     }
