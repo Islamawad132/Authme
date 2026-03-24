@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { makeRealm, makeUser, makeClient } from './data';
+import { makeRealm, makeUser, makeClient, makeLoginEvent, makeAdminEvent, makeStats } from './data';
 
 const BASE = '/admin';
 
@@ -107,5 +107,32 @@ export const handlers = [
 
   http.delete(`${BASE}/realms/:name/clients/:id`, () => {
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  // Stats
+  http.get(`${BASE}/realms/:name/stats`, () => {
+    return HttpResponse.json(makeStats());
+  }),
+
+  // Events (for dashboard)
+  http.get(`${BASE}/realms/:name/events`, () => {
+    return HttpResponse.json([
+      makeLoginEvent({ id: 'ev-1', type: 'LOGIN', userId: 'user-1' }),
+      makeLoginEvent({ id: 'ev-2', type: 'LOGIN_ERROR', userId: 'user-2', error: 'Invalid credentials' }),
+    ]);
+  }),
+
+  http.get(`${BASE}/realms/:name/admin-events`, () => {
+    return HttpResponse.json([
+      makeAdminEvent({ id: 'adm-1', operationType: 'CREATE', resourceType: 'USER', resourcePath: '/users/user-1' }),
+    ]);
+  }),
+
+  // Health
+  http.get('/health/ready', () => {
+    return HttpResponse.json({
+      status: 'ok',
+      info: { database: { status: 'up' }, memory_heap: { status: 'up' } },
+    });
   }),
 ];
