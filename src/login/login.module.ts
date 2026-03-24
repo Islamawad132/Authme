@@ -5,9 +5,16 @@ import { OAuthModule } from '../oauth/oauth.module.js';
 import { UserFederationModule } from '../user-federation/user-federation.module.js';
 import { ThemeModule } from '../theme/theme.module.js';
 import { CustomAttributesModule } from '../custom-attributes/custom-attributes.module.js';
+import { RiskAssessmentModule } from '../risk-assessment/risk-assessment.module.js';
 
 @Module({
-  imports: [forwardRef(() => OAuthModule), UserFederationModule, ThemeModule, CustomAttributesModule],
+  imports: [
+    forwardRef(() => OAuthModule),
+    UserFederationModule,
+    ThemeModule,
+    CustomAttributesModule,
+    RiskAssessmentModule,
+  ],
   controllers: [LoginController],
   providers: [LoginService],
   exports: [LoginService],
