@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { makeRealm, makeUser, makeClient, makeLoginEvent, makeAdminEvent, makeStats } from './data';
+import { makeRealm, makeUser, makeClient, makeLoginEvent, makeAdminEvent, makeStats, makeAuthFlow } from './data';
 
 const BASE = '/admin';
 
@@ -126,6 +126,39 @@ export const handlers = [
     return HttpResponse.json([
       makeAdminEvent({ id: 'adm-1', operationType: 'CREATE', resourceType: 'USER', resourcePath: '/users/user-1' }),
     ]);
+  }),
+
+  // Auth Flows
+  http.get(`${BASE}/realms/:name/auth-flows`, () => {
+    return HttpResponse.json([
+      makeAuthFlow({ id: 'flow-1', name: 'Basic Login', isDefault: true }),
+      makeAuthFlow({ id: 'flow-2', name: 'MFA Required', isDefault: false }),
+    ]);
+  }),
+
+  http.get(`${BASE}/realms/:name/auth-flows/:id`, ({ params }) => {
+    return HttpResponse.json(
+      makeAuthFlow({ id: params.id as string }),
+    );
+  }),
+
+  http.post(`${BASE}/realms/:name/auth-flows`, async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json(
+      makeAuthFlow({ ...body, id: 'new-flow-1' }),
+      { status: 201 },
+    );
+  }),
+
+  http.put(`${BASE}/realms/:name/auth-flows/:id`, async ({ params, request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json(
+      makeAuthFlow({ id: params.id as string, ...body }),
+    );
+  }),
+
+  http.delete(`${BASE}/realms/:name/auth-flows/:id`, () => {
+    return new HttpResponse(null, { status: 204 });
   }),
 
   // Health
