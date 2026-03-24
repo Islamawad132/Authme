@@ -42,6 +42,8 @@ import { ThemeModule } from './theme/theme.module.js';
 import { WebhooksModule } from './webhooks/webhooks.module.js';
 import { RateLimitModule } from './rate-limit/rate-limit.module.js';
 import { ImpersonationModule } from './impersonation/impersonation.module.js';
+import { RedisModule } from './redis/redis.module.js';
+import { CacheModule } from './cache/cache.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
 import { AdminEventInterceptor } from './events/admin-event.interceptor.js';
 import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
@@ -59,6 +61,8 @@ import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
       rootPath: join(__dirname, 'admin-ui'),
       serveRoot: '/console',
     }),
+    RedisModule,
+    CacheModule,
     PrismaModule,
     CryptoModule,
     EmailModule,

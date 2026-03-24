@@ -1,4 +1,16 @@
 services:
+  # Redis is optional. Uncomment to enable the Redis cache/session layer.
+  # redis:
+  #   image: redis:7-alpine
+  #   command: ["redis-server", "--save", "", "--appendonly", "no"]
+  #   ports:
+  #     - "6379:6379"
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 5
+
   db:
     image: postgres:16-alpine
     environment:
@@ -29,6 +41,9 @@ services:
       THROTTLE_TTL: ${THROTTLE_TTL:-60000}
       THROTTLE_LIMIT: ${THROTTLE_LIMIT:-100}
       BASE_URL: ${BASE_URL:-http://localhost:3000}
+      # Uncomment to enable Redis cache (requires the redis service above):
+      # REDIS_URL: redis://redis:6379
+      # SESSION_STORE: ${SESSION_STORE:-database}
     depends_on:
       db:
         condition: service_healthy
