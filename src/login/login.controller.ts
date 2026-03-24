@@ -65,6 +65,7 @@ export class LoginController {
   showLoginForm(
     @CurrentRealm() realm: Realm,
     @Query() query: Record<string, string>,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     this.themeRender.render(res, realm, 'login', 'login', {
@@ -80,7 +81,7 @@ export class LoginController {
       code_challenge_method: query['code_challenge_method'] ?? '',
       error: query['error'] ?? '',
       info: query['info'] ?? '',
-    });
+    }, req);
   }
 
   @Post('login')
@@ -257,12 +258,13 @@ export class LoginController {
   showTotpForm(
     @CurrentRealm() realm: Realm,
     @Query('error') error: string,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     this.themeRender.render(res, realm, 'login', 'totp', {
       pageTitle: 'Two-Factor Authentication',
       error: error ?? '',
-    });
+    }, req);
   }
 
   @Post('totp')
@@ -325,6 +327,7 @@ export class LoginController {
   showChangePasswordForm(
     @CurrentRealm() realm: Realm,
     @Query() query: Record<string, string>,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     const policyHints: string[] = [];
@@ -340,7 +343,7 @@ export class LoginController {
       error: query['error'] ?? '',
       info: query['info'] ?? '',
       policyHints: policyHints.length > 0 ? policyHints : null,
-    });
+    }, req);
   }
 
   @Post('change-password')
@@ -423,6 +426,7 @@ export class LoginController {
   async showConsentForm(
     @CurrentRealm() realm: Realm,
     @Query('req') reqId: string,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     if (!reqId) {
@@ -445,7 +449,7 @@ export class LoginController {
       clientName: consentReq.clientName,
       scopes: scopeDescriptions,
       authReqId: newReqId,
-    });
+    }, req);
   }
 
   @Post('consent')
@@ -500,6 +504,7 @@ export class LoginController {
   showRegistrationForm(
     @CurrentRealm() realm: Realm,
     @Query() query: Record<string, string>,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     if (!realm.registrationAllowed) {
@@ -533,7 +538,7 @@ export class LoginController {
       nonce: query['nonce'] ?? '',
       code_challenge: query['code_challenge'] ?? '',
       code_challenge_method: query['code_challenge_method'] ?? '',
-    });
+    }, req);
   }
 
   @Post('register')
@@ -689,6 +694,7 @@ export class LoginController {
   async verifyEmail(
     @CurrentRealm() realm: Realm,
     @Query('token') token: string,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     if (!token) {
@@ -696,7 +702,7 @@ export class LoginController {
         pageTitle: 'Email Verification',
         success: false,
         error: 'Missing verification token.',
-      });
+      }, req);
     }
 
     const result = await this.verificationService.validateToken(token, 'email_verification');
@@ -705,7 +711,7 @@ export class LoginController {
         pageTitle: 'Email Verification',
         success: false,
         error: 'This verification link is invalid or has expired.',
-      });
+      }, req);
     }
 
     await this.prisma.user.update({
@@ -716,7 +722,7 @@ export class LoginController {
     this.themeRender.render(res, realm, 'login', 'verify-email', {
       pageTitle: 'Email Verification',
       success: true,
-    });
+    }, req);
   }
 
   // ─── FORGOT / RESET PASSWORD ────────────────────────────
@@ -725,13 +731,14 @@ export class LoginController {
   showForgotPasswordForm(
     @CurrentRealm() realm: Realm,
     @Query() query: Record<string, string>,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     this.themeRender.render(res, realm, 'login', 'forgot-password', {
       pageTitle: 'Forgot Password',
       info: query['info'] ?? '',
       error: query['error'] ?? '',
-    });
+    }, req);
   }
 
   @Post('forgot-password')
@@ -782,6 +789,7 @@ export class LoginController {
     @CurrentRealm() realm: Realm,
     @Query('token') token: string,
     @Query('error') error: string,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     if (!token) {
@@ -789,7 +797,7 @@ export class LoginController {
         pageTitle: 'Reset Password',
         error: 'Missing reset token.',
         token: '',
-      });
+      }, req);
     }
 
     const tokenHash = this.crypto.sha256(token);
@@ -802,14 +810,14 @@ export class LoginController {
         pageTitle: 'Reset Password',
         error: 'This reset link is invalid or has expired.',
         token: '',
-      });
+      }, req);
     }
 
     this.themeRender.render(res, realm, 'login', 'reset-password', {
       pageTitle: 'Reset Password',
       token,
       error: error ?? '',
-    });
+    }, req);
   }
 
   @Post('reset-password')

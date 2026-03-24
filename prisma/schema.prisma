@@ -79,6 +79,10 @@ model Realm {
   accountTheme String  @default("authme") @map("account_theme") @db.VarChar(50)
   emailTheme   String  @default("authme") @map("email_theme") @db.VarChar(50)
 
+  // Internationalization (i18n)
+  defaultLocale    String   @default("en") @map("default_locale") @db.VarChar(10)
+  supportedLocales String[] @default(["en"]) @map("supported_locales")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

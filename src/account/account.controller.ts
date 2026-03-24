@@ -64,7 +64,7 @@ export class AccountController {
       mfaEnabled,
       success: query['success'] ?? '',
       error: query['error'] ?? '',
-    });
+    }, req);
   }
 
   @Post('profile')
@@ -189,7 +189,7 @@ export class AccountController {
       secret: setup.secret,
       error: query['error'] ?? '',
       info: query['info'] ?? '',
-    });
+    }, req);
   }
 
   @Post('totp-setup')
@@ -218,7 +218,7 @@ export class AccountController {
       pageTitle: 'Two-Factor Authentication Enabled',
       activated: true,
       recoveryCodes,
-    });
+    }, req);
   }
 
   @Post('totp-disable')
