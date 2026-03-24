@@ -3,6 +3,8 @@ import {
   Optional,
   UnauthorizedException,
   BadRequestException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
@@ -29,8 +31,6 @@ export interface TokenResponse {
   refresh_token?: string;
   scope?: string;
   id_token?: string;
-  error?: string;
-  mfa_token?: string;
 }
 
 @Injectable()
@@ -126,10 +126,14 @@ export class AuthService {
 
     if (mfaEnabled) {
       const mfaToken = await this.mfaService.createMfaChallenge(user.id, realm.id);
-      return {
-        error: 'mfa_required',
-        mfa_token: mfaToken,
-      } as TokenResponse;
+      throw new HttpException(
+        {
+          error: 'mfa_required',
+          error_description: 'MFA verification is required to complete authentication',
+          mfa_token: mfaToken,
+        },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     if (mfaRequired && !mfaEnabled) {
@@ -469,20 +473,24 @@ export class AuthService {
       throw new BadRequestException('access_denied');
     }
 
-    // Check for slow polling
+    // RFC 8628 §3.5 — enforce minimum polling interval.
+    // If the client polls before the required interval has elapsed, increase the
+    // interval by 5 seconds and return `slow_down` so the client backs off.
     if (deviceCode.lastPolledAt) {
       const elapsed = Date.now() - deviceCode.lastPolledAt.getTime();
       if (elapsed < deviceCode.interval * 1000) {
-        // Update poll timestamp anyway
         await this.prisma.deviceCode.update({
           where: { id: deviceCode.id },
-          data: { lastPolledAt: new Date() },
+          data: {
+            lastPolledAt: new Date(),
+            interval: deviceCode.interval + 5,
+          },
         });
         throw new BadRequestException('slow_down');
       }
     }
 
-    // Update poll timestamp
+    // Polling is within the allowed window — record the timestamp.
     await this.prisma.deviceCode.update({
       where: { id: deviceCode.id },
       data: { lastPolledAt: new Date() },

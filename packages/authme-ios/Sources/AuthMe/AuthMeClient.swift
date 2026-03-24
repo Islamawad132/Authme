@@ -31,6 +31,11 @@ public final class AuthMeClient: NSObject {
     private var oidcConfig: OIDCConfiguration?
     private var refreshTask: Task<Void, Never>?
 
+    /// Retained for the duration of an active login flow.
+    /// `ASWebAuthenticationSession` must be held by a strong reference or iOS will
+    /// silently cancel the session before the callback fires (see issue #368).
+    private var authSession: ASWebAuthenticationSession?
+
     // MARK: - Init
 
     /// Create a new AuthMeClient with the given configuration.
@@ -113,7 +118,9 @@ public final class AuthMeClient: NSObject {
             let session = ASWebAuthenticationSession(
                 url: authURL,
                 callbackURLScheme: callbackScheme
-            ) { url, error in
+            ) { [weak self] url, error in
+                // Release the strong reference now that the callback has fired.
+                self?.authSession = nil
                 if let error {
                     continuation.resume(throwing: AuthMeError.networkError(error))
                 } else if let url {
@@ -131,6 +138,9 @@ public final class AuthMeClient: NSObject {
                 session.presentationContextProvider = DefaultPresentationContextProvider()
             }
 
+            // Retain the session on self so ARC does not deallocate it before
+            // the callback fires (issue #368: silent cancellation on iOS).
+            authSession = session
             session.start()
         }
 

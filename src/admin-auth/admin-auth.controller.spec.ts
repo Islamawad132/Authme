@@ -1,5 +1,6 @@
 import { UnauthorizedException, HttpException, HttpStatus } from '@nestjs/common';
 import { AdminAuthController } from './admin-auth.controller.js';
+import { resetTrustedProxyConfig } from '../common/utils/proxy-ip.util.js';
 
 /** Build a minimal Express-like mock for req / res used by the login handler. */
 function makeReqRes(overrides: Partial<{ ip: string; forwardedFor: string }> = {}) {
@@ -23,11 +24,19 @@ describe('AdminAuthController', () => {
   };
 
   beforeEach(() => {
+    // Ensure no leftover TRUSTED_PROXIES env from other tests
+    delete process.env['TRUSTED_PROXIES'];
+    resetTrustedProxyConfig();
     adminAuthService = {
       login: jest.fn(),
       revokeToken: jest.fn(),
     };
     controller = new AdminAuthController(adminAuthService as any);
+  });
+
+  afterEach(() => {
+    delete process.env['TRUSTED_PROXIES'];
+    resetTrustedProxyConfig();
   });
 
   describe('login', () => {
@@ -58,18 +67,38 @@ describe('AdminAuthController', () => {
       expect(res._headers['X-RateLimit-Remaining']).toBe('4');
     });
 
-    it('should prefer x-forwarded-for header over socket address', async () => {
+    it('should ignore X-Forwarded-For and use socket address when TRUSTED_PROXIES is not set', async () => {
+      // Default behaviour: no trusted proxies configured.
+      // X-Forwarded-For must be ignored to prevent IP spoofing.
       adminAuthService.login.mockResolvedValue({
         access_token: 'tok',
         token_type: 'Bearer',
         expires_in: 3600,
         rateLimitHeaders: {},
       });
-      const { req, res } = makeReqRes({ forwardedFor: '203.0.113.5, 10.0.0.1' });
+      const { req, res } = makeReqRes({ ip: '10.0.0.1', forwardedFor: '203.0.113.5, 10.0.0.1' });
 
       await controller.login({ username: 'admin', password: 'pass' }, req, res);
 
-      // Should use first value from x-forwarded-for
+      // Must use the socket address, not the spoofable header value
+      expect(adminAuthService.login).toHaveBeenCalledWith('admin', 'pass', '10.0.0.1');
+    });
+
+    it('should use X-Forwarded-For when the peer is a TRUSTED_PROXIES entry', async () => {
+      process.env['TRUSTED_PROXIES'] = '10.0.0.1';
+      resetTrustedProxyConfig();
+
+      adminAuthService.login.mockResolvedValue({
+        access_token: 'tok',
+        token_type: 'Bearer',
+        expires_in: 3600,
+        rateLimitHeaders: {},
+      });
+      const { req, res } = makeReqRes({ ip: '10.0.0.1', forwardedFor: '203.0.113.5, 10.0.0.1' });
+
+      await controller.login({ username: 'admin', password: 'pass' }, req, res);
+
+      // Peer is trusted — use first value from X-Forwarded-For
       expect(adminAuthService.login).toHaveBeenCalledWith('admin', 'pass', '203.0.113.5');
     });
 
