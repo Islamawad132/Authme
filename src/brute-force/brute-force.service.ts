@@ -47,11 +47,16 @@ export class BruteForceService {
         const lockoutCount = Math.floor(totalFailures / realm.maxLoginFailures);
 
         if (lockoutCount >= realm.permanentLockoutAfter) {
-          // Permanent lock — set far future date
+          // Permanent lock — set far future date but do NOT disable the account.
+          // Disabling prevents admin unlock from working and creates a DoS vector.
           await this.prisma.user.update({
             where: { id: userId },
-            data: { lockedUntil: new Date('2099-12-31T23:59:59Z'), enabled: false },
+            data: { lockedUntil: new Date('2099-12-31T23:59:59Z') },
           });
+          this.logger.warn(
+            `User ${userId} in realm ${realm.id} permanently locked after ${lockoutCount} lockout cycles. ` +
+            `Admin action required to unlock via POST /admin/realms/:realm/users/:userId/unlock`,
+          );
           return;
         }
       }
@@ -77,7 +82,7 @@ export class BruteForceService {
   async unlockUser(userId: string): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },
-      data: { lockedUntil: null },
+      data: { lockedUntil: null, enabled: true },
     });
   }
 
