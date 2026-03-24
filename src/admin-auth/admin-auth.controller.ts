@@ -1,6 +1,6 @@
-import { Controller, Post, Get, Body, Req, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Req, Res, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { Public } from '../common/decorators/public.decorator.js';
 import { AdminAuthService } from './admin-auth.service.js';
 
@@ -13,8 +13,27 @@ export class AdminAuthController {
   @Post('login')
   @Public()
   @ApiOperation({ summary: 'Admin login' })
-  async login(@Body() body: { username: string; password: string }) {
-    return this.adminAuthService.login(body.username, body.password);
+  async login(
+    @Body() body: { username: string; password: string },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const ip =
+      (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim() ??
+      req.socket?.remoteAddress ??
+      'unknown';
+
+    const { rateLimitHeaders, ...tokenResponse } = await this.adminAuthService.login(
+      body.username,
+      body.password,
+      ip,
+    );
+
+    for (const [name, value] of Object.entries(rateLimitHeaders)) {
+      res.setHeader(name, value);
+    }
+
+    return tokenResponse;
   }
 
   @Post('logout')
