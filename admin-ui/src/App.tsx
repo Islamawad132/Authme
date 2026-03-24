@@ -30,6 +30,8 @@ import SamlSpCreatePage from './pages/saml/SamlSpCreatePage';
 import SamlSpDetailPage from './pages/saml/SamlSpDetailPage';
 import LoginEventsPage from './pages/events/LoginEventsPage';
 import AdminEventsPage from './pages/events/AdminEventsPage';
+import AuthFlowListPage from './pages/auth-flows/AuthFlowListPage';
+import AuthFlowEditorPage from './pages/auth-flows/AuthFlowEditorPage';
 
 function ProtectedRoute() {
   const apiKey = sessionStorage.getItem('adminApiKey');
@@ -77,6 +79,8 @@ export default function App() {
           <Route path="/console/realms/:name/saml-providers" element={<SamlSpListPage />} />
           <Route path="/console/realms/:name/saml-providers/create" element={<SamlSpCreatePage />} />
           <Route path="/console/realms/:name/saml-providers/:id" element={<SamlSpDetailPage />} />
+          <Route path="/console/realms/:name/auth-flows" element={<AuthFlowListPage />} />
+          <Route path="/console/realms/:name/auth-flows/:flowId" element={<AuthFlowEditorPage />} />
         </Route>
       </Route>
 

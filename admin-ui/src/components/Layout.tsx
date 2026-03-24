@@ -42,6 +42,7 @@ export default function Layout() {
         { to: `/console/realms/${currentRealm}/user-federation`, label: 'User Federation' },
         { to: `/console/realms/${currentRealm}/identity-providers`, label: 'Identity Providers' },
         { to: `/console/realms/${currentRealm}/saml-providers`, label: 'SAML Providers' },
+        { to: `/console/realms/${currentRealm}/auth-flows`, label: 'Auth Flows' },
       ]
     : [];
 

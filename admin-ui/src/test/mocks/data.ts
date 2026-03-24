@@ -1,6 +1,7 @@
 import type { Realm, User, Client, Role } from '../../types';
 import type { LoginEvent, AdminEvent } from '../../api/events';
 import type { RealmStats } from '../../api/stats';
+import type { AuthFlow } from '../../api/authFlows';
 
 export function makeRealm(overrides: Partial<Realm> = {}): Realm {
   return {
@@ -135,6 +136,30 @@ export function makeStats(overrides: Partial<RealmStats> = {}): RealmStats {
     loginSuccessCount: 42,
     loginFailureCount: 3,
     activeSessionCount: 12,
+    ...overrides,
+  };
+}
+
+export function makeAuthFlow(overrides: Partial<AuthFlow> = {}): AuthFlow {
+  return {
+    id: 'flow-1',
+    realmId: 'realm-1',
+    name: 'Basic Login',
+    description: 'Password authentication',
+    isDefault: true,
+    steps: [
+      {
+        id: 'password-1',
+        type: 'password',
+        required: true,
+        order: 1,
+        condition: null,
+        fallbackStepId: null,
+        config: {},
+      },
+    ],
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
     ...overrides,
   };
 }
