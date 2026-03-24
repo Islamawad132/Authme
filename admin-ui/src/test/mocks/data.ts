@@ -1,4 +1,6 @@
 import type { Realm, User, Client, Role } from '../../types';
+import type { LoginEvent, AdminEvent } from '../../api/events';
+import type { RealmStats } from '../../api/stats';
 
 export function makeRealm(overrides: Partial<Realm> = {}): Realm {
   return {
@@ -90,6 +92,49 @@ export function makeRole(overrides: Partial<Role> = {}): Role {
     description: 'Administrator role',
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export function makeLoginEvent(overrides: Partial<LoginEvent> = {}): LoginEvent {
+  return {
+    id: 'event-1',
+    realmId: 'realm-1',
+    userId: 'user-1',
+    sessionId: 'session-1',
+    type: 'LOGIN',
+    clientId: 'my-app',
+    ipAddress: '127.0.0.1',
+    error: null,
+    details: null,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export function makeAdminEvent(overrides: Partial<AdminEvent> = {}): AdminEvent {
+  return {
+    id: 'admin-event-1',
+    realmId: 'realm-1',
+    adminUserId: 'admin-1',
+    operationType: 'CREATE',
+    resourceType: 'USER',
+    resourcePath: '/users/user-1',
+    representation: null,
+    ipAddress: '127.0.0.1',
+    createdAt: '2024-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export function makeStats(overrides: Partial<RealmStats> = {}): RealmStats {
+  return {
+    activeUsers24h: 5,
+    activeUsers7d: 20,
+    activeUsers30d: 80,
+    loginSuccessCount: 42,
+    loginFailureCount: 3,
+    activeSessionCount: 12,
     ...overrides,
   };
 }
