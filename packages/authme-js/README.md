@@ -6,7 +6,14 @@
 
 <p align="center">
   <strong>Official client SDK for <a href="https://authme.dev">AuthMe</a></strong><br />
-  <sub>Zero-dependency TypeScript SDK with OAuth 2.0 PKCE, token management, and React bindings.</sub>
+  <sub>Zero-dependency TypeScript SDK with OAuth 2.0 PKCE, token management, React bindings, and Next.js support.</sub>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="v1.0.0" />
+  <img src="https://img.shields.io/badge/bundle-~5KB_gzipped-green" alt="bundle size" />
+  <img src="https://img.shields.io/badge/TypeScript-first-blue" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/React-18%2B-61dafb" alt="React 18+" />
 </p>
 
 ---
@@ -16,6 +23,8 @@
 ```bash
 npm install authme-sdk
 ```
+
+---
 
 ## Quick Start
 
@@ -54,28 +63,28 @@ if (success) {
 ### React
 
 ```tsx
-import { AuthmeClient } from 'authme-sdk';
-import { AuthmeProvider, useAuthme, useUser, useRoles } from 'authme-sdk/react';
-
-const authme = new AuthmeClient({
-  url: 'http://localhost:3000',
-  realm: 'my-realm',
-  clientId: 'my-app',
-  redirectUri: 'http://localhost:5173/callback',
-});
+import { AuthProvider, useAuth, useUser, usePermissions } from 'authme-sdk/react';
 
 function App() {
   return (
-    <AuthmeProvider client={authme}>
+    <AuthProvider
+      serverUrl="http://localhost:3000"
+      realm="my-realm"
+      clientId="my-app"
+      redirectUri="http://localhost:5173/callback"
+      onLogin={(tokens) => console.log('Logged in!')}
+      onLogout={() => console.log('Logged out!')}
+      onError={(err) => console.error('Auth error:', err)}
+    >
       <Main />
-    </AuthmeProvider>
+    </AuthProvider>
   );
 }
 
 function Main() {
-  const { isAuthenticated, isLoading, login, logout } = useAuthme();
+  const { isAuthenticated, isLoading, login, logout, getToken } = useAuth();
   const user = useUser();
-  const { hasRealmRole } = useRoles();
+  const { hasRole, hasPermission, roles } = usePermissions();
 
   if (isLoading) return <div>Loading...</div>;
 
@@ -86,11 +95,256 @@ function Main() {
   return (
     <div>
       <p>Welcome, {user?.name}!</p>
-      {hasRealmRole('admin') && <p>You are an admin.</p>}
+      <p>Token: {getToken()}</p>
+      {hasRole('admin') && <p>You are an admin.</p>}
+      {hasPermission('read:reports') && <p>You can read reports.</p>}
+      <p>Your roles: {roles.join(', ')}</p>
       <button onClick={() => logout()}>Sign Out</button>
     </div>
   );
 }
+```
+
+### AuthProvider with pre-built client
+
+```tsx
+import { AuthmeClient } from 'authme-sdk';
+import { AuthProvider } from 'authme-sdk/react';
+
+const client = new AuthmeClient({
+  url: 'http://localhost:3000',
+  realm: 'my-realm',
+  clientId: 'my-app',
+  redirectUri: 'http://localhost:5173/callback',
+  refreshStrategy: 'rotation', // 'rotation' | 'silent' | 'eager'
+  storage: 'sessionStorage',   // 'sessionStorage' | 'localStorage' | 'memory'
+});
+
+function App() {
+  return (
+    <AuthProvider client={client}>
+      <Main />
+    </AuthProvider>
+  );
+}
+```
+
+### ProtectedRoute
+
+```tsx
+import { AuthProvider, ProtectedRoute } from 'authme-sdk/react';
+import { useNavigate } from 'react-router-dom';
+
+function AdminPage() {
+  const navigate = useNavigate();
+
+  return (
+    <ProtectedRoute
+      roles={['admin']}
+      fallback={<div>Loading...</div>}
+      onUnauthorized={() => {
+        navigate('/login');
+        return null;
+      }}
+      onForbidden={() => <div>Access denied. Admin role required.</div>}
+    >
+      <AdminDashboard />
+    </ProtectedRoute>
+  );
+}
+```
+
+---
+
+## Token Refresh Strategies
+
+Configure how the SDK refreshes tokens via the `refreshStrategy` option:
+
+| Strategy | Description |
+|----------|-------------|
+| `rotation` | *(default)* Uses refresh token grant to get a new access token |
+| `eager` | Like `rotation`, but refreshes proactively at 2× the `refreshBuffer` |
+| `silent` | Uses a hidden iframe with `prompt=none` for silent re-auth |
+
+```typescript
+const client = new AuthmeClient({
+  url: 'http://localhost:3000',
+  realm: 'my-realm',
+  clientId: 'my-app',
+  redirectUri: 'http://localhost:5173/callback',
+  refreshStrategy: 'eager',  // refresh 60 seconds before expiry (2× default 30s)
+  refreshBuffer: 30,          // seconds before expiry to trigger refresh
+  autoRefresh: true,          // enable automatic refresh (default: true)
+});
+```
+
+For the `silent` strategy, your app's redirect URI page must post a message back to the parent window:
+
+```html
+<!-- /callback page for silent refresh -->
+<script>
+  const params = new URLSearchParams(window.location.search);
+  window.parent.postMessage({
+    type: 'authme:silent_callback',
+    code: params.get('code'),
+    state: params.get('state'),
+    error: params.get('error'),
+  }, window.location.origin);
+</script>
+```
+
+---
+
+## Event System
+
+Subscribe to SDK events to react to authentication state changes:
+
+```typescript
+const client = new AuthmeClient({ ... });
+
+// Subscribe — returns an unsubscribe function
+const unsubscribe = client.on('login', (tokens) => {
+  console.log('User logged in, token:', tokens.access_token);
+});
+
+client.on('logout', () => {
+  console.log('User logged out');
+});
+
+client.on('tokenRefresh', (tokens) => {
+  console.log('Token refreshed silently');
+});
+
+client.on('error', (error) => {
+  console.error('Auth error:', error.message);
+});
+
+client.on('ready', (isAuthenticated) => {
+  console.log('Client initialized, authenticated:', isAuthenticated);
+});
+
+// Unsubscribe when done
+unsubscribe();
+// or
+client.off('login', myHandler);
+```
+
+Alternatively, pass callbacks directly in the config:
+
+```typescript
+const client = new AuthmeClient({
+  url: 'http://localhost:3000',
+  realm: 'my-realm',
+  clientId: 'my-app',
+  redirectUri: '/callback',
+  onLogin: (tokens) => saveSession(tokens),
+  onLogout: () => clearSession(),
+  onError: (err) => reportError(err),
+  onTokenRefresh: (tokens) => updateSession(tokens),
+});
+```
+
+---
+
+## Next.js Integration
+
+### Server-side authentication in API routes
+
+```typescript
+// pages/api/profile.ts  (or app/api/profile/route.ts)
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSideAuth } from 'authme-sdk/server';
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const { user, isAuthenticated } = await getServerSideAuth(req, {
+    issuerUrl: 'http://localhost:3000',
+    realm: 'my-realm',
+  });
+
+  if (!isAuthenticated) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  res.json({
+    id: user!.sub,
+    username: user!.preferred_username,
+    email: user!.email,
+  });
+}
+```
+
+### getServerSideProps
+
+```typescript
+import { getServerSideAuth } from 'authme-sdk/server';
+
+export const getServerSideProps = async ({ req }) => {
+  const { user, isAuthenticated } = await getServerSideAuth(req, {
+    issuerUrl: 'http://localhost:3000',
+    realm: 'my-realm',
+  });
+
+  if (!isAuthenticated) {
+    return { redirect: { destination: '/login', permanent: false } };
+  }
+
+  return {
+    props: {
+      user: { sub: user!.sub, name: user!.name, email: user!.email },
+    },
+  };
+};
+```
+
+### Next.js Middleware
+
+```typescript
+// middleware.ts
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { createNextMiddleware } from 'authme-sdk/server';
+
+const authMiddleware = createNextMiddleware({
+  issuerUrl: 'http://localhost:3000',
+  realm: 'my-realm',
+  protectedPaths: ['/dashboard', '/api/protected'],
+  loginPath: '/login',
+  forbiddenPath: '/403',
+});
+
+export async function middleware(request: NextRequest) {
+  const result = await authMiddleware(request as any);
+
+  if (result?.redirect) {
+    return NextResponse.redirect(new URL(result.redirect, request.url));
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ['/((?!_next|public|favicon.ico).*)'],
+};
+```
+
+---
+
+## SSR Compatibility
+
+The SDK is fully SSR-safe. When `window` is undefined (e.g., in Node.js / Next.js):
+- Storage automatically falls back to `MemoryStorage`
+- `login()` and `logout()` browser redirects throw a safe error
+- `init()` and token operations work without errors
+
+```typescript
+// This works safely in both browser and SSR environments
+const client = new AuthmeClient({
+  url: 'http://localhost:3000',
+  realm: 'my-realm',
+  clientId: 'my-app',
+  redirectUri: '/callback',
+  storage: 'memory', // explicit for SSR, or falls back automatically
+});
 ```
 
 ---
@@ -115,7 +369,12 @@ new AuthmeClient(config: AuthmeConfig)
 | `storage` | `'sessionStorage' \| 'localStorage' \| 'memory'` | `'sessionStorage'` | Where to persist tokens |
 | `autoRefresh` | `boolean` | `true` | Automatically refresh tokens before expiry |
 | `refreshBuffer` | `number` | `30` | Seconds before expiry to trigger refresh |
+| `refreshStrategy` | `'rotation' \| 'silent' \| 'eager'` | `'rotation'` | Token refresh strategy |
 | `postLogoutRedirectUri` | `string` | — | URL to redirect after logout |
+| `onLogin` | `(tokens: TokenResponse) => void` | — | Called on successful login |
+| `onLogout` | `() => void` | — | Called on logout |
+| `onError` | `(error: Error) => void` | — | Called on error |
+| `onTokenRefresh` | `(tokens: TokenResponse) => void` | — | Called on token refresh |
 
 #### Methods
 
@@ -133,30 +392,50 @@ new AuthmeClient(config: AuthmeConfig)
 | `getUserInfo()` | `UserInfo \| null` | Cached user info (from ID token or last fetch) |
 | `hasRealmRole(role)` | `boolean` | Check if user has a realm-level role |
 | `hasClientRole(clientId, role)` | `boolean` | Check if user has a client-level role |
+| `hasPermission(permission)` | `boolean` | Check realm or default client role |
 | `getRealmRoles()` | `string[]` | All realm roles for the current user |
 | `getClientRoles(clientId)` | `string[]` | All client roles for a specific client |
 | `refreshTokens()` | `Promise<TokenResponse>` | Manually trigger a token refresh |
-| `on(event, handler)` | `void` | Subscribe to SDK events |
+| `on(event, handler)` | `() => void` | Subscribe to SDK events — returns unsubscribe function |
 | `off(event, handler)` | `void` | Unsubscribe from SDK events |
 
 #### Events
 
 | Event | Payload | Fires When |
 |-------|---------|------------|
-| `authenticated` | `TokenResponse` | After successful login or callback |
+| `login` | `TokenResponse` | After successful login or callback |
 | `logout` | — | After logout completes |
-| `tokenRefreshed` | `TokenResponse` | After a silent token refresh |
+| `tokenRefresh` | `TokenResponse` | After a silent token refresh |
 | `error` | `Error` | On any authentication error |
 | `ready` | `boolean` | After `init()` completes (`true` if authenticated) |
 
 ---
 
-### React Hooks
+### React
 
-#### `useAuthme()`
+Import from `authme-sdk/react`.
+
+#### `<AuthProvider>`
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `client` | `AuthmeClient` | Pre-built client (mutually exclusive with inline config props) |
+| `serverUrl` | `string` | AuthMe server URL (alternative to `client`) |
+| `realm` | `string` | Realm name (alternative to `client`) |
+| `clientId` | `string` | OAuth2 client ID (alternative to `client`) |
+| `redirectUri` | `string` | Redirect URI (alternative to `client`) |
+| `scope` | `string[]` | OAuth2 scopes |
+| `autoHandleCallback` | `boolean` | Auto-handle `/callback` redirect (default: `true`) |
+| `onReady` | `(authenticated: boolean) => void` | Called when initialization is complete |
+| `onLogin` | `(tokens: TokenResponse) => void` | Called on login |
+| `onLogout` | `() => void` | Called on logout |
+| `onError` | `(error: Error) => void` | Called on error |
+| `onTokenRefresh` | `(tokens: TokenResponse) => void` | Called on token refresh |
+
+#### `useAuth()`
 
 ```typescript
-const { isAuthenticated, isLoading, login, logout, token, client } = useAuthme();
+const { isAuthenticated, isLoading, login, logout, getToken, user, client } = useAuth();
 ```
 
 | Property | Type | Description |
@@ -165,7 +444,8 @@ const { isAuthenticated, isLoading, login, logout, token, client } = useAuthme()
 | `isLoading` | `boolean` | `true` during initialization |
 | `login` | `(options?) => Promise<void>` | Trigger login redirect |
 | `logout` | `() => Promise<void>` | Trigger logout |
-| `token` | `string \| null` | Current access token |
+| `getToken` | `() => string \| null` | Get current access token |
+| `user` | `UserInfo \| null` | Current user profile |
 | `client` | `AuthmeClient` | Underlying SDK client instance |
 
 #### `useUser()`
@@ -175,211 +455,155 @@ const user = useUser();
 // user?.sub, user?.name, user?.email, user?.preferred_username, etc.
 ```
 
-Returns the current user's profile information parsed from the ID token, or `null` if not authenticated.
+Returns the current user's profile information, or `null` if not authenticated.
 
-#### `useRoles()`
+#### `usePermissions()`
 
 ```typescript
-const { hasRealmRole, hasClientRole, realmRoles, getClientRoles } = useRoles();
+const { hasRole, hasPermission, roles } = usePermissions();
 
-hasRealmRole('admin');           // boolean
-hasClientRole('my-app', 'edit'); // boolean
-realmRoles;                      // string[]
-getClientRoles('my-app');        // string[]
+hasRole('admin');               // boolean — check realm role
+hasPermission('read:reports');  // boolean — check realm or client role
+roles;                          // string[] — all realm roles
 ```
+
+#### `<ProtectedRoute>`
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `roles` | `string[]` | Required realm roles (optional) |
+| `fallback` | `ReactNode` | Shown while loading |
+| `onUnauthorized` | `() => ReactNode \| null` | Called when not authenticated |
+| `onForbidden` | `() => ReactNode \| null` | Called when lacking required roles |
+
+---
+
+### Server (`authme-sdk/server`)
+
+#### `verifyToken(token, config)`
+
+Verifies a JWT access token using the server's JWKS endpoint.
+
+```typescript
+const payload = await verifyToken(accessToken, {
+  issuerUrl: 'http://localhost:3000',
+  realm: 'my-realm',
+});
+```
+
+#### `getServerSideAuth(req, config)`
+
+Helper for Next.js API routes and `getServerSideProps`.
+
+#### `createNextMiddleware(config)`
+
+Factory for Next.js middleware with route protection.
+
+#### `createAuthmeMiddleware(config)`
+
+Express middleware for token validation.
+
+#### `createAuthmeGuard(config)`
+
+NestJS guard factory for token validation.
 
 ---
 
 ## Backend Integration
 
-The SDK handles frontend authentication. To **protect your backend API routes**, you need to validate the access tokens issued by AuthMe.
-
-### NestJS Guard
+### Express
 
 ```typescript
-// auth/authme.guard.ts
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import express from 'express';
+import { createAuthmeMiddleware } from 'authme-sdk/server';
 
-const AUTHME_URL = 'http://localhost:3000';
-const REALM = 'my-realm';
+const app = express();
+const authme = createAuthmeMiddleware({
+  issuerUrl: 'http://localhost:3000',
+  realm: 'my-realm',
+  requiredRoles: ['user'],  // optional
+});
 
-const JWKS = createRemoteJWKSet(
-  new URL(`${AUTHME_URL}/realms/${REALM}/protocol/openid-connect/certs`),
-);
-
-@Injectable()
-export class AuthmeGuard implements CanActivate {
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const token = request.headers.authorization?.replace('Bearer ', '');
-
-    if (!token) throw new UnauthorizedException('Missing token');
-
-    try {
-      const { payload } = await jwtVerify(token, JWKS, {
-        issuer: `${AUTHME_URL}/realms/${REALM}`,
-      });
-      request.user = payload;
-      return true;
-    } catch {
-      throw new UnauthorizedException('Invalid token');
-    }
-  }
-}
+app.get('/api/profile', authme, (req: any, res) => {
+  res.json(req.user); // AuthmeTokenPayload
+});
 ```
 
-Usage:
+### NestJS
 
 ```typescript
+import { createAuthmeGuard } from 'authme-sdk/server';
+
+const AuthmeGuard = createAuthmeGuard({
+  issuerUrl: 'http://localhost:3000',
+  realm: 'my-realm',
+});
+
 @Controller('api')
 export class AppController {
   @Get('profile')
   @UseGuards(AuthmeGuard)
   getProfile(@Req() req) {
-    return req.user; // JWT payload: { sub, preferred_username, realm_access, ... }
+    return req.user;
   }
 }
-```
-
-> **Note:** Install `jose` with `npm install jose`
-
-### Express Middleware
-
-```typescript
-// middleware/authme.ts
-import { createRemoteJWKSet, jwtVerify } from 'jose';
-import type { Request, Response, NextFunction } from 'express';
-
-const AUTHME_URL = 'http://localhost:3000';
-const REALM = 'my-realm';
-
-const JWKS = createRemoteJWKSet(
-  new URL(`${AUTHME_URL}/realms/${REALM}/protocol/openid-connect/certs`),
-);
-
-export async function authmeMiddleware(req: Request, res: Response, next: NextFunction) {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-
-  if (!token) {
-    return res.status(401).json({ error: 'Missing token' });
-  }
-
-  try {
-    const { payload } = await jwtVerify(token, JWKS, {
-      issuer: `${AUTHME_URL}/realms/${REALM}`,
-    });
-    (req as any).user = payload;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-}
-```
-
-Usage:
-
-```typescript
-import express from 'express';
-import { authmeMiddleware } from './middleware/authme';
-
-const app = express();
-
-app.get('/api/profile', authmeMiddleware, (req, res) => {
-  res.json((req as any).user);
-});
 ```
 
 ---
 
 ## Attaching Tokens to API Requests
 
-When calling your backend from the frontend, attach the access token as a `Bearer` header:
-
-### With `fetch`
-
 ```typescript
+// With fetch
 const res = await fetch('/api/profile', {
   headers: {
     Authorization: `Bearer ${authme.getAccessToken()}`,
   },
 });
-const data = await res.json();
-```
 
-### With Axios
-
-```typescript
-import axios from 'axios';
-
-const api = axios.create({ baseURL: '/api' });
-
+// With axios interceptor
 api.interceptors.request.use((config) => {
   const token = authme.getAccessToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
-
-const { data } = await api.get('/profile');
 ```
 
 ---
 
-## Full SPA Callback Flow
-
-### React Router
+## Full SPA Callback Flow (React Router)
 
 ```tsx
 // main.tsx
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthmeClient } from 'authme-sdk';
-import { AuthmeProvider } from 'authme-sdk/react';
-import App from './App';
-import Callback from './Callback';
+import { AuthProvider, ProtectedRoute } from 'authme-sdk/react';
 
-const authme = new AuthmeClient({
-  url: 'http://localhost:3000',
-  realm: 'my-realm',
-  clientId: 'my-app',
-  redirectUri: 'http://localhost:5173/callback',
-});
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <AuthmeProvider client={authme}>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<App />} />
-        <Route path="/callback" element={<Callback />} />
-      </Routes>
-    </BrowserRouter>
-  </AuthmeProvider>,
-);
-```
-
-```tsx
-// Callback.tsx
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuthme } from 'authme-sdk/react';
-
-export default function Callback() {
-  const { client } = useAuthme();
-  const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    client.handleCallback()
-      .then((success) => {
-        if (success) navigate('/', { replace: true });
-        else setError('Authentication failed');
-      })
-      .catch((err) => setError(err.message));
-  }, []);
-
-  if (error) return <div>Error: {error}</div>;
-  return <div>Signing in...</div>;
+function App() {
+  return (
+    <AuthProvider
+      serverUrl="http://localhost:3000"
+      realm="my-realm"
+      clientId="my-app"
+      redirectUri="http://localhost:5173/callback"
+    >
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute
+                onUnauthorized={() => { window.location.href = '/login'; return null; }}
+              >
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/login" element={<Login />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
 }
 ```
 
@@ -387,63 +611,23 @@ export default function Callback() {
 
 ## Error Handling
 
-Subscribe to the `error` event to handle authentication errors:
-
 ```typescript
 authme.on('error', (error) => {
   console.error('Auth error:', error.message);
 
   // Common errors:
-  // - "Token refresh failed" — refresh token expired, user needs to re-login
-  // - "OIDC discovery failed" — AuthMe server unreachable
-  // - "Token exchange failed" — authorization code invalid or expired
+  // - "No refresh token available" — user needs to re-login
+  // - "State mismatch — possible CSRF attack"
+  // - "Missing PKCE verifier"
+  // - "token_exchange_failed" — authorization code invalid or expired
 });
-```
-
-### Handling Token Expiry
-
-When auto-refresh fails (e.g., refresh token expired), the user needs to re-login:
-
-```typescript
-authme.on('error', (error) => {
-  if (error.message.includes('refresh')) {
-    // Redirect to login
-    authme.login();
-  }
-});
-```
-
-### React Error Boundary
-
-```tsx
-function AuthWrapper({ children }) {
-  const { client, isAuthenticated } = useAuthme();
-  const [authError, setAuthError] = useState(false);
-
-  useEffect(() => {
-    const handler = () => setAuthError(true);
-    client.on('error', handler);
-    return () => client.off('error', handler);
-  }, [client]);
-
-  if (authError) {
-    return (
-      <div>
-        <p>Session expired. Please sign in again.</p>
-        <button onClick={() => client.login()}>Sign In</button>
-      </div>
-    );
-  }
-
-  return children;
-}
 ```
 
 ---
 
 ## AuthMe Client Setup
 
-For the SDK to work, you need a **PUBLIC** client registered in AuthMe:
+For the SDK to work, register a **PUBLIC** client in AuthMe:
 
 1. Open the AuthMe Admin Console at `/console`
 2. Navigate to your realm > **Clients** > **Create**
@@ -451,71 +635,6 @@ For the SDK to work, you need a **PUBLIC** client registered in AuthMe:
 4. Add your app's URL to **Redirect URIs** (e.g., `http://localhost:5173/callback`)
 5. Add your app's origin to **Web Origins** (e.g., `http://localhost:5173`)
 6. Enable the `authorization_code` and `refresh_token` grant types
-
----
-
-## Works with Any OIDC Library
-
-AuthMe implements standard OpenID Connect, so it works out of the box with any compliant client library.
-
-### With `oidc-client-ts` + `react-oidc-context`
-
-```bash
-npm install oidc-client-ts react-oidc-context
-```
-
-```tsx
-import { AuthProvider, useAuth } from 'react-oidc-context';
-
-const oidcConfig = {
-  authority: 'http://localhost:3000/realms/my-realm',
-  client_id: 'my-app',
-  redirect_uri: 'http://localhost:5173/callback',
-};
-
-function App() {
-  return (
-    <AuthProvider {...oidcConfig}>
-      <Main />
-    </AuthProvider>
-  );
-}
-
-function Main() {
-  const auth = useAuth();
-
-  if (auth.isLoading) return <div>Loading...</div>;
-  if (!auth.isAuthenticated) {
-    return <button onClick={() => auth.signinRedirect()}>Sign In</button>;
-  }
-
-  return (
-    <div>
-      <p>Welcome, {auth.user?.profile.name}!</p>
-      <button onClick={() => auth.signoutRedirect()}>Sign Out</button>
-    </div>
-  );
-}
-```
-
-### With `next-auth` (Next.js)
-
-AuthMe works as a standard OIDC provider with `next-auth`:
-
-```typescript
-import NextAuth from 'next-auth';
-
-export const { handlers, auth } = NextAuth({
-  providers: [{
-    id: 'authme',
-    name: 'AuthMe',
-    type: 'oidc',
-    issuer: 'http://localhost:3000/realms/my-realm',
-    clientId: 'my-nextjs-app',
-    clientSecret: 'your-client-secret',
-  }],
-});
-```
 
 ---
 

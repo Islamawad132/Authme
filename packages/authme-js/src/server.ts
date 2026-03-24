@@ -1,8 +1,12 @@
 /**
  * Server-side utilities for AuthMe token validation.
  *
- * Provides middleware for Express and guard for NestJS
- * that validate JWT access tokens using JWKS.
+ * Provides:
+ * - `verifyToken` — verify a JWT using JWKS
+ * - `createAuthmeMiddleware` — Express middleware
+ * - `createAuthmeGuard` — NestJS guard factory
+ * - `getServerSideAuth` — Next.js getServerSideProps helper
+ * - `createNextMiddleware` — Next.js middleware helper
  *
  * @example
  * ```typescript
@@ -64,6 +68,16 @@ export async function verifyToken(
 }
 
 /**
+ * Extract the Bearer token from an Authorization header value.
+ * Returns null if the header is missing or not a Bearer token.
+ */
+export function extractBearerToken(authHeader: string | string[] | undefined): string | null {
+  const header = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+  if (!header?.startsWith('Bearer ')) return null;
+  return header.slice(7);
+}
+
+/**
  * Check if a token payload has the required realm roles.
  */
 export function hasRealmRoles(
@@ -119,13 +133,11 @@ export function createAuthmeMiddleware(config: AuthmeServerConfig) {
     next: () => void,
   ) => {
     const authHeader = req.headers['authorization'] ?? req.headers['Authorization'];
-    const header = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+    const token = extractBearerToken(authHeader);
 
-    if (!header?.startsWith('Bearer ')) {
+    if (!token) {
       return res.status(401).json({ error: 'unauthorized', message: 'Missing Bearer token' });
     }
-
-    const token = header.slice(7);
 
     try {
       const payload = await verifyToken(token, config);
@@ -194,14 +206,13 @@ export function createAuthmeGuard(config: AuthmeServerConfig) {
     }): Promise<boolean> {
       const request = context.switchToHttp().getRequest();
       const authHeader = request.headers['authorization'] ?? request.headers['Authorization'];
-      const header = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+      const token = extractBearerToken(authHeader);
 
-      if (!header?.startsWith('Bearer ')) {
+      if (!token) {
         throw new HttpError({ statusCode: 401, message: 'Missing Bearer token', error: 'Unauthorized' }, 401);
       }
 
       try {
-        const token = header.slice(7);
         const payload = await verifyToken(token, config);
 
         if (config.requiredRoles?.length) {
@@ -231,4 +242,154 @@ export function getRolesFromToken(
     return payload.resource_access?.[clientId]?.roles ?? [];
   }
   return payload.realm_access?.roles ?? [];
+}
+
+// ─── Next.js Helpers ──────────────────────────────────────
+
+export interface NextRequest {
+  headers: {
+    get(name: string): string | null;
+    [key: string]: unknown;
+  };
+  cookies?: {
+    get(name: string): { value: string } | undefined;
+    [key: string]: unknown;
+  };
+  url?: string;
+  nextUrl?: { pathname: string; [key: string]: unknown };
+}
+
+export interface ServerSideAuthResult {
+  /** The verified token payload, or null if not authenticated */
+  user: AuthmeTokenPayload | null;
+  /** The raw access token string, or null if not present/invalid */
+  accessToken: string | null;
+  /** Whether the user is authenticated */
+  isAuthenticated: boolean;
+}
+
+/**
+ * Helper for Next.js API routes and getServerSideProps.
+ * Validates the Bearer token from the request and returns auth info.
+ *
+ * @example
+ * ```typescript
+ * // pages/api/profile.ts
+ * import { getServerSideAuth } from 'authme-sdk/server';
+ *
+ * export default async function handler(req, res) {
+ *   const { user, isAuthenticated } = await getServerSideAuth(req, {
+ *     issuerUrl: 'http://localhost:3000',
+ *     realm: 'my-realm',
+ *   });
+ *
+ *   if (!isAuthenticated) {
+ *     return res.status(401).json({ error: 'Unauthorized' });
+ *   }
+ *
+ *   res.json({ user });
+ * }
+ * ```
+ *
+ * Also works in getServerSideProps:
+ * ```typescript
+ * export const getServerSideProps = async ({ req }) => {
+ *   const { user, isAuthenticated } = await getServerSideAuth(req, config);
+ *   if (!isAuthenticated) {
+ *     return { redirect: { destination: '/login', permanent: false } };
+ *   }
+ *   return { props: { user } };
+ * };
+ * ```
+ */
+export async function getServerSideAuth(
+  req: { headers: Record<string, string | string[] | undefined> },
+  config: AuthmeServerConfig,
+): Promise<ServerSideAuthResult> {
+  const authHeader = req.headers['authorization'] ?? req.headers['Authorization'];
+  const token = extractBearerToken(authHeader);
+
+  if (!token) {
+    return { user: null, accessToken: null, isAuthenticated: false };
+  }
+
+  try {
+    const user = await verifyToken(token, config);
+    return { user, accessToken: token, isAuthenticated: true };
+  } catch {
+    return { user: null, accessToken: token, isAuthenticated: false };
+  }
+}
+
+/**
+ * Next.js App Router / Edge middleware helper.
+ * Returns the verified user payload from the request, or null.
+ *
+ * Reads the Bearer token from the Authorization header.
+ * Designed for use in Next.js middleware (middleware.ts).
+ *
+ * @example
+ * ```typescript
+ * // middleware.ts
+ * import { NextResponse } from 'next/server';
+ * import { createNextMiddleware } from 'authme-sdk/server';
+ *
+ * const authMiddleware = createNextMiddleware({
+ *   issuerUrl: 'http://localhost:3000',
+ *   realm: 'my-realm',
+ *   protectedPaths: ['/dashboard', '/api/protected'],
+ *   loginPath: '/login',
+ * });
+ *
+ * export default authMiddleware;
+ *
+ * export const config = {
+ *   matcher: ['/((?!_next|public).*)'],
+ * };
+ * ```
+ */
+export interface NextMiddlewareConfig extends AuthmeServerConfig {
+  /** Path prefixes that require authentication */
+  protectedPaths?: string[];
+  /** Path to redirect unauthenticated users to */
+  loginPath?: string;
+  /** Path to redirect users with insufficient roles to */
+  forbiddenPath?: string;
+}
+
+export function createNextMiddleware(middlewareConfig: NextMiddlewareConfig) {
+  return async function authMiddleware(request: NextRequest) {
+    const { protectedPaths = [], loginPath = '/login', forbiddenPath } = middlewareConfig;
+    const pathname = request.nextUrl?.pathname ?? request.url ?? '/';
+
+    // Only protect specified paths
+    const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
+    if (!isProtected) return null; // Let Next.js continue
+
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+    if (!token) {
+      // Return redirect info — the caller uses NextResponse.redirect
+      return { redirect: loginPath, reason: 'unauthenticated' };
+    }
+
+    try {
+      const payload = await verifyToken(token, middlewareConfig);
+
+      if (middlewareConfig.requiredRoles?.length) {
+        if (!hasRealmRoles(payload, middlewareConfig.requiredRoles)) {
+          return {
+            redirect: forbiddenPath ?? loginPath,
+            reason: 'forbidden',
+            user: payload,
+          };
+        }
+      }
+
+      return { user: payload, reason: 'authorized' };
+    } catch {
+      return { redirect: loginPath, reason: 'invalid_token' };
+    }
+  };
 }
