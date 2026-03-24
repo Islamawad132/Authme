@@ -108,6 +108,7 @@ describe('AccountController', () => {
           email: 'test@example.com',
           mfaEnabled: false,
         }),
+        mockReqWithSession,
       );
     });
   });
@@ -300,6 +301,7 @@ describe('AccountController', () => {
           qrCodeDataUrl: 'data:image/png;base64,abc',
           secret: 'JBSWY3DPEHPK3PXP',
         }),
+        mockReqWithSession,
       );
     });
   });
@@ -353,6 +355,7 @@ describe('AccountController', () => {
           activated: true,
           recoveryCodes,
         }),
+        mockReqWithSession,
       );
     });
   });

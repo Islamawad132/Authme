@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{locale}}" dir="{{dir}}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,12 +22,37 @@
       --input-bg-color: {{inputBgColor}};
       --muted-color: {{mutedColor}};
     }
+    /* RTL support */
+    [dir="rtl"] .auth-container,
+    [dir="rtl"] .auth-card,
+    [dir="rtl"] .auth-form,
+    [dir="rtl"] .form-group {
+      direction: rtl;
+      text-align: right;
+    }
+    [dir="rtl"] .password-toggle {
+      left: 0.75rem;
+      right: auto;
+    }
+    [dir="rtl"] .lang-switcher {
+      left: 1rem;
+      right: auto;
+    }
   </style>
   {{#if customCss}}
   <style>{{{customCss}}}</style>
   {{/if}}
 </head>
 <body>
+  {{#if languageSwitcher}}
+  <div class="lang-switcher" style="position:fixed;top:1rem;right:1rem;z-index:100;">
+    <select onchange="window.location.href=this.value" style="padding:0.25rem 0.5rem;border:1px solid var(--input-border-color);border-radius:4px;background:var(--card-color);color:var(--text-color);font-size:0.8rem;cursor:pointer;" aria-label="Language">
+      {{#each languageSwitcher}}
+      <option value="{{this.url}}"{{#if this.active}} selected{{/if}}>{{this.label}}</option>
+      {{/each}}
+    </select>
+  </div>
+  {{/if}}
   <div class="auth-container">
     <div class="auth-card">
       <div class="auth-header">

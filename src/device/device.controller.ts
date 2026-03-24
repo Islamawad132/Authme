@@ -48,12 +48,13 @@ export class DeviceController {
   async devicePage(
     @CurrentRealm() realm: Realm,
     @Query('user_code') userCode: string,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     this.themeRender.render(res, realm, 'login', 'device', {
       pageTitle: 'Device Authorization',
       userCode: userCode ?? '',
-    });
+    }, req);
   }
 
   @Post('device')
@@ -71,7 +72,7 @@ export class DeviceController {
           pageTitle: 'Device Authorization',
           userCode: body.user_code,
           error: 'Username and password are required',
-        });
+        }, req);
       }
 
       const user = await this.prisma.user.findUnique({
@@ -83,7 +84,7 @@ export class DeviceController {
           pageTitle: 'Device Authorization',
           userCode: body.user_code,
           error: 'Invalid credentials',
-        });
+        }, req);
       }
 
       const valid = await this.crypto.verifyPassword(user.passwordHash, body.password);
@@ -92,14 +93,14 @@ export class DeviceController {
           pageTitle: 'Device Authorization',
           userCode: body.user_code,
           error: 'Invalid credentials',
-        });
+        }, req);
       }
 
       await this.deviceService.approveDevice(realm, body.user_code, user.id);
       return this.themeRender.render(res, realm, 'login', 'device-success', {
         pageTitle: 'Device Authorization',
         message: 'Device authorized successfully. You can close this page.',
-      });
+      }, req);
     }
 
     // Deny
@@ -107,6 +108,6 @@ export class DeviceController {
     this.themeRender.render(res, realm, 'login', 'device-success', {
       pageTitle: 'Device Authorization',
       message: 'Device authorization denied.',
-    });
+    }, req);
   }
 }
