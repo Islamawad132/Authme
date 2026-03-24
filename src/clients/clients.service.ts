@@ -7,6 +7,7 @@ import type { Realm, ClientType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { ScopeSeedService } from '../scopes/scope-seed.service.js';
+import { CacheService } from '../cache/cache.service.js';
 import { CreateClientDto } from './dto/create-client.dto.js';
 import { UpdateClientDto } from './dto/update-client.dto.js';
 
@@ -35,6 +36,7 @@ export class ClientsService {
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
     private readonly scopeSeedService: ScopeSeedService,
+    private readonly cache: CacheService,
   ) {}
 
   async create(realm: Realm, dto: CreateClientDto) {
@@ -114,6 +116,10 @@ export class ClientsService {
   }
 
   async findByClientId(realm: Realm, clientId: string) {
+    const cacheKey = `${realm.id}:${clientId}`;
+    const cached = await this.cache.getCachedClientConfig<typeof CLIENT_SELECT>(cacheKey);
+    if (cached) return cached as any;
+
     const client = await this.prisma.client.findUnique({
       where: {
         realmId_clientId: { realmId: realm.id, clientId },
@@ -123,12 +129,16 @@ export class ClientsService {
     if (!client) {
       throw new NotFoundException(`Client '${clientId}' not found`);
     }
+
+    await this.cache.cacheClientConfig(cacheKey, client);
+
     return client;
   }
 
   async update(realm: Realm, clientId: string, dto: UpdateClientDto) {
     await this.findByClientId(realm, clientId);
-    return this.prisma.client.update({
+
+    const updated = await this.prisma.client.update({
       where: {
         realmId_clientId: { realmId: realm.id, clientId },
       },
@@ -146,6 +156,10 @@ export class ClientsService {
       },
       select: CLIENT_SELECT,
     });
+
+    await this.cache.invalidateClientCache(`${realm.id}:${clientId}`);
+
+    return updated;
   }
 
   async remove(realm: Realm, clientId: string) {
@@ -163,6 +177,8 @@ export class ClientsService {
         realmId_clientId: { realmId: realm.id, clientId },
       },
     });
+
+    await this.cache.invalidateClientCache(`${realm.id}:${clientId}`);
   }
 
   async getServiceAccount(realm: Realm, clientId: string) {
@@ -197,6 +213,9 @@ export class ClientsService {
       },
       data: { clientSecret: secretHash },
     });
+
+    // Secret changed — invalidate so the next lookup re-fetches the updated record
+    await this.cache.invalidateClientCache(`${realm.id}:${clientId}`);
 
     return {
       clientId,

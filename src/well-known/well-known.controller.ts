@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
+import { CacheService } from '../cache/cache.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
@@ -15,6 +16,7 @@ export class WellKnownController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwkService: JwkService,
+    private readonly cache: CacheService,
   ) {}
 
   @Get('.well-known/openid-configuration')
@@ -78,6 +80,9 @@ export class WellKnownController {
   @Get('protocol/openid-connect/certs')
   @ApiOperation({ summary: 'JSON Web Key Set (JWKS)' })
   async certs(@CurrentRealm() realm: Realm) {
+    const cached = await this.cache.getCachedJWKS<{ keys: unknown[] }>(realm.id);
+    if (cached) return cached;
+
     const keys = await this.prisma.realmSigningKey.findMany({
       where: { realmId: realm.id, active: true },
     });
@@ -86,6 +91,9 @@ export class WellKnownController {
       keys.map((key) => this.jwkService.publicKeyToJwk(key.publicKey, key.kid)),
     );
 
-    return { keys: jwks };
+    const result = { keys: jwks };
+    await this.cache.cacheJWKS(realm.id, result);
+
+    return result;
   }
 }

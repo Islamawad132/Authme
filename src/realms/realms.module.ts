@@ -4,9 +4,10 @@ import { RealmsService } from './realms.service.js';
 import { RealmExportService } from './realm-export.service.js';
 import { RealmImportService } from './realm-import.service.js';
 import { ThemeModule } from '../theme/theme.module.js';
+import { CacheModule } from '../cache/cache.module.js';
 
 @Module({
-  imports: [ThemeModule],
+  imports: [ThemeModule, CacheModule],
   controllers: [RealmsController],
   providers: [RealmsService, RealmExportService, RealmImportService],
   exports: [RealmsService],

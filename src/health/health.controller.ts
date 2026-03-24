@@ -7,6 +7,7 @@ import {
 } from '@nestjs/terminus';
 import { Public } from '../common/decorators/public.decorator.js';
 import { PrismaHealthIndicator } from './prisma-health.indicator.js';
+import { RedisHealthIndicator } from '../redis/redis.health.js';
 
 @ApiTags('Health')
 @Controller('health')
@@ -16,6 +17,7 @@ export class HealthController {
     private readonly health: HealthCheckService,
     private readonly memory: MemoryHealthIndicator,
     private readonly db: PrismaHealthIndicator,
+    private readonly redis: RedisHealthIndicator,
   ) {}
 
   @Get()
@@ -27,11 +29,12 @@ export class HealthController {
 
   @Get('ready')
   @HealthCheck()
-  @ApiOperation({ summary: 'Readiness check (database + memory)' })
+  @ApiOperation({ summary: 'Readiness check (database + memory + redis)' })
   readiness() {
     return this.health.check([
       () => this.db.isHealthy('database'),
       () => this.memory.checkHeap('memory_heap', 300 * 1024 * 1024),
+      () => this.redis.isHealthy('redis'),
     ]);
   }
 }

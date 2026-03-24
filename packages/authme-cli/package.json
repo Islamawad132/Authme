@@ -1,6 +1,6 @@
 {
   "name": "authme-cli",
-  "version": "0.1.2",
+  "version": "1.0.0",
   "description": "CLI tool for managing an AuthMe IAM server",
   "type": "module",
   "bin": {
@@ -9,9 +9,10 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/fix-node-imports.mjs",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test dist/tests/*.test.js"
   },
   "dependencies": {
     "commander": "^13.0.0",

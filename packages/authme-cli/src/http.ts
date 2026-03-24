@@ -57,10 +57,10 @@ export class HttpClient {
 
     if (res.status === 204) return undefined as T;
 
-    const json = await res.json().catch(() => null);
+    const json = (await res.json().catch(() => null)) as Record<string, unknown> | null;
 
     if (!res.ok) {
-      const msg = json?.message ?? json?.error ?? res.statusText;
+      const msg = (json?.message ?? json?.error ?? res.statusText) as unknown;
       const display = Array.isArray(msg) ? msg.join(', ') : msg;
       const error = new Error(`Error ${res.status}: ${display}`);
       error.message = chalk.red(error.message);

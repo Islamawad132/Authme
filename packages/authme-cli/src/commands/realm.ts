@@ -43,6 +43,23 @@ export function registerRealmCommands(program: Command): void {
     });
 
   realm
+    .command('update <name>')
+    .description('Update a realm')
+    .option('--display-name <displayName>', 'New human-readable name')
+    .option('--enable', 'Enable the realm')
+    .option('--disable', 'Disable the realm')
+    .option('--json', 'Output as JSON')
+    .action(async (name: string, opts) => {
+      const client = new HttpClient();
+      const body: Record<string, unknown> = {};
+      if (opts.displayName) body.displayName = opts.displayName;
+      if (opts.enable) body.enabled = true;
+      if (opts.disable) body.enabled = false;
+      const result = await client.put(`/admin/realms/${name}`, body);
+      printResult(result, opts);
+    });
+
+  realm
     .command('delete <name>')
     .description('Delete a realm')
     .option('--yes', 'Skip confirmation prompt')

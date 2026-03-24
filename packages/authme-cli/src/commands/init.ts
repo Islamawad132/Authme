@@ -37,7 +37,7 @@ export function registerInitCommand(program: Command): void {
           throw new Error(chalk.red('Login failed. Check your credentials and server URL.'));
         }
 
-        const data: LoginResponse = await res.json();
+        const data = (await res.json()) as LoginResponse;
         saveConfig({ serverUrl, accessToken: data.access_token });
       }
       success('Connected to server.');
