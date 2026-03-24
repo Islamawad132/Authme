@@ -41,13 +41,21 @@ model Realm {
   permanentLockoutAfter Int     @default(0)     @map("permanent_lockout_after")
 
   // Registration
-  registrationAllowed Boolean @default(true) @map("registration_allowed")
+  registrationAllowed          Boolean  @default(true)  @map("registration_allowed")
+  registrationApprovalRequired Boolean  @default(false) @map("registration_approval_required")
+  allowedEmailDomains          String[] @map("allowed_email_domains")
+  termsOfServiceUrl            String?  @map("terms_of_service_url")
 
   // Email verification
   requireEmailVerification Boolean @default(false) @map("require_email_verification")
 
   // MFA
   mfaRequired Boolean @default(false) @map("mfa_required")
+
+  // WebAuthn / FIDO2
+  webAuthnEnabled Boolean  @default(false)  @map("webauthn_enabled")
+  webAuthnRpName  String?  @map("webauthn_rp_name")
+  webAuthnRpId    String?  @map("webauthn_rp_id")
 
   // Offline tokens
   offlineTokenLifespan Int @default(2592000) @map("offline_token_lifespan")
@@ -101,8 +109,11 @@ model Realm {
   userFederations    UserFederation[]
   samlServiceProviders SamlServiceProvider[]
   webhooks           Webhook[]
-  auditLogStreams     AuditLogStream[]
+  webAuthnCredentials WebAuthnCredential[]
+  auditLogStreams       AuditLogStream[]
   impersonationSessions ImpersonationSession[]
+  policies              Policy[]
+  customAttributes      CustomAttribute[]
 
   @@map("realms")
 }
@@ -140,6 +151,8 @@ model User {
   loginFailures       LoginFailure[]
   userCredentials     UserCredential[]
   recoveryCodes       RecoveryCode[]
+  webAuthnCredentials WebAuthnCredential[]
+  attributes          UserAttribute[]
 
   @@unique([realmId, username])
   @@unique([realmId, email])
@@ -464,6 +477,30 @@ model RecoveryCode {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("recovery_codes")
+}
+
+
+// ─── WEBAUTHN / FIDO2 ────────────────────────────────────
+
+model WebAuthnCredential {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  realmId      String    @map("realm_id")
+  realm        Realm     @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  credentialId String    @map("credential_id")
+  publicKey    Bytes     @map("public_key")
+  counter      BigInt    @default(0)
+  transports   String[]
+  deviceType   String    @map("device_type")
+  backedUp     Boolean   @default(false)
+  friendlyName String?   @map("friendly_name")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  lastUsedAt   DateTime? @map("last_used_at")
+
+  @@unique([credentialId])
+  @@index([userId])
+  @@map("webauthn_credentials")
 }
 
 // ─── IDENTITY PROVIDERS (Social Login) ───────────────────
@@ -836,3 +873,72 @@ model AuditLogStream {
 
   @@map("audit_log_streams")
 }
+
+// ─── ABAC POLICIES ───────────────────────────────────────
+
+model Policy {
+  id          String   @id @default(uuid())
+  realmId     String   @map("realm_id")
+  realm       Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  enabled     Boolean  @default(true)
+  effect      String   @default("ALLOW")   // "ALLOW" | "DENY"
+  priority    Int      @default(0)
+
+  // Conditions (JSON)
+  subjectConditions     Json? @map("subject_conditions")      // user attributes, roles, groups
+  resourceConditions    Json? @map("resource_conditions")     // resource type, owner, attributes
+  actionConditions      Json? @map("action_conditions")       // read, write, delete, etc.
+  environmentConditions Json? @map("environment_conditions")  // time, IP range, etc.
+
+  logic    String  @default("AND")  // "AND" | "OR" for combining conditions
+  clientId String? @map("client_id") // optional: scope to specific client
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([realmId])
+  @@index([realmId, clientId])
+  @@map("policies")
+}
+
+// ─── CUSTOM ATTRIBUTES ──────────────────────────────────
+
+model CustomAttribute {
+  id          String   @id @default(uuid())
+  realmId     String   @map("realm_id")
+  realm       Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  name        String
+  displayName String   @map("display_name")
+  type        String   @default("text")
+  required    Boolean  @default(false)
+  showOnRegistration Boolean @default(false) @map("show_on_registration")
+  showOnProfile      Boolean @default(true)  @map("show_on_profile")
+  options     Json?
+  mapToOidcClaim String? @map("map_to_oidc_claim")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt      @map("updated_at")
+
+  userAttributes UserAttribute[]
+
+  @@unique([realmId, name])
+  @@map("custom_attributes")
+}
+
+model UserAttribute {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attributeId String   @map("attribute_id")
+  attribute   CustomAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  value       String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt      @map("updated_at")
+
+  @@unique([userId, attributeId])
+  @@index([userId])
+  @@map("user_attributes")
+}
+

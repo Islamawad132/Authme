@@ -45,6 +45,9 @@ import { ImpersonationModule } from './impersonation/impersonation.module.js';
 import { StatsModule } from './stats/stats.module.js';
 import { RedisModule } from './redis/redis.module.js';
 import { CacheModule } from './cache/cache.module.js';
+import { WebAuthnModule } from './webauthn/webauthn.module.js';
+import { AuthorizationModule } from './authorization/authorization.module.js';
+import { CustomAttributesModule } from './custom-attributes/custom-attributes.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
 import { AdminEventInterceptor } from './events/admin-event.interceptor.js';
 import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
@@ -100,6 +103,9 @@ import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
     RateLimitModule,
     ImpersonationModule,
     StatsModule,
+    WebAuthnModule,
+    AuthorizationModule,
+    CustomAttributesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
