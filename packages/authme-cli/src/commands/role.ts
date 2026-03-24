@@ -32,6 +32,31 @@ export function registerRoleCommands(program: Command): void {
     });
 
   role
+    .command('get <name>')
+    .description('Get role details')
+    .requiredOption('--realm <realm>', 'Realm name')
+    .option('--json', 'Output as JSON')
+    .action(async (name: string, opts) => {
+      const client = new HttpClient();
+      const result = await client.get(`/admin/realms/${opts.realm}/roles/${name}`);
+      printResult(result, opts);
+    });
+
+  role
+    .command('update <name>')
+    .description('Update a realm role')
+    .requiredOption('--realm <realm>', 'Realm name')
+    .option('--description <desc>', 'New role description')
+    .option('--json', 'Output as JSON')
+    .action(async (name: string, opts) => {
+      const client = new HttpClient();
+      const body: Record<string, unknown> = {};
+      if (opts.description !== undefined) body.description = opts.description;
+      const result = await client.put(`/admin/realms/${opts.realm}/roles/${name}`, body);
+      printResult(result, opts);
+    });
+
+  role
     .command('delete <name>')
     .description('Delete a realm role')
     .requiredOption('--realm <realm>', 'Realm name')
@@ -63,8 +88,22 @@ export function registerRoleCommands(program: Command): void {
     });
 
   role
-    .command('remove <userId> <roleName>')
+    .command('unassign <userId> <roleName>')
     .description('Remove a realm role from a user')
+    .requiredOption('--realm <realm>', 'Realm name')
+    .action(async (userId: string, roleName: string, opts) => {
+      const client = new HttpClient();
+      await client.delete(
+        `/admin/realms/${opts.realm}/users/${userId}/role-mappings/realm`,
+        { roleNames: [roleName] },
+      );
+      success(`Role "${roleName}" removed from user "${userId}".`);
+    });
+
+  // Keep 'remove' as an alias for backward compat
+  role
+    .command('remove <userId> <roleName>')
+    .description('Remove a realm role from a user (alias for unassign)')
     .requiredOption('--realm <realm>', 'Realm name')
     .action(async (userId: string, roleName: string, opts) => {
       const client = new HttpClient();

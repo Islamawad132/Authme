@@ -51,6 +51,30 @@ export function registerClientCommands(program: Command): void {
     });
 
   client
+    .command('update <clientId>')
+    .description('Update a client')
+    .requiredOption('--realm <realm>', 'Realm name')
+    .option('--name <name>', 'New display name')
+    .option('--redirect-uris <uris...>', 'New redirect URIs (space-separated)')
+    .option('--web-origins <origins...>', 'New web origins (space-separated)')
+    .option('--grant-types <types...>', 'New grant types (space-separated)')
+    .option('--enable', 'Enable the client')
+    .option('--disable', 'Disable the client')
+    .option('--json', 'Output as JSON')
+    .action(async (clientId: string, opts) => {
+      const http = new HttpClient();
+      const body: Record<string, unknown> = {};
+      if (opts.name) body.name = opts.name;
+      if (opts.redirectUris) body.redirectUris = opts.redirectUris;
+      if (opts.webOrigins) body.webOrigins = opts.webOrigins;
+      if (opts.grantTypes) body.grantTypes = opts.grantTypes;
+      if (opts.enable) body.enabled = true;
+      if (opts.disable) body.enabled = false;
+      const result = await http.put(`/admin/realms/${opts.realm}/clients/${clientId}`, body);
+      printResult(result, opts);
+    });
+
+  client
     .command('delete <clientId>')
     .description('Delete a client')
     .requiredOption('--realm <realm>', 'Realm name')
@@ -66,5 +90,18 @@ export function registerClientCommands(program: Command): void {
       const http = new HttpClient();
       await http.delete(`/admin/realms/${opts.realm}/clients/${clientId}`);
       success(`Client "${clientId}" deleted.`);
+    });
+
+  client
+    .command('rotate-secret <clientId>')
+    .description('Rotate the client secret for a CONFIDENTIAL client')
+    .requiredOption('--realm <realm>', 'Realm name')
+    .option('--json', 'Output as JSON')
+    .action(async (clientId: string, opts) => {
+      const http = new HttpClient();
+      const result = await http.post(
+        `/admin/realms/${opts.realm}/clients/${clientId}/rotate-secret`,
+      );
+      printResult(result, opts);
     });
 }

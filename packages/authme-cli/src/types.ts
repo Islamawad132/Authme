@@ -2,6 +2,7 @@ export interface CliConfig {
   serverUrl: string;
   accessToken: string;
   apiKey?: string;
+  defaultRealm?: string;
 }
 
 export interface LoginResponse {
@@ -49,4 +50,31 @@ export interface RoleResponse {
   id: string;
   name: string;
   description: string | null;
+}
+
+export interface GroupResponse {
+  id: string;
+  name: string;
+  path: string;
+  memberCount?: number;
+}
+
+export interface GroupListResponse {
+  groups: GroupResponse[];
+  total: number;
+}
+
+export interface BulkImportResult {
+  imported: number;
+  failed: number;
+  errors: Array<{ row: number; username?: string; error: string }>;
+}
+
+export interface BulkUserInput {
+  username: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  password?: string;
+  enabled?: boolean;
 }
