@@ -320,4 +320,22 @@ describe('OAuthService', () => {
       expect(createCall.data.codeChallengeMethod).toBe('S256');
     });
   });
+
+  describe('cleanupExpiredCodes', () => {
+    it('should delete authorization codes whose expiresAt is in the past', async () => {
+      prisma.authorizationCode.deleteMany.mockResolvedValue({ count: 3 });
+
+      await service.cleanupExpiredCodes();
+
+      expect(prisma.authorizationCode.deleteMany).toHaveBeenCalledTimes(1);
+      const callArg = prisma.authorizationCode.deleteMany.mock.calls[0][0];
+      expect(callArg.where.expiresAt.lt).toBeInstanceOf(Date);
+    });
+
+    it('should not throw when no expired codes exist', async () => {
+      prisma.authorizationCode.deleteMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.cleanupExpiredCodes()).resolves.toBeUndefined();
+    });
+  });
 });

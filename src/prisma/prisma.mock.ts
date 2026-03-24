@@ -61,6 +61,7 @@ export function createMockPrismaService(): MockPrismaService {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      deleteMany: jest.fn(),
     },
     realmSigningKey: {
       findFirst: jest.fn(),

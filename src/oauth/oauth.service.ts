@@ -1,8 +1,10 @@
 import {
   Injectable,
   BadRequestException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 import { randomBytes } from 'crypto';
 import type { Realm, User, Client } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -24,6 +26,8 @@ export interface AuthorizeParams {
 
 @Injectable()
 export class OAuthService {
+  private readonly logger = new Logger(OAuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly scopesService: ScopesService,
@@ -125,5 +129,15 @@ export class OAuthService {
     }
 
     return { redirectUrl: redirectUrl.toString() };
+  }
+
+  @Interval(300_000) // every 5 minutes
+  async cleanupExpiredCodes(): Promise<void> {
+    const { count } = await this.prisma.authorizationCode.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+    if (count > 0) {
+      this.logger.debug(`Cleaned up ${count} expired authorization code(s)`);
+    }
   }
 }
