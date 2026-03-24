@@ -56,7 +56,10 @@ export class AuthmeClient {
       onError: config.onError,
       onTokenRefresh: config.onTokenRefresh,
     };
-    this.storage = createStorage(config.storage ?? 'sessionStorage');
+    // Default to in-memory storage to prevent XSS token theft.
+    // sessionStorage/localStorage are accessible to any JS on the page.
+    // Users can opt-in to persistent storage if they accept the risk.
+    this.storage = createStorage(config.storage ?? 'memory');
 
     // Wire up callback-style config options to the event system
     if (config.onLogin) {
