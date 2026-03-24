@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
@@ -13,6 +14,8 @@ export interface ImportOptions {
 
 @Injectable()
 export class RealmImportService {
+  private readonly logger = new Logger(RealmImportService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwkService: JwkService,
@@ -140,7 +143,17 @@ export class RealmImportService {
           enabled: c.enabled ?? true,
           requireConsent: c.requireConsent ?? false,
           redirectUris: c.redirectUris ?? [],
-          webOrigins: c.webOrigins ?? [],
+          webOrigins: (c.webOrigins ?? []).filter((o: string) => {
+            if (o === '*') {
+              this.logger.warn(
+                `Imported client '${c.clientId}' has a wildcard webOrigin "*" — ` +
+                  'it has been stripped during import. ' +
+                  'Update the client to use explicit origins.',
+              );
+              return false;
+            }
+            return true;
+          }),
           grantTypes: c.grantTypes ?? ['authorization_code'],
           backchannelLogoutUri: c.backchannelLogoutUri ?? null,
           backchannelLogoutSessionRequired: c.backchannelLogoutSessionRequired ?? true,

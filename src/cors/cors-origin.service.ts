@@ -24,7 +24,7 @@ import { CacheService } from '../cache/cache.service.js';
 export class CorsOriginService {
   private readonly logger = new Logger(CorsOriginService.name);
 
-  /** In-process cache: set of allowed origins (includes '*' sentinel when present). */
+  /** In-process cache: set of concrete allowed origins (wildcard '*' is never stored). */
   private localOrigins: Set<string> | null = null;
   /** Epoch ms at which the in-process cache expires. */
   private localCacheExpiry = 0;
@@ -40,13 +40,14 @@ export class CorsOriginService {
    * Returns true if the given origin is permitted by at least one enabled client.
    * The empty / undefined origin (same-origin, server-to-server) must be handled
    * by the caller — this method always expects a non-empty string.
+   *
+   * The bare wildcard '*' is never accepted as an allowed origin, even if a
+   * client record in the database still contains it (e.g. data that pre-dates
+   * the creation-time validation added in issue #320).  It is silently filtered
+   * out during {@link loadFromDatabase} and a warning is emitted instead.
    */
   async isOriginAllowed(origin: string): Promise<boolean> {
     const origins = await this.getAllowedOrigins();
-
-    // Wildcard: any origin is permitted
-    if (origins.has('*')) return true;
-
     return origins.has(origin);
   }
 
@@ -94,6 +95,18 @@ export class CorsOriginService {
       const origins = new Set<string>();
       for (const client of clients) {
         for (const o of client.webOrigins) {
+          if (o === '*') {
+            // A wildcard origin stored in the database means the client was
+            // created before the #320 validation was introduced.  Honouring it
+            // would bypass CORS protection for every request origin, so we
+            // skip it here and emit a warning so operators can remediate.
+            this.logger.warn(
+              'A client webOrigins entry contains the wildcard "*". ' +
+                'This origin is being ignored for CORS checks. ' +
+                'Update the client to use explicit origins to silence this warning.',
+            );
+            continue;
+          }
           origins.add(o);
         }
       }

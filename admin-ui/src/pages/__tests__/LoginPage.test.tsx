@@ -7,10 +7,8 @@ import { server } from '../../test/mocks/server';
 import LoginPage from '../LoginPage';
 
 // LoginPage uses useNavigate – the custom render helper provides MemoryRouter.
-// useAuth touches sessionStorage, so we clear that between tests.
-
-beforeEach(() => sessionStorage.clear());
-afterEach(() => sessionStorage.clear());
+// Credentials are stored in-memory (module-level variables in api/client.ts),
+// so no sessionStorage cleanup is needed between tests.
 
 describe('LoginPage – credentials mode', () => {
   it('renders the login form with username and password fields', () => {

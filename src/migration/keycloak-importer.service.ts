@@ -263,7 +263,17 @@ export class KeycloakImporterService {
               clientType: client.publicClient ? 'PUBLIC' : 'CONFIDENTIAL',
               clientSecret: secretHash,
               redirectUris: client.redirectUris ?? [],
-              webOrigins: client.webOrigins ?? [],
+              webOrigins: (client.webOrigins ?? []).filter((o: string) => {
+                if (o === '*') {
+                  this.logger.warn(
+                    `Keycloak client '${client.clientId}' has a wildcard webOrigin "*" — ` +
+                      'it has been stripped during import. ' +
+                      'Update the client to use explicit origins.',
+                  );
+                  return false;
+                }
+                return true;
+              }),
               grantTypes,
               consentRequired: client.consentRequired ?? false,
               serviceAccountEnabled: client.serviceAccountsEnabled ?? false,

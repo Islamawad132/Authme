@@ -11,7 +11,68 @@ import { GlobalExceptionFilter } from './common/filters/http-exception.filter.js
 import { registerHandlebarsHelpers } from './theme/handlebars-helpers.js';
 import { CorsOriginService } from './cors/cors-origin.service.js';
 
+/** Known-insecure / placeholder values that must never reach production. */
+const INSECURE_ADMIN_API_KEY_VALUES = new Set([
+  'REPLACE_ME_WITH_A_STRONG_RANDOM_SECRET',
+  'dev-admin-key-change-in-production',
+  'changeme',
+  'secret',
+  'admin',
+  'password',
+]);
+
+const MIN_ADMIN_API_KEY_LENGTH = 32;
+
+function validateAdminApiKey(): void {
+  const isProduction = process.env['NODE_ENV'] === 'production';
+  const key = process.env['ADMIN_API_KEY'];
+
+  // Absent key — guard falls back to JWT-only mode; warn in production.
+  if (!key) {
+    if (isProduction) {
+      console.warn(
+        '[SECURITY] ADMIN_API_KEY is not set. ' +
+          'The static API-key authentication path is disabled. ' +
+          'Ensure admin JWT authentication is properly configured.',
+      );
+    }
+    return;
+  }
+
+  const isInsecureValue = INSECURE_ADMIN_API_KEY_VALUES.has(key);
+  const isTooShort = key.length < MIN_ADMIN_API_KEY_LENGTH;
+
+  if (isProduction) {
+    if (isInsecureValue) {
+      console.error(
+        '[SECURITY] FATAL: ADMIN_API_KEY is set to a known placeholder or insecure value. ' +
+          'Set a strong, randomly generated secret (e.g. `openssl rand -hex 32`) ' +
+          'before running in production.',
+      );
+      process.exit(1);
+    }
+
+    if (isTooShort) {
+      console.error(
+        `[SECURITY] FATAL: ADMIN_API_KEY must be at least ${MIN_ADMIN_API_KEY_LENGTH} characters long in production. ` +
+          'Generate one with: openssl rand -hex 32',
+      );
+      process.exit(1);
+    }
+  } else {
+    // Development / test: warn but do not block startup.
+    if (isInsecureValue || isTooShort) {
+      console.warn(
+        '[SECURITY] WARNING: ADMIN_API_KEY is weak or a placeholder. ' +
+          'This is acceptable in development but MUST be replaced before deploying to production.',
+      );
+    }
+  }
+}
+
 async function bootstrap() {
+  validateAdminApiKey();
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   });

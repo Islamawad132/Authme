@@ -121,7 +121,17 @@ export class Auth0ImporterService {
               clientType: isPublic ? 'PUBLIC' : 'CONFIDENTIAL',
               clientSecret: secretHash,
               redirectUris: client.callbacks ?? [],
-              webOrigins: client.allowed_origins ?? [],
+              webOrigins: (client.allowed_origins ?? []).filter((o: string) => {
+                if (o === '*') {
+                  this.logger.warn(
+                    `Auth0 client '${client.client_id}' has a wildcard webOrigin "*" — ` +
+                      'it has been stripped during import. ' +
+                      'Update the client to use explicit origins.',
+                  );
+                  return false;
+                }
+                return true;
+              }),
               grantTypes,
             },
           });

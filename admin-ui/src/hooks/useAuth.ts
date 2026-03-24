@@ -1,33 +1,36 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllRealms } from '../api/realms';
-import apiClient from '../api/client';
+import apiClient, { setCredentials, clearCredentials } from '../api/client';
+import { useAuthContext } from '../context/AuthContext';
 
 export function useAuth() {
   const navigate = useNavigate();
+  const { apiKey, token, setApiKey, setToken, clearAuth } = useAuthContext();
 
-  const isAuthenticated =
-    !!sessionStorage.getItem('adminApiKey') ||
-    !!sessionStorage.getItem('adminToken');
+  const isAuthenticated = apiKey !== null || token !== null;
 
   const clearAuthState = useCallback(() => {
-    sessionStorage.removeItem('adminApiKey');
-    sessionStorage.removeItem('adminToken');
-  }, []);
+    clearAuth();
+    clearCredentials();
+  }, [clearAuth]);
 
   const login = useCallback(
-    async (apiKey: string): Promise<boolean> => {
+    async (key: string): Promise<boolean> => {
       clearAuthState();
-      sessionStorage.setItem('adminApiKey', apiKey);
+      // Optimistically load credentials so the probe request is authenticated.
+      setCredentials({ apiKey: key });
       try {
         await getAllRealms();
+        // Probe succeeded — persist to React state.
+        setApiKey(key);
         return true;
       } catch {
-        sessionStorage.removeItem('adminApiKey');
+        clearCredentials();
         return false;
       }
     },
-    [clearAuthState],
+    [clearAuthState, setApiKey],
   );
 
   const loginWithCredentials = useCallback(
@@ -36,7 +39,8 @@ export function useAuth() {
       try {
         const { data } = await apiClient.post('/auth/login', { username, password });
         if (data.access_token) {
-          sessionStorage.setItem('adminToken', data.access_token);
+          setCredentials({ token: data.access_token });
+          setToken(data.access_token);
           return true;
         }
         return false;
@@ -44,14 +48,14 @@ export function useAuth() {
         return false;
       }
     },
-    [clearAuthState],
+    [clearAuthState, setToken],
   );
 
   const logout = useCallback(async () => {
     try {
       await apiClient.post('/auth/logout');
     } catch {
-      // Best-effort: clear locally even if server call fails
+      // Best-effort: clear locally even if server call fails.
     }
     clearAuthState();
     navigate('/console/login');

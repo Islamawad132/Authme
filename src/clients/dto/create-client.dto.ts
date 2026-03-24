@@ -5,8 +5,39 @@ import {
   IsEnum,
   IsArray,
   MinLength,
+  registerDecorator,
+  ValidationOptions,
+  ValidationArguments,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+/**
+ * Rejects arrays that contain the bare wildcard origin '*'.
+ *
+ * Allowing '*' in webOrigins would instruct the CORS middleware to echo back
+ * an Allow-Origin header for every request origin, effectively disabling CORS
+ * protection for the entire realm.  Concrete origins must always be specified.
+ */
+function IsNoWildcardOrigin(validationOptions?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isNoWildcardOrigin',
+      target: (object as { constructor: Function }).constructor,
+      propertyName,
+      options: {
+        message:
+          'webOrigins must not contain the wildcard "*". Specify explicit origins instead.',
+        ...validationOptions,
+      },
+      validator: {
+        validate(value: unknown, _args: ValidationArguments): boolean {
+          if (!Array.isArray(value)) return true; // let @IsArray handle that
+          return !(value as unknown[]).some((v) => v === '*');
+        },
+      },
+    });
+  };
+}
 
 export class CreateClientDto {
   @ApiProperty({ example: 'my-frontend' })
@@ -44,6 +75,7 @@ export class CreateClientDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @IsNoWildcardOrigin()
   webOrigins?: string[];
 
   @ApiPropertyOptional({ example: ['authorization_code', 'client_credentials'] })
