@@ -135,6 +135,11 @@ export async function createTestApp(): Promise<TestContext> {
     const privateKeyPem = await exportKeyToPem(privateKey, 'private');
     const kid = randomUUID();
 
+    // Hash secrets with argon2 before seeding
+    const argon2 = await import('argon2');
+    const clientSecretHash = await argon2.hash('test-client-secret');
+    const passwordHash = await argon2.hash('TestPassword123!');
+
     // Clean up any existing realm with the same name
     await prisma.realm
       .delete({ where: { name: realmName } })
@@ -163,7 +168,7 @@ export async function createTestApp(): Promise<TestContext> {
             enabled: true,
             redirectUris: ['http://localhost:3000/callback'],
             webOrigins: ['http://localhost:3000'],
-            grantTypes: ['authorization_code', 'client_credentials', 'password'],
+            grantTypes: ['authorization_code', 'client_credentials', 'password', 'refresh_token'],
           },
         },
       },
@@ -172,11 +177,6 @@ export async function createTestApp(): Promise<TestContext> {
         clients: true,
       },
     });
-
-    // Hash secrets with argon2
-    const argon2 = await import('argon2');
-    const clientSecretHash = await argon2.hash('test-client-secret');
-    const passwordHash = await argon2.hash('TestPassword123!');
 
     const user = await prisma.user.create({
       data: {
