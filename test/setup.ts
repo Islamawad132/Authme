@@ -64,9 +64,30 @@ export async function createTestApp(): Promise<TestContext> {
     process.env['DATABASE_URL'] = process.env['TEST_DATABASE_URL'];
   }
 
-  const moduleFixture: TestingModule = await Test.createTestingModule({
-    imports: [AppModule],
-  }).compile();
+  const dbUrl = process.env['DATABASE_URL'];
+  if (!dbUrl) {
+    throw new Error(
+      'E2E tests require a database.\n' +
+        'Set DATABASE_URL in your .env file or export TEST_DATABASE_URL.\n' +
+        'Quick start: docker compose -f docker-compose.dev.yml up -d postgres\n' +
+        'Then run: npx prisma migrate deploy',
+    );
+  }
+
+  let moduleFixture: TestingModule;
+  try {
+    moduleFixture = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Failed to compile test application — is the database running?\n` +
+        `DATABASE_URL: ${dbUrl.replace(/\/\/.*@/, '//***@')}\n` +
+        `Original error: ${message}\n\n` +
+        `Quick start: docker compose -f docker-compose.dev.yml up -d postgres && npx prisma migrate deploy`,
+    );
+  }
 
   const app = moduleFixture.createNestApplication();
 
