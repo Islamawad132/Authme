@@ -120,6 +120,11 @@ model Realm {
   defaultLocale    String   @default("en") @map("default_locale") @db.VarChar(10)
   supportedLocales String[] @default(["en"]) @map("supported_locales")
 
+  // Adaptive authentication / risk assessment
+  adaptiveAuthEnabled  Boolean @default(false) @map("adaptive_auth_enabled")
+  riskThresholdStepUp  Int     @default(50)    @map("risk_threshold_step_up")
+  riskThresholdBlock   Int     @default(80)    @map("risk_threshold_block")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -144,6 +149,9 @@ model Realm {
   policies              Policy[]
   customAttributes      CustomAttribute[]
   authenticationFlows   AuthenticationFlow[]
+  loginRiskAssessments  LoginRiskAssessment[]
+  userLoginProfiles     UserLoginProfile[]
+  organizations         Organization[]
 
   @@map("realms")
 }
@@ -1030,4 +1038,121 @@ model InstalledPlugin {
   @@map("installed_plugins")
 }
 
+// ─── RISK ASSESSMENT ──────────────────────────────────────
 
+model LoginRiskAssessment {
+  id                String   @id @default(uuid())
+  loginEventId      String?  @map("login_event_id")
+  userId            String   @map("user_id")
+  realmId           String   @map("realm_id")
+  riskScore         Int      @map("risk_score")
+  riskLevel         String   @map("risk_level")     // LOW, MEDIUM, HIGH, CRITICAL
+  signals           Json                              // Array of RiskSignal objects
+  action            String                            // ALLOW, STEP_UP, BLOCK
+  ipAddress         String?  @map("ip_address")
+  userAgent         String?  @map("user_agent")
+  geoLocation       String?  @map("geo_location")   // "city, country" or null
+  deviceFingerprint String?  @map("device_fingerprint")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([realmId, createdAt])
+  @@index([riskLevel])
+  @@map("login_risk_assessments")
+}
+
+model UserLoginProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique @map("user_id")
+  realmId             String   @map("realm_id")
+  knownIps            Json     @default("[]") @map("known_ips")
+  knownDevices        Json     @default("[]") @map("known_devices")
+  loginTimes          Json     @default("[]") @map("login_times")
+  lastLocations       Json     @default("[]") @map("last_locations")
+  avgLoginFrequency   Float    @default(0)   @map("avg_login_frequency")
+  updatedAt           DateTime @updatedAt    @map("updated_at")
+
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([realmId])
+  @@map("user_login_profiles")
+}
+
+
+
+
+// ─── ORGANIZATIONS ────────────────────────────────────────
+
+model Organization {
+  id              String   @id @default(uuid())
+  realmId         String   @map("realm_id")
+  realm           Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  name            String
+  slug            String
+  displayName     String?  @map("display_name")
+  description     String?
+  enabled         Boolean  @default(true)
+
+  // Branding
+  logoUrl         String?  @map("logo_url")
+  primaryColor    String?  @map("primary_color")
+
+  // Auth policies
+  requireMfa      Boolean  @default(false) @map("require_mfa")
+
+  // Domain verification
+  verifiedDomains String[] @map("verified_domains")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  members         OrganizationMember[]
+  invitations     OrganizationInvitation[]
+  ssoConnections  OrganizationSsoConnection[]
+
+  @@unique([realmId, slug])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String       @map("user_id")
+  role           String       @default("member")
+  joinedAt       DateTime     @default(now()) @map("joined_at")
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+model OrganizationInvitation {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String       @default("member")
+  token          String       @unique
+  expiresAt      DateTime     @map("expires_at")
+  acceptedAt     DateTime?    @map("accepted_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@map("organization_invitations")
+}
+
+model OrganizationSsoConnection {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  type           String
+  name           String
+  enabled        Boolean      @default(true)
+  config         Json
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  @@map("organization_sso_connections")
+}
