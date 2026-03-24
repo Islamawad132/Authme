@@ -78,3 +78,30 @@ export interface BulkUserInput {
   password?: string;
   enabled?: boolean;
 }
+
+export interface MigrationEntityStats {
+  created: number;
+  skipped: number;
+  failed: number;
+}
+
+export interface MigrationError {
+  entity: string;
+  name: string;
+  error: string;
+}
+
+export interface MigrationWarning {
+  entity: string;
+  message: string;
+}
+
+export interface MigrationReport {
+  source: 'keycloak' | 'auth0';
+  dryRun: boolean;
+  startedAt: string;
+  completedAt: string;
+  summary: Record<string, MigrationEntityStats>;
+  errors: MigrationError[];
+  warnings: MigrationWarning[];
+}

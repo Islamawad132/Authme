@@ -1,17 +1,26 @@
 import chalk from 'chalk';
 import { requireAuth } from './config.js';
+import type { CliConfig } from './types.js';
 
 export class HttpClient {
   private serverUrl: string;
   private headers: Record<string, string>;
 
-  constructor() {
-    const auth = requireAuth();
-    this.serverUrl = auth.serverUrl.replace(/\/$/, '');
-    this.headers = {
-      'Content-Type': 'application/json',
-      ...auth.headers,
-    };
+  constructor(config?: { serverUrl: string; headers?: Record<string, string> }) {
+    if (config) {
+      this.serverUrl = config.serverUrl.replace(/\/$/, '');
+      this.headers = {
+        'Content-Type': 'application/json',
+        ...config.headers,
+      };
+    } else {
+      const auth = requireAuth();
+      this.serverUrl = auth.serverUrl.replace(/\/$/, '');
+      this.headers = {
+        'Content-Type': 'application/json',
+        ...auth.headers,
+      };
+    }
   }
 
   private url(path: string): string {
@@ -69,4 +78,23 @@ export class HttpClient {
 
     return json as T;
   }
+}
+
+export function createHttpClient(config: CliConfig): HttpClient {
+  const headers: Record<string, string> = {};
+  if (config.apiKey) {
+    headers['x-admin-api-key'] = config.apiKey;
+  } else if (config.accessToken) {
+    headers['Authorization'] = `Bearer ${config.accessToken}`;
+  }
+  return new HttpClient({ serverUrl: config.serverUrl, headers });
+}
+
+export function handleApiError(error: unknown): never {
+  if (error instanceof Error) {
+    console.error(chalk.red(error.message));
+  } else {
+    console.error(chalk.red('An unexpected error occurred'));
+  }
+  process.exit(1);
 }
