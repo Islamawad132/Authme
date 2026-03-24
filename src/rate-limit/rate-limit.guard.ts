@@ -52,7 +52,7 @@ export class RateLimitGuard implements CanActivate {
 
     // Extract realm from request params (standard pattern in this project)
     const realmId: string | undefined =
-      (request as any)['realm']?.id ??
+      (request as Request & { realm?: { id: string } })['realm']?.id ??
       (request.params as Record<string, string>)['realmId'];
 
     if (!realmId) {
@@ -116,7 +116,12 @@ export class RateLimitGuard implements CanActivate {
   }
 
   private extractUserId(request: Request): string | undefined {
-    return (request as any)['user']?.sub ?? (request as any)['adminUser']?.userId;
+    type AuthenticatedRequest = Request & {
+      user?: { sub?: string };
+      adminUser?: { userId?: string };
+    };
+    const req = request as AuthenticatedRequest;
+    return req.user?.sub ?? req.adminUser?.userId;
   }
 
   private extractIp(request: Request): string {

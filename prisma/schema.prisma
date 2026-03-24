@@ -1198,3 +1198,40 @@ model RevokedToken {
   @@index([expiresAt])
   @@map("revoked_tokens")
 }
+
+model ServiceAccount {
+  id          String   @id @default(uuid())
+  realmId     String   @map("realm_id")
+  name        String
+  description String?
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  apiKeys ApiKey[]
+
+  @@unique([realmId, name])
+  @@index([realmId])
+  @@map("service_accounts")
+}
+
+model ApiKey {
+  id               String    @id @default(uuid())
+  serviceAccountId String    @map("service_account_id")
+  keyPrefix        String    @map("key_prefix")
+  keyHash          String    @map("key_hash")
+  name             String?
+  scopes           String[]
+  expiresAt        DateTime? @map("expires_at")
+  lastUsedAt       DateTime? @map("last_used_at")
+  requestCount     Int       @default(0) @map("request_count")
+  revoked          Boolean   @default(false)
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  serviceAccount ServiceAccount @relation(fields: [serviceAccountId], references: [id], onDelete: Cascade)
+
+  @@index([serviceAccountId])
+  @@index([keyPrefix])
+  @@map("api_keys")
+}

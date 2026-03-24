@@ -28,6 +28,7 @@ import {
   StartAuthenticationDto,
   VerifyAuthenticationDto,
 } from './webauthn.dto.js';
+import type { AuthorizeParams } from '../oauth/oauth.service.js';
 import type {
   RegistrationResponseJSON,
   AuthenticationResponseJSON,
@@ -130,8 +131,10 @@ export class WebAuthnController {
 
     // Build OAuth params from request body
     const oauthParams: Record<string, string> = {};
+    const bodyAsRecord = body as unknown as Record<string, unknown>;
     for (const key of ['response_type', 'client_id', 'redirect_uri', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method']) {
-      if ((body as any)[key]) oauthParams[key] = (body as any)[key];
+      const val = bodyAsRecord[key];
+      if (typeof val === 'string' && val) oauthParams[key] = val;
     }
 
     // Create session
@@ -155,7 +158,7 @@ export class WebAuthnController {
     }
 
     try {
-      const client = await this.oauthService.validateAuthRequest(realm, oauthParams as any);
+      const client = await this.oauthService.validateAuthRequest(realm, oauthParams as unknown as AuthorizeParams);
 
       if (client.requireConsent) {
         const scopes = (oauthParams['scope'] ?? 'openid').split(' ').filter(Boolean);
@@ -174,10 +177,11 @@ export class WebAuthnController {
         }
       }
 
-      const result = await this.oauthService.authorizeWithUser(realm, user, oauthParams as any);
+      const result = await this.oauthService.authorizeWithUser(realm, user, oauthParams as unknown as AuthorizeParams);
       return res.json({ redirectUrl: result.redirectUrl });
-    } catch (err: any) {
-      return res.json({ redirectUrl: `/realms/${realm.name}/login?error=${encodeURIComponent(err.message)}` });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return res.json({ redirectUrl: `/realms/${realm.name}/login?error=${encodeURIComponent(message)}` });
     }
   }
 

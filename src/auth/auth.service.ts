@@ -441,7 +441,7 @@ export class AuthService {
     this.metricsService.authTokenIssuedTotal.inc({ realm: realm.name, grant_type: 'authorization_code' });
 
     // Resolve ACR from the auth code's stored acr_values (set at authorization time)
-    const storedAcrValues = (authCode as any).acrValues as string | null | undefined;
+    const storedAcrValues = authCode.acrValues;
     const resolvedAcr = storedAcrValues
       ? storedAcrValues.split(' ')[0]
       : ACR_PASSWORD;
@@ -674,11 +674,11 @@ export class AuthService {
       if (mappers.length > 0) {
         const mapperContext: MapperContext = {
           userId: user.id,
-          username: (user as any).username ?? '',
-          email: (user as any).email ?? null,
-          emailVerified: (user as any).emailVerified ?? false,
-          firstName: (user as any).firstName ?? null,
-          lastName: (user as any).lastName ?? null,
+          username: user.username ?? '',
+          email: user.email ?? null,
+          emailVerified: user.emailVerified ?? false,
+          firstName: user.firstName ?? null,
+          lastName: user.lastName ?? null,
           realmRoles,
           resourceAccess,
         };
@@ -707,16 +707,16 @@ export class AuthService {
     };
 
     // Allow token-enrichment plugins to add custom claims (non-blocking)
-    const enrichedPayload = this.pluginManager
+    const enrichedPayload: Record<string, unknown> = this.pluginManager
       ? await this.pluginManager.enrichToken(
-          accessTokenPayload as Record<string, unknown>,
+          accessTokenPayload,
           user,
           realm.name,
         )
       : accessTokenPayload;
 
     const accessToken = await this.jwkService.signJwt(
-      enrichedPayload as JWTPayload,
+      enrichedPayload as unknown as JWTPayload,
       signingKey.privateKey,
       signingKey.kid,
       realm.accessTokenLifespan,
@@ -725,7 +725,7 @@ export class AuthService {
     // Determine if this is an offline token
     const isOffline = effectiveScopes.includes('offline_access');
     const refreshLifespan = isOffline
-      ? (realm as any).offlineTokenLifespan ?? 2592000
+      ? realm.offlineTokenLifespan
       : realm.refreshTokenLifespan;
 
     // Generate opaque refresh token
@@ -885,7 +885,7 @@ export class AuthService {
    * A `maxSessionsPerUser` value of 0 means "unlimited" — no eviction occurs.
    */
   private async enforceSessionLimit(realm: Realm, userId: string): Promise<void> {
-    const maxSessions = (realm as any).maxSessionsPerUser as number | undefined;
+    const maxSessions = (realm as Realm & { maxSessionsPerUser?: number }).maxSessionsPerUser;
     if (!maxSessions || maxSessions <= 0) return;
 
     const activeSessions = await this.prisma.session.findMany({

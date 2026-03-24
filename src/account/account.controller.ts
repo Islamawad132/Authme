@@ -55,9 +55,17 @@ export class AccountController {
 
     const query = req.query as Record<string, string>;
     const mfaEnabled = await this.mfaService.isMfaEnabled(user.id);
-    const webAuthnEnabled = (realm as any).webAuthnEnabled ?? false;
+    const webAuthnEnabled = realm.webAuthnEnabled ?? false;
 
-    let webAuthnCredentials: any[] = [];
+    let webAuthnCredentials: Array<{
+      id: string;
+      friendlyName: string | null;
+      deviceType: string;
+      backedUp: boolean;
+      transports: string[];
+      createdAt: string;
+      lastUsedAt: string | null;
+    }> = [];
     if (webAuthnEnabled) {
       const rawCredentials = await this.webAuthnService.getUserCredentials(user.id);
       webAuthnCredentials = rawCredentials.map((c) => ({

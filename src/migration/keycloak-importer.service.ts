@@ -275,8 +275,7 @@ export class KeycloakImporterService {
                 return true;
               }),
               grantTypes,
-              consentRequired: client.consentRequired ?? false,
-              serviceAccountEnabled: client.serviceAccountsEnabled ?? false,
+              requireConsent: client.consentRequired ?? false,
             },
           });
         }
@@ -396,7 +395,7 @@ export class KeycloakImporterService {
               clientSecret: idp.config?.clientSecret ?? '',
               authorizationUrl: idp.config?.authorizationUrl ?? '',
               tokenUrl: idp.config?.tokenUrl ?? '',
-              userInfoUrl: idp.config?.userInfoUrl,
+              userinfoUrl: idp.config?.userInfoUrl,
               issuer: idp.config?.issuer,
             },
           });

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Realm, ClientType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { ScopeSeedService } from '../scopes/scope-seed.service.js';
@@ -131,7 +132,7 @@ export class ClientsService {
   async findByClientId(realm: Realm, clientId: string) {
     const cacheKey = `${realm.id}:${clientId}`;
     const cached = await this.cache.getCachedClientConfig<typeof CLIENT_SELECT>(cacheKey);
-    if (cached) return cached as any;
+    if (cached) return cached as unknown as Prisma.ClientGetPayload<{ select: typeof CLIENT_SELECT }>;
 
     const client = await this.prisma.client.findUnique({
       where: {

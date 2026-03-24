@@ -84,7 +84,7 @@ export class WellKnownController {
       // WebAuthn / FIDO2 support
       webauthn_registration_endpoint: `${realmUrl}/webauthn/register/options`,
       webauthn_authentication_endpoint: `${realmUrl}/webauthn/authenticate/options`,
-      ...((realm as any).webAuthnEnabled ? { passkey_endpoint: `${realmUrl}/webauthn` } : {}),
+      ...(realm.webAuthnEnabled ? { passkey_endpoint: `${realmUrl}/webauthn` } : {}),
     };
   }
 

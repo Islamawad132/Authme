@@ -5,6 +5,7 @@ import {
   ConflictException,
   OnModuleInit,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PluginLoaderService } from './plugin-loader.service.js';
 import { PluginRegistry } from './plugin-registry.js';
@@ -83,7 +84,7 @@ export class PluginManagerService implements OnModuleInit {
             version: plugin.version,
             type: plugin.type,
             enabled: true,
-            config: null,
+            config: Prisma.JsonNull,
           },
         });
 

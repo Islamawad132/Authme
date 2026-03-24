@@ -37,7 +37,7 @@ export class RateLimitInterceptor implements NestInterceptor {
     if (type) {
       const request = context.switchToHttp().getRequest<Request>();
       const realmId: string | undefined =
-        (request as any)['realm']?.id ??
+        (request as Request & { realm?: { id: string } })['realm']?.id ??
         (request.params as Record<string, string>)['realmId'];
 
       if (realmId) {

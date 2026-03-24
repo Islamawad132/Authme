@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { createHmac } from 'crypto';
 import type { Realm } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { CreateWebhookDto, UpdateWebhookDto } from './webhooks.dto.js';
@@ -209,7 +210,7 @@ export class WebhooksService {
         data: {
           realmId: options.realmId,
           eventType: options.eventType,
-          payload: fullPayload as any,
+          payload: fullPayload as Record<string, unknown>,
           status: 'PENDING',
         },
       });
@@ -242,7 +243,7 @@ export class WebhooksService {
       data: {
         webhookId: webhook.id,
         eventType,
-        payload: payload as any,
+        payload: payload as unknown as Prisma.InputJsonValue,
         attempts: 0,
       },
     });

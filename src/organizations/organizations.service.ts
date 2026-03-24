@@ -8,6 +8,7 @@ import {
 import { promises as dns } from 'dns';
 import { randomBytes, createHash } from 'crypto';
 import type { Realm } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateOrganizationDto } from './dto/create-organization.dto.js';
 import { UpdateOrganizationDto } from './dto/update-organization.dto.js';
@@ -365,7 +366,7 @@ export class OrganizationsService {
         type: dto.type,
         name: dto.name,
         enabled: dto.enabled ?? true,
-        config: dto.config as any,
+        config: dto.config as unknown as Prisma.InputJsonValue,
       },
     });
   }
@@ -402,7 +403,7 @@ export class OrganizationsService {
       data: {
         name: dto.name,
         enabled: dto.enabled,
-        config: dto.config !== undefined ? (dto.config as any) : undefined,
+        config: dto.config !== undefined ? (dto.config as unknown as Prisma.InputJsonValue) : undefined,
       },
     });
   }

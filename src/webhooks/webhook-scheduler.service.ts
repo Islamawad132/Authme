@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { createHmac } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 
@@ -216,7 +217,7 @@ export class WebhookSchedulerService {
       data: {
         webhookId: webhook.id,
         eventType,
-        payload: payload as any,
+        payload: payload as unknown as Prisma.InputJsonValue,
         attempts: 0,
       },
     });

@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateAuthFlowDto, UpdateAuthFlowDto } from './auth-flow.dto.js';
 
@@ -121,7 +122,7 @@ export class AuthFlowService {
         name: dto.name,
         description: dto.description,
         isDefault: dto.isDefault ?? false,
-        steps: dto.steps as any,
+        steps: dto.steps as unknown as Prisma.InputJsonValue,
       },
     });
   }
@@ -169,7 +170,7 @@ export class AuthFlowService {
         ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.description !== undefined && { description: dto.description }),
         ...(dto.isDefault !== undefined && { isDefault: dto.isDefault }),
-        ...(dto.steps !== undefined && { steps: dto.steps as any }),
+        ...(dto.steps !== undefined && { steps: dto.steps as unknown as Prisma.InputJsonValue }),
       },
     });
   }
@@ -328,7 +329,7 @@ export class AuthFlowService {
       }
 
       default:
-        this.logger.warn(`Unknown condition operator: ${(condition as any).operator}`);
+        this.logger.warn(`Unknown condition operator: ${(condition as FlowStepCondition & { operator: string }).operator}`);
         return false;
     }
   }
@@ -352,7 +353,7 @@ export class AuthFlowService {
           name: def.name,
           description: def.description,
           isDefault: index === 0, // "Simple Login" is the default
-          steps: def.steps as any,
+          steps: def.steps as unknown as Prisma.InputJsonValue,
         },
       });
       this.logger.log(`Seeded default flow '${def.name}' for realm ${realmId}`);

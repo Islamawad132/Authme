@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { LoginEventTypeValue, OperationTypeValue, ResourceTypeValue } from './event-types.js';
 import type { WebhooksService } from '../webhooks/webhooks.service.js';
@@ -73,7 +74,7 @@ export class EventsService {
           clientId: params.clientId,
           ipAddress: params.ipAddress,
           error: params.error,
-          details: (params.details as any) ?? undefined,
+          details: params.details !== undefined ? params.details as unknown as Prisma.InputJsonValue : undefined,
         },
       });
     } catch (err) {
@@ -122,7 +123,7 @@ export class EventsService {
           operationType: params.operationType,
           resourceType: params.resourceType,
           resourcePath: params.resourcePath,
-          representation: (params.representation as any) ?? undefined,
+          representation: params.representation !== undefined ? params.representation as unknown as Prisma.InputJsonValue : undefined,
           ipAddress: params.ipAddress,
         },
       });
@@ -132,18 +133,19 @@ export class EventsService {
   }
 
   async queryLoginEvents(params: QueryEventsParams) {
-    const where: any = { realmId: params.realmId };
-    if (params.type) where.type = params.type;
-    if (params.userId) where.userId = params.userId;
-    if (params.clientId) where.clientId = params.clientId;
+    const where: Record<string, unknown> = { realmId: params.realmId };
+    if (params.type) where['type'] = params.type;
+    if (params.userId) where['userId'] = params.userId;
+    if (params.clientId) where['clientId'] = params.clientId;
     if (params.dateFrom || params.dateTo) {
-      where.createdAt = {};
-      if (params.dateFrom) where.createdAt.gte = params.dateFrom;
-      if (params.dateTo) where.createdAt.lte = params.dateTo;
+      const createdAt: Record<string, Date> = {};
+      if (params.dateFrom) createdAt['gte'] = params.dateFrom;
+      if (params.dateTo) createdAt['lte'] = params.dateTo;
+      where['createdAt'] = createdAt;
     }
 
     return this.prisma.loginEvent.findMany({
-      where,
+      where: where as Prisma.LoginEventWhereInput,
       orderBy: { createdAt: 'desc' },
       skip: params.first ?? 0,
       take: params.max ?? 100,
@@ -151,17 +153,18 @@ export class EventsService {
   }
 
   async queryAdminEvents(params: QueryAdminEventsParams) {
-    const where: any = { realmId: params.realmId };
-    if (params.operationType) where.operationType = params.operationType;
-    if (params.resourceType) where.resourceType = params.resourceType;
+    const where: Record<string, unknown> = { realmId: params.realmId };
+    if (params.operationType) where['operationType'] = params.operationType;
+    if (params.resourceType) where['resourceType'] = params.resourceType;
     if (params.dateFrom || params.dateTo) {
-      where.createdAt = {};
-      if (params.dateFrom) where.createdAt.gte = params.dateFrom;
-      if (params.dateTo) where.createdAt.lte = params.dateTo;
+      const createdAt: Record<string, Date> = {};
+      if (params.dateFrom) createdAt['gte'] = params.dateFrom;
+      if (params.dateTo) createdAt['lte'] = params.dateTo;
+      where['createdAt'] = createdAt;
     }
 
     return this.prisma.adminEvent.findMany({
-      where,
+      where: where as Prisma.AdminEventWhereInput,
       orderBy: { createdAt: 'desc' },
       skip: params.first ?? 0,
       take: params.max ?? 100,

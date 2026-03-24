@@ -36,7 +36,7 @@ export class ImpersonationService {
     ip?: string,
   ): Promise<ImpersonationTokenResponse> {
     // Check impersonation is enabled for this realm
-    if (!(realm as any).impersonationEnabled) {
+    if (!realm.impersonationEnabled) {
       throw new ForbiddenException('Impersonation is not enabled for this realm');
     }
 
@@ -67,7 +67,7 @@ export class ImpersonationService {
       throw new BadRequestException('Cannot impersonate yourself');
     }
 
-    const maxDuration = (realm as any).impersonationMaxDuration ?? 1800;
+    const maxDuration = realm.impersonationMaxDuration ?? 1800;
 
     // Create an OAuth session for the impersonation
     const session = await this.prisma.session.create({

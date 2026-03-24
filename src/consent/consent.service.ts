@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 
@@ -70,7 +71,7 @@ export class ConsentService {
       data: {
         tokenHash,
         type: 'consent_request',
-        data: data as any,
+        data: data as unknown as Prisma.InputJsonValue,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min TTL
       },
     });

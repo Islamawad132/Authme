@@ -4,6 +4,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
 import { ScopeSeedService } from '../scopes/scope-seed.service.js';
@@ -71,7 +72,7 @@ export class RealmsService {
         eventsExpiration: dto.eventsExpiration,
         adminEventsEnabled: dto.adminEventsEnabled,
         themeName: dto.themeName,
-        theme: dto.theme as any,
+        theme: dto.theme !== undefined ? dto.theme as unknown as Prisma.InputJsonValue : undefined,
         loginTheme: dto.loginTheme,
         accountTheme: dto.accountTheme,
         emailTheme: dto.emailTheme,
@@ -155,7 +156,7 @@ export class RealmsService {
       }
     }
 
-    const data: any = {
+    const data: Record<string, unknown> = {
       displayName: dto.displayName,
       enabled: dto.enabled,
       accessTokenLifespan: dto.accessTokenLifespan,
@@ -184,7 +185,7 @@ export class RealmsService {
       eventsExpiration: dto.eventsExpiration,
       adminEventsEnabled: dto.adminEventsEnabled,
       themeName: dto.themeName,
-      theme: dto.theme as any,
+      theme: dto.theme as Record<string, unknown> | undefined,
       loginTheme: dto.loginTheme,
       accountTheme: dto.accountTheme,
       emailTheme: dto.emailTheme,
