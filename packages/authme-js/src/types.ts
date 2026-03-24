@@ -18,6 +18,30 @@ export interface AuthmeConfig {
   refreshBuffer?: number;
   /** URL to redirect to after logout (optional) */
   postLogoutRedirectUri?: string;
+  /**
+   * Token refresh strategy (default: "rotation").
+   * - "rotation": use refresh token to get a new access token (standard)
+   * - "silent": use a hidden iframe for silent re-authentication
+   * - "eager": refresh proactively before the buffer period, combining rotation with earlier checks
+   */
+  refreshStrategy?: 'silent' | 'rotation' | 'eager';
+  /**
+   * Called when the user successfully logs in.
+   * Receives the token response.
+   */
+  onLogin?: (tokens: TokenResponse) => void;
+  /**
+   * Called when the user logs out.
+   */
+  onLogout?: () => void;
+  /**
+   * Called when an error occurs.
+   */
+  onError?: (error: Error) => void;
+  /**
+   * Called when the token is refreshed.
+   */
+  onTokenRefresh?: (tokens: TokenResponse) => void;
 }
 
 /** Raw token response from the token endpoint. */
@@ -101,6 +125,7 @@ export interface OpenIDConfiguration {
   introspection_endpoint?: string;
   revocation_endpoint?: string;
   device_authorization_endpoint?: string;
+  check_session_iframe?: string;
   response_types_supported: string[];
   grant_types_supported: string[];
   subject_types_supported: string[];
@@ -113,9 +138,18 @@ export interface OpenIDConfiguration {
 
 /** Events emitted by AuthmeClient. */
 export type AuthmeEventMap = {
-  authenticated: TokenResponse;
+  /** Fired after successful login or callback */
+  login: TokenResponse;
+  /** Fired after logout completes */
   logout: void;
-  tokenRefreshed: TokenResponse;
+  /** Fired after a token refresh */
+  tokenRefresh: TokenResponse;
+  /** Fired on any authentication error */
   error: Error;
+  /** Fired after init() completes (true if authenticated) */
   ready: boolean;
+  /** Alias for 'login' — kept for backward compatibility */
+  authenticated: TokenResponse;
+  /** Alias for 'tokenRefresh' — kept for backward compatibility */
+  tokenRefreshed: TokenResponse;
 };

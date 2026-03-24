@@ -13,6 +13,8 @@ import { EventEmitter } from './events.js';
 
 const DEFAULT_SCOPES = ['openid', 'profile', 'email'];
 const DEFAULT_REFRESH_BUFFER = 30; // seconds before expiry to trigger refresh
+// For "eager" strategy, refresh this much earlier than the normal buffer
+const EAGER_REFRESH_MULTIPLIER = 2;
 
 export class AuthmeClient {
   private config: Required<
@@ -21,7 +23,12 @@ export class AuthmeClient {
     scopes: string[];
     autoRefresh: boolean;
     refreshBuffer: number;
+    refreshStrategy: 'silent' | 'rotation' | 'eager';
     postLogoutRedirectUri?: string;
+    onLogin?: (tokens: TokenResponse) => void;
+    onLogout?: () => void;
+    onError?: (error: Error) => void;
+    onTokenRefresh?: (tokens: TokenResponse) => void;
   };
 
   private storage: TokenStorage;
@@ -31,6 +38,7 @@ export class AuthmeClient {
   private cachedUserInfo: UserInfo | null = null;
   private initialized = false;
   private callbackPromise: Promise<boolean> | null = null;
+  private silentRefreshIframe: HTMLIFrameElement | null = null;
 
   constructor(config: AuthmeConfig) {
     this.config = {
@@ -41,9 +49,28 @@ export class AuthmeClient {
       scopes: config.scopes ?? DEFAULT_SCOPES,
       autoRefresh: config.autoRefresh ?? true,
       refreshBuffer: config.refreshBuffer ?? DEFAULT_REFRESH_BUFFER,
+      refreshStrategy: config.refreshStrategy ?? 'rotation',
       postLogoutRedirectUri: config.postLogoutRedirectUri,
+      onLogin: config.onLogin,
+      onLogout: config.onLogout,
+      onError: config.onError,
+      onTokenRefresh: config.onTokenRefresh,
     };
     this.storage = createStorage(config.storage ?? 'sessionStorage');
+
+    // Wire up callback-style config options to the event system
+    if (config.onLogin) {
+      this.events.on('login', config.onLogin);
+    }
+    if (config.onLogout) {
+      this.events.on('logout', config.onLogout as () => void);
+    }
+    if (config.onError) {
+      this.events.on('error', config.onError);
+    }
+    if (config.onTokenRefresh) {
+      this.events.on('tokenRefresh', config.onTokenRefresh);
+    }
   }
 
   // ── Initialization ──────────────────────────────────────────────
@@ -85,6 +112,18 @@ export class AuthmeClient {
       }
     }
 
+    // Attempt silent auth if strategy is 'silent'
+    if (this.config.refreshStrategy === 'silent' && typeof window !== 'undefined') {
+      try {
+        const silentSuccess = await this.silentAuthenticate();
+        this.initialized = true;
+        this.events.emit('ready', silentSuccess);
+        return silentSuccess;
+      } catch {
+        // Silent auth failed — user needs to login
+      }
+    }
+
     this.initialized = true;
     this.events.emit('ready', false);
     return false;
@@ -97,6 +136,10 @@ export class AuthmeClient {
    * Generates PKCE challenge and state parameter automatically.
    */
   async login(options?: { scope?: string[]; state?: string }): Promise<void> {
+    if (typeof window === 'undefined') {
+      throw new Error('login() is not supported in server-side environments');
+    }
+
     const config = await this.getOidcConfig();
     const verifier = generateCodeVerifier();
     const challenge = await generateCodeChallenge(verifier);
@@ -136,7 +179,7 @@ export class AuthmeClient {
   }
 
   private async _handleCallback(url?: string): Promise<boolean> {
-    const currentUrl = url ?? window.location.href;
+    const currentUrl = url ?? (typeof window !== 'undefined' ? window.location.href : '');
     const params = new URL(currentUrl).searchParams;
     const code = params.get('code');
     const state = params.get('state');
@@ -203,6 +246,8 @@ export class AuthmeClient {
       window.history.replaceState({}, '', cleanUrl.toString());
     }
 
+    this.events.emit('login', tokens);
+    // Backward compatibility alias
     this.events.emit('authenticated', tokens);
     return true;
   }
@@ -231,7 +276,7 @@ export class AuthmeClient {
     this.clearTokens();
     this.events.emit('logout');
 
-    if (this.config.postLogoutRedirectUri) {
+    if (typeof window !== 'undefined' && this.config.postLogoutRedirectUri) {
       window.location.href = this.config.postLogoutRedirectUri;
     }
   }
@@ -354,6 +399,14 @@ export class AuthmeClient {
     return claims?.resource_access?.[clientId]?.roles ?? [];
   }
 
+  /**
+   * Check if the user has a specific permission.
+   * Checks both realm roles and client roles for the configured clientId.
+   */
+  hasPermission(permission: string): boolean {
+    return this.hasRealmRole(permission) || this.hasClientRole(this.config.clientId, permission);
+  }
+
   // ── Token Refresh ───────────────────────────────────────────────
 
   /**
@@ -361,6 +414,19 @@ export class AuthmeClient {
    * This is called automatically when autoRefresh is enabled.
    */
   async refreshTokens(): Promise<TokenResponse> {
+    const strategy = this.config.refreshStrategy;
+
+    if (strategy === 'silent') {
+      return this.silentRefresh();
+    }
+
+    return this.rotationRefresh();
+  }
+
+  /**
+   * Refresh tokens using the rotation (refresh_token grant) strategy.
+   */
+  private async rotationRefresh(): Promise<TokenResponse> {
     const refreshToken = this.storage.get('refresh_token');
     if (!refreshToken) {
       throw new Error('No refresh token available');
@@ -388,18 +454,172 @@ export class AuthmeClient {
     const tokens: TokenResponse = await response.json();
     this.storeTokens(tokens);
     this.scheduleRefresh();
+    this.events.emit('tokenRefresh', tokens);
+    // Backward compatibility alias
     this.events.emit('tokenRefreshed', tokens);
     return tokens;
   }
 
+  /**
+   * Attempt silent authentication using a hidden iframe.
+   * The iframe will go through the authorization flow with prompt=none,
+   * which succeeds only if the user has an active session at the IdP.
+   */
+  private async silentAuthenticate(): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+
+    try {
+      const tokens = await this.silentRefresh();
+      return !!tokens;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Perform a silent token refresh via hidden iframe.
+   * Requires the server to support prompt=none and check_session_iframe.
+   */
+  private silentRefresh(): Promise<TokenResponse> {
+    // Fall back to rotation if not in a browser environment or no session endpoint
+    if (typeof window === 'undefined') {
+      return this.rotationRefresh();
+    }
+
+    return new Promise(async (resolve, reject) => {
+      try {
+        const oidcConfig = await this.getOidcConfig();
+        const verifier = generateCodeVerifier();
+        const challenge = await generateCodeChallenge(verifier);
+        const state = generateState();
+        const nonce = generateState();
+
+        // Store PKCE state for callback
+        this.storage.set('silent_pkce_verifier', verifier);
+        this.storage.set('silent_auth_state', state);
+
+        const params = new URLSearchParams({
+          response_type: 'code',
+          client_id: this.config.clientId,
+          redirect_uri: this.config.redirectUri,
+          scope: this.config.scopes.join(' '),
+          state,
+          nonce,
+          code_challenge: challenge,
+          code_challenge_method: 'S256',
+          prompt: 'none',
+        });
+
+        const authUrl = `${oidcConfig.authorization_endpoint}?${params.toString()}`;
+
+        // Remove old iframe if present
+        if (this.silentRefreshIframe) {
+          document.body.removeChild(this.silentRefreshIframe);
+          this.silentRefreshIframe = null;
+        }
+
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        this.silentRefreshIframe = iframe;
+
+        const timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error('Silent refresh timed out'));
+        }, 10000);
+
+        const onMessage = async (event: MessageEvent) => {
+          if (event.origin !== window.location.origin) return;
+          if (!event.data?.type || event.data.type !== 'authme:silent_callback') return;
+
+          cleanup();
+
+          const { code, state: returnedState, error } = event.data;
+
+          if (error) {
+            reject(new Error(error));
+            return;
+          }
+
+          const storedState = this.storage.get('silent_auth_state');
+          if (!storedState || returnedState !== storedState) {
+            reject(new Error('Silent refresh state mismatch'));
+            return;
+          }
+
+          const storedVerifier = this.storage.get('silent_pkce_verifier');
+          if (!storedVerifier || !code) {
+            reject(new Error('Missing silent refresh PKCE data'));
+            return;
+          }
+
+          this.storage.remove('silent_pkce_verifier');
+          this.storage.remove('silent_auth_state');
+
+          try {
+            const body = new URLSearchParams({
+              grant_type: 'authorization_code',
+              code,
+              redirect_uri: this.config.redirectUri,
+              client_id: this.config.clientId,
+              code_verifier: storedVerifier,
+            });
+
+            const response = await fetch(oidcConfig.token_endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: body.toString(),
+            });
+
+            if (!response.ok) {
+              const err = await response.json().catch(() => ({ error: 'silent_refresh_failed' }));
+              reject(new Error(err.error_description ?? err.error));
+              return;
+            }
+
+            const tokens: TokenResponse = await response.json();
+            this.storeTokens(tokens);
+            this.scheduleRefresh();
+            this.events.emit('tokenRefresh', tokens);
+            this.events.emit('tokenRefreshed', tokens);
+            resolve(tokens);
+          } catch (err) {
+            reject(err);
+          }
+        };
+
+        const cleanup = () => {
+          clearTimeout(timeout);
+          window.removeEventListener('message', onMessage);
+          if (this.silentRefreshIframe) {
+            try {
+              document.body.removeChild(this.silentRefreshIframe);
+            } catch {
+              // Ignore
+            }
+            this.silentRefreshIframe = null;
+          }
+        };
+
+        window.addEventListener('message', onMessage);
+        document.body.appendChild(iframe);
+        iframe.src = authUrl;
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
   // ── Events ──────────────────────────────────────────────────────
 
-  /** Subscribe to an event. */
+  /** Subscribe to an event. Returns an unsubscribe function. */
   on<K extends keyof AuthmeEventMap>(
     event: K,
     handler: AuthmeEventMap[K] extends void ? () => void : (data: AuthmeEventMap[K]) => void,
-  ): void {
+  ): () => void {
     this.events.on(event, handler);
+    return () => this.events.off(event, handler);
   }
 
   /** Unsubscribe from an event. */
@@ -413,6 +633,7 @@ export class AuthmeClient {
   // ── Internal ────────────────────────────────────────────────────
 
   private async fetchDiscovery(): Promise<void> {
+    // SSR-safe: skip if no fetch available (edge case)
     const url = `${this.config.url}/realms/${this.config.realm}/.well-known/openid-configuration`;
     const response = await fetch(url);
     if (!response.ok) {
@@ -456,7 +677,14 @@ export class AuthmeClient {
     try {
       const claims = parseJwt(token);
       const expiresIn = getTokenExpiresIn(claims);
-      const refreshIn = Math.max(0, expiresIn - this.config.refreshBuffer) * 1000;
+
+      // For eager strategy, refresh even sooner (2x the buffer)
+      const buffer =
+        this.config.refreshStrategy === 'eager'
+          ? this.config.refreshBuffer * EAGER_REFRESH_MULTIPLIER
+          : this.config.refreshBuffer;
+
+      const refreshIn = Math.max(0, expiresIn - buffer) * 1000;
 
       this.refreshTimer = setTimeout(async () => {
         try {
