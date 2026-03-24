@@ -42,7 +42,7 @@ export class TokensService {
 
       // Check token blacklist
       const jti = payload['jti'] as string | undefined;
-      if (jti && this.blacklist.isBlacklisted(jti)) {
+      if (jti && await this.blacklist.isBlacklisted(jti)) {
         return { active: false };
       }
 
@@ -101,7 +101,7 @@ export class TokensService {
           const jti = payload['jti'] as string | undefined;
           const exp = payload.exp as number | undefined;
           if (jti && exp) {
-            this.blacklist.blacklistToken(jti, exp);
+            await this.blacklist.blacklistToken(jti, exp);
           }
         }
       } catch {
@@ -212,7 +212,7 @@ export class TokensService {
 
     // Check blacklist
     const jti = payload['jti'] as string | undefined;
-    if (jti && this.blacklist.isBlacklisted(jti)) {
+    if (jti && await this.blacklist.isBlacklisted(jti)) {
       throw new UnauthorizedException('Token has been revoked');
     }
 
