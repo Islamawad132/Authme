@@ -140,4 +140,42 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       return false;
     }
   }
+
+  // ─── Atomic Set (SADD / SREM / SMEMBERS / EXPIRE) ───────────
+
+  /**
+   * Atomically add one or more members to a Redis Set.
+   * Safe for concurrent callers — no read-modify-write needed.
+   */
+  async sadd(key: string, ...members: string[]): Promise<void> {
+    if (!this.isAvailable()) return;
+    await this.client!.sadd(key, ...members);
+  }
+
+  /**
+   * Remove one or more members from a Redis Set.
+   * No-ops silently if the member is not present.
+   */
+  async srem(key: string, ...members: string[]): Promise<void> {
+    if (!this.isAvailable()) return;
+    await this.client!.srem(key, ...members);
+  }
+
+  /**
+   * Return all members of a Redis Set, or an empty array if the key
+   * does not exist or Redis is unavailable.
+   */
+  async smembers(key: string): Promise<string[]> {
+    if (!this.isAvailable()) return [];
+    return this.client!.smembers(key);
+  }
+
+  /**
+   * Set the TTL (in seconds) on an existing key.
+   * Used to refresh expiry after a SADD without overwriting the value.
+   */
+  async expire(key: string, ttlSeconds: number): Promise<void> {
+    if (!this.isAvailable()) return;
+    await this.client!.expire(key, ttlSeconds);
+  }
 }

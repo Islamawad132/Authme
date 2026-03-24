@@ -67,4 +67,40 @@ describe('CryptoService', () => {
       expect(hash).toMatch(/^[0-9a-f]+$/);
     });
   });
+
+  describe('encrypt / decrypt', () => {
+    it('should round-trip a plaintext value', () => {
+      const plaintext = 'my-webhook-secret';
+      const ciphertext = service.encrypt(plaintext);
+      expect(service.decrypt(ciphertext)).toBe(plaintext);
+    });
+
+    it('should not store the plaintext in the ciphertext', () => {
+      const plaintext = 'my-webhook-secret';
+      const ciphertext = service.encrypt(plaintext);
+      expect(ciphertext).not.toContain(plaintext);
+    });
+
+    it('should produce different ciphertext on each call (random IV)', () => {
+      const plaintext = 'same-value';
+      const c1 = service.encrypt(plaintext);
+      const c2 = service.encrypt(plaintext);
+      expect(c1).not.toBe(c2);
+    });
+
+    it('should throw when ciphertext is tampered with', () => {
+      const ciphertext = service.encrypt('secret');
+      // Flip a byte in the ciphertext (after the IV+tag header)
+      const buf = Buffer.from(ciphertext, 'base64');
+      buf[buf.length - 1] ^= 0xff;
+      const tampered = buf.toString('base64');
+      expect(() => service.decrypt(tampered)).toThrow();
+    });
+
+    it('should handle unicode and long secrets', () => {
+      const plaintext = 'unicode-🔑-secret-' + 'x'.repeat(256);
+      const ciphertext = service.encrypt(plaintext);
+      expect(service.decrypt(ciphertext)).toBe(plaintext);
+    });
+  });
 });

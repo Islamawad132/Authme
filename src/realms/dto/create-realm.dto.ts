@@ -214,6 +214,13 @@ export class CreateRealmDto {
   @Min(1)
   ipRateLimitPerHour?: number;
 
+  // Session management
+  @ApiPropertyOptional({ default: 10, description: 'Maximum number of concurrent active sessions per user (oldest session is evicted when the limit is reached, 0 = unlimited)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  maxSessionsPerUser?: number;
+
   // Theming
   @ApiPropertyOptional({ default: 'authme', description: 'Name of the theme preset to use' })
   @IsOptional()

@@ -8,6 +8,7 @@
 </p>
 
 <form method="POST" action="/realms/{{realmName}}/totp" class="auth-form" id="totpForm">
+  <input type="hidden" name="_csrf" value="{{csrfToken}}">
   <div class="form-group">
     <label for="code">{{msg "totpAuthCode"}}</label>
     <input type="text" id="code" name="code" pattern="[0-9]{6}" maxlength="6" inputmode="numeric" autocomplete="one-time-code" required autofocus
@@ -24,6 +25,7 @@
 </div>
 
 <form method="POST" action="/realms/{{realmName}}/totp" class="auth-form" id="recoveryForm" style="display: none;">
+  <input type="hidden" name="_csrf" value="{{csrfToken}}">
   <div class="form-group">
     <label for="recoveryCode">{{msg "totpRecoveryCode"}}</label>
     <input type="text" id="recoveryCode" name="recoveryCode" required autocomplete="off"
@@ -33,7 +35,7 @@
   <button type="submit" class="btn-primary">{{msg "totpVerifyRecovery"}}</button>
 </form>
 
-<script>
+<script nonce="{{scriptNonce}}">
   document.getElementById('toggleRecovery').addEventListener('click', function() {
     var totpForm = document.getElementById('totpForm');
     var recoveryForm = document.getElementById('recoveryForm');

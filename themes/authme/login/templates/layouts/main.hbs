@@ -49,7 +49,7 @@
 <body>
   {{#if languageSwitcher}}
   <div class="lang-switcher" style="position:fixed;top:1rem;right:1rem;z-index:100;">
-    <select onchange="window.location.href=this.value" style="padding:0.25rem 0.5rem;border:1px solid var(--input-border-color);border-radius:4px;background:var(--card-color);color:var(--text-color);font-size:0.8rem;cursor:pointer;" aria-label="Language">
+    <select id="lang-switcher-select" style="padding:0.25rem 0.5rem;border:1px solid var(--input-border-color);border-radius:4px;background:var(--card-color);color:var(--text-color);font-size:0.8rem;cursor:pointer;" aria-label="Language">
       {{#each languageSwitcher}}
       <option value="{{this.url}}"{{#if this.active}} selected{{/if}}>{{this.label}}</option>
       {{/each}}
@@ -71,7 +71,11 @@
       {{{body}}}
     </div>
   </div>
-  <script>
+  <script nonce="{{scriptNonce}}">
+    (function() {
+      var sel = document.getElementById('lang-switcher-select');
+      if (sel) { sel.addEventListener('change', function() { window.location.href = this.value; }); }
+    })();
     document.querySelectorAll('input[type="password"]').forEach(function(input) {
       var wrapper = document.createElement('div');
       wrapper.className = 'password-wrapper';

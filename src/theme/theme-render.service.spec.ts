@@ -26,7 +26,7 @@ describe('ThemeRenderService', () => {
     defaultLocale: 'en',
   } as any;
 
-  let mockRes: { render: jest.Mock };
+  let mockRes: { render: jest.Mock; setHeader: jest.Mock };
   let mockReq: { query: Record<string, string>; headers: Record<string, string> };
 
   beforeEach(() => {
@@ -59,7 +59,7 @@ describe('ThemeRenderService', () => {
       i18nService as any,
     );
 
-    mockRes = { render: jest.fn() };
+    mockRes = { render: jest.fn(), setHeader: jest.fn() };
     mockReq = { query: {}, headers: {} } as any;
   });
 
@@ -197,6 +197,43 @@ describe('ThemeRenderService', () => {
       expect(data.customCss).not.toContain('</style');
       expect(data.customCss).not.toContain('<script');
       expect(data.customCss).toContain('body { color: red; }');
+    });
+
+    it('should set a Content-Security-Policy header with a nonce on each render', () => {
+      service.render(mockRes as any, mockRealm, 'login', 'login', {}, mockReq as any);
+
+      expect(mockRes.setHeader).toHaveBeenCalledWith(
+        'Content-Security-Policy',
+        expect.stringContaining("script-src 'self' 'nonce-"),
+      );
+    });
+
+    it('should pass scriptNonce to the template and match the nonce in the CSP header', () => {
+      service.render(mockRes as any, mockRealm, 'login', 'login', {}, mockReq as any);
+
+      const [, data] = mockRes.render.mock.calls[0];
+      const nonce: string = data.scriptNonce;
+
+      expect(typeof nonce).toBe('string');
+      expect(nonce.length).toBeGreaterThan(0);
+
+      const [, cspValue] = (mockRes.setHeader as jest.Mock).mock.calls[0];
+      expect(cspValue).toContain(`'nonce-${nonce}'`);
+    });
+
+    it('should generate a unique nonce on each render call', () => {
+      templateService.resolve
+        .mockReturnValueOnce('/app/themes/authme/login/templates/login.hbs')
+        .mockReturnValueOnce('/app/themes/authme/login/templates/layouts/main.hbs')
+        .mockReturnValueOnce('/app/themes/authme/login/templates/login.hbs')
+        .mockReturnValueOnce('/app/themes/authme/login/templates/layouts/main.hbs');
+
+      service.render(mockRes as any, mockRealm, 'login', 'login', {}, mockReq as any);
+      service.render(mockRes as any, mockRealm, 'login', 'login', {}, mockReq as any);
+
+      const nonce1 = mockRes.render.mock.calls[0][1].scriptNonce;
+      const nonce2 = mockRes.render.mock.calls[1][1].scriptNonce;
+      expect(nonce1).not.toBe(nonce2);
     });
   });
 

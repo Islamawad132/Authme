@@ -9,6 +9,7 @@
 </ul>
 
 <form method="POST" action="/realms/{{realmName}}/consent" class="auth-form consent-form">
+  <input type="hidden" name="_csrf" value="{{csrfToken}}">
   <input type="hidden" name="auth_req_id" value="{{authReqId}}">
 
   <div class="consent-buttons">

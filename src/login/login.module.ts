@@ -7,6 +7,7 @@ import { ThemeModule } from '../theme/theme.module.js';
 import { CustomAttributesModule } from '../custom-attributes/custom-attributes.module.js';
 import { RiskAssessmentModule } from '../risk-assessment/risk-assessment.module.js';
 import { MigrationModule } from '../migration/migration.module.js';
+import { CsrfService } from '../common/csrf/csrf.service.js';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { MigrationModule } from '../migration/migration.module.js';
     MigrationModule,
   ],
   controllers: [LoginController],
-  providers: [LoginService],
+  providers: [LoginService, CsrfService],
   exports: [LoginService],
 })
 export class LoginModule {}

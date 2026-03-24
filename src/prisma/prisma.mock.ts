@@ -227,6 +227,13 @@ export function createMockPrismaService(): MockPrismaService {
       create: jest.fn(),
       update: jest.fn(),
     },
+    webhookEvent: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
     impersonationSession: {
       findUnique: jest.fn(),
       findMany: jest.fn(),

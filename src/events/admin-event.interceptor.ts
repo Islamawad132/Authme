@@ -11,12 +11,30 @@ import { ResourceType, OperationType } from './event-types.js';
 import type { OperationTypeValue, ResourceTypeValue } from './event-types.js';
 
 const RESOURCE_TYPE_MAP: Array<{ pattern: RegExp; type: ResourceTypeValue }> = [
+  // More-specific patterns must come before broader ones to avoid mis-classification.
+  // e.g. /saml-service-providers before /service-accounts, /client-scopes before /clients
+  { pattern: /\/saml-service-providers/, type: ResourceType.SAML_SERVICE_PROVIDER },
+  { pattern: /\/service-accounts/, type: ResourceType.SERVICE_ACCOUNT },
+  { pattern: /\/client-scopes/, type: ResourceType.SCOPE },
+  { pattern: /\/identity-providers/, type: ResourceType.IDP },
+  { pattern: /\/user-federation/, type: ResourceType.USER_FEDERATION },
+  { pattern: /\/custom-attributes/, type: ResourceType.CUSTOM_ATTRIBUTE },
+  { pattern: /\/risk-assessments/, type: ResourceType.RISK_ASSESSMENT },
+  { pattern: /\/auth-flows/, type: ResourceType.AUTH_FLOW },
+  { pattern: /\/organizations/, type: ResourceType.ORGANIZATION },
+  { pattern: /\/brute-force/, type: ResourceType.BRUTE_FORCE },
+  { pattern: /\/webhooks/, type: ResourceType.WEBHOOK },
+  { pattern: /\/policies/, type: ResourceType.AUTHORIZATION_POLICY },
+  { pattern: /\/impersonat/, type: ResourceType.IMPERSONATION },
+  { pattern: /\/sessions/, type: ResourceType.SESSION },
+  { pattern: /\/plugins/, type: ResourceType.PLUGIN },
+  { pattern: /\/migration/, type: ResourceType.MIGRATION },
+  // Broad single-segment patterns last
   { pattern: /\/users/, type: ResourceType.USER },
   { pattern: /\/clients/, type: ResourceType.CLIENT },
   { pattern: /\/roles/, type: ResourceType.ROLE },
   { pattern: /\/groups/, type: ResourceType.GROUP },
-  { pattern: /\/client-scopes/, type: ResourceType.SCOPE },
-  { pattern: /\/identity-providers/, type: ResourceType.IDP },
+  { pattern: /\/realms/, type: ResourceType.REALM },
 ];
 
 const METHOD_TO_OPERATION: Record<string, OperationTypeValue> = {
