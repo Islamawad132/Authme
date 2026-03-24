@@ -10,6 +10,7 @@ import { registerInitCommand } from './commands/init.js';
 import { registerConfigCommands } from './commands/config.js';
 import { registerCompletionCommand } from './commands/completion.js';
 import { registerUpgradeCommand } from './commands/upgrade.js';
+import { registerMigrateCommand } from './commands/migrate.js';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json');
@@ -31,6 +32,7 @@ registerInitCommand(program);
 registerConfigCommands(program);
 registerCompletionCommand(program);
 registerUpgradeCommand(program);
+registerMigrateCommand(program);
 
 program.parseAsync(process.argv).catch((err) => {
   if (err.message) console.error(err.message);

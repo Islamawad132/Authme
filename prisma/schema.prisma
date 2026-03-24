@@ -167,7 +167,8 @@ model User {
   firstName     String? @map("first_name")
   lastName      String? @map("last_name")
   enabled       Boolean @default(true)
-  passwordHash  String? @map("password_hash")
+  passwordHash      String? @map("password_hash")
+  passwordAlgorithm String  @default("argon2") @map("password_algorithm")
 
   federationLink String? @map("federation_link")
 
