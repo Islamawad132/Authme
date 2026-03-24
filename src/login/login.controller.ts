@@ -8,6 +8,7 @@ import {
   Req,
   Res,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiExcludeController } from '@nestjs/swagger';
@@ -31,6 +32,7 @@ import { ThemeEmailService } from '../theme/theme-email.service.js';
 import { EventsService } from '../events/events.service.js';
 import { LoginEventType } from '../events/event-types.js';
 import { CustomAttributesService } from '../custom-attributes/custom-attributes.service.js';
+import { RiskAssessmentService } from '../risk-assessment/risk-assessment.service.js';
 
 const SCOPE_DESCRIPTIONS: Record<string, string> = {
   openid: 'Verify your identity',
@@ -59,6 +61,7 @@ export class LoginController {
     private readonly themeEmail: ThemeEmailService,
     private readonly eventsService: EventsService,
     private readonly customAttributesService: CustomAttributesService,
+    @Optional() private readonly riskAssessmentService?: RiskAssessmentService,
   ) {}
 
   // ─── LOGIN ──────────────────────────────────────────────
@@ -103,6 +106,85 @@ export class LoginController {
         body['password'],
         req.ip,
       );
+
+      // ── Adaptive authentication / risk assessment ──────────────────────────
+      if ((realm as any).adaptiveAuthEnabled && this.riskAssessmentService) {
+        const riskContext = {
+          userId: user.id,
+          realmId: realm.id,
+          realmName: realm.name,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'] ?? null,
+          deviceFingerprint: body['device_fingerprint'] ?? null,
+          timestamp: new Date(),
+        };
+
+        const assessment = await this.riskAssessmentService.assessRisk(riskContext);
+
+        if (assessment.action === 'BLOCK') {
+          // Send email notification if user has an email address
+          if (user.email) {
+            void this.riskAssessmentService.sendBlockedLoginEmail(
+              realm.name,
+              user.email,
+              riskContext,
+              assessment.geoLocation,
+            );
+          }
+
+          this.eventsService.recordLoginEvent({
+            realmId: realm.id,
+            type: LoginEventType.LOGIN_ERROR,
+            userId: user.id,
+            clientId: body['client_id'],
+            ipAddress: req.ip,
+            error: `Login blocked by risk assessment (score=${assessment.riskScore})`,
+          });
+
+          const params = new URLSearchParams();
+          params.set('error', 'Login blocked due to suspicious activity. Check your email for details.');
+          for (const key of ['client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method']) {
+            if (body[key]) params.set(key, body[key]);
+          }
+          return res.redirect(`/realms/${realm.name}/login?${params.toString()}`);
+        }
+
+        if (assessment.action === 'STEP_UP') {
+          // Force MFA step-up by storing challenge even if MFA is not globally required
+          const mfaAvailable = await this.mfaService.isMfaEnabled(user.id);
+          if (mfaAvailable) {
+            const oauthParamsForChallenge: Record<string, string> = {};
+            for (const key of ['response_type', 'client_id', 'redirect_uri', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method']) {
+              if (body[key]) oauthParamsForChallenge[key] = body[key];
+            }
+            const challengeToken = await this.mfaService.createMfaChallenge(
+              user.id,
+              realm.id,
+              oauthParamsForChallenge,
+            );
+
+            res.cookie('AUTHME_MFA_CHALLENGE', challengeToken, {
+              httpOnly: true,
+              secure: process.env['NODE_ENV'] === 'production',
+              sameSite: 'lax',
+              maxAge: 5 * 60 * 1000,
+              path: `/realms/${realm.name}`,
+            });
+
+            return res.redirect(`/realms/${realm.name}/totp`);
+          }
+          // If no MFA is configured, allow through (step-up without MFA setup falls through)
+        }
+
+        // Update the user's profile on ALLOW or STEP_UP (will learn from the login)
+        void this.riskAssessmentService.updateUserProfile(
+          user.id,
+          realm.id,
+          riskContext,
+          assessment.geoLocation,
+        );
+      }
+      // ── End risk assessment ────────────────────────────────────────────────
 
       // Check email verification requirement
       if (realm.requireEmailVerification && user.email && !user.emailVerified) {
