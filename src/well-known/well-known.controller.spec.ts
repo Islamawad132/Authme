@@ -7,10 +7,26 @@ import {
 } from '../prisma/prisma.mock.js';
 import type { Realm } from '@prisma/client';
 
+function createMockCacheService() {
+  return {
+    getCachedClientConfig: jest.fn().mockResolvedValue(null),
+    cacheClientConfig: jest.fn().mockResolvedValue(undefined),
+    invalidateClientCache: jest.fn().mockResolvedValue(undefined),
+    getCachedRealmConfig: jest.fn().mockResolvedValue(null),
+    cacheRealmConfig: jest.fn().mockResolvedValue(undefined),
+    invalidateRealmCache: jest.fn().mockResolvedValue(undefined),
+    getCachedRealmByName: jest.fn().mockResolvedValue(null),
+    cacheRealmByName: jest.fn().mockResolvedValue(undefined),
+    getCachedJWKS: jest.fn().mockResolvedValue(null),
+    cacheJWKS: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
 describe('WellKnownController', () => {
   let controller: WellKnownController;
   let prisma: MockPrismaService;
   let mockJwkService: { publicKeyToJwk: jest.Mock };
+  let mockCacheService: ReturnType<typeof createMockCacheService>;
 
   const realm = {
     id: 'realm-1',
@@ -23,8 +39,9 @@ describe('WellKnownController', () => {
     mockJwkService = {
       publicKeyToJwk: jest.fn(),
     };
+    mockCacheService = createMockCacheService();
 
-    controller = new WellKnownController(prisma as any, mockJwkService as any);
+    controller = new WellKnownController(prisma as any, mockJwkService as any, mockCacheService as any);
     process.env['BASE_URL'] = 'https://auth.example.com';
   });
 

@@ -327,7 +327,7 @@ describe('TokensService', () => {
       prisma.refreshToken.updateMany.mockResolvedValue({ count: 2 });
       prisma.session.delete.mockResolvedValue({});
 
-      await service.logout(mockRealm, 'refresh-token-value');
+      await service.logout(mockRealm, '127.0.0.1', 'refresh-token-value');
 
       expect(cryptoService.sha256).toHaveBeenCalledWith('refresh-token-value');
       expect(prisma.refreshToken.findUnique).toHaveBeenCalledWith({
@@ -348,7 +348,7 @@ describe('TokensService', () => {
       prisma.refreshToken.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.logout(mockRealm, 'invalid-refresh'),
+        service.logout(mockRealm, '127.0.0.1', 'invalid-refresh'),
       ).rejects.toThrow(UnauthorizedException);
     });
   });

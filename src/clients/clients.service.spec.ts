@@ -9,6 +9,30 @@ import {
 } from '../prisma/prisma.mock.js';
 import type { Realm } from '@prisma/client';
 
+function createMockCacheService() {
+  return {
+    getCachedClientConfig: jest.fn().mockResolvedValue(null),
+    cacheClientConfig: jest.fn().mockResolvedValue(undefined),
+    invalidateClientCache: jest.fn().mockResolvedValue(undefined),
+    getCachedRealmConfig: jest.fn().mockResolvedValue(null),
+    cacheRealmConfig: jest.fn().mockResolvedValue(undefined),
+    invalidateRealmCache: jest.fn().mockResolvedValue(undefined),
+    getCachedRealmByName: jest.fn().mockResolvedValue(null),
+    cacheRealmByName: jest.fn().mockResolvedValue(undefined),
+    getCachedJWKS: jest.fn().mockResolvedValue(null),
+    cacheJWKS: jest.fn().mockResolvedValue(undefined),
+    cacheCorsOrigins: jest.fn().mockResolvedValue(undefined),
+    getCachedCorsOrigins: jest.fn().mockResolvedValue(null),
+    invalidateCorsOrigins: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
+function createMockCorsOriginService() {
+  return {
+    invalidateLocalCache: jest.fn(),
+  };
+}
+
 describe('ClientsService', () => {
   let service: ClientsService;
   let prisma: MockPrismaService;
@@ -23,6 +47,8 @@ describe('ClientsService', () => {
     getOptionalScopeNames: jest.Mock;
     seedDefaultScopes: jest.Mock;
   };
+  let cacheService: ReturnType<typeof createMockCacheService>;
+  let corsOriginService: ReturnType<typeof createMockCorsOriginService>;
 
   const mockRealm: Realm = {
     id: 'realm-1',
@@ -63,6 +89,8 @@ describe('ClientsService', () => {
       getOptionalScopeNames: jest.fn().mockReturnValue(['web-origins', 'offline_access']),
       seedDefaultScopes: jest.fn().mockResolvedValue(undefined),
     };
+    cacheService = createMockCacheService();
+    corsOriginService = createMockCorsOriginService();
     prisma.clientScope.findFirst.mockResolvedValue(null);
     prisma.clientScope.findMany.mockResolvedValue([
       { id: 'scope-1', name: 'openid', realmId: 'realm-1' },
@@ -77,7 +105,7 @@ describe('ClientsService', () => {
     prisma.user.create.mockResolvedValue({ id: 'sa-user-1' });
     prisma.clientDefaultScope.create.mockResolvedValue({});
     prisma.clientOptionalScope.create.mockResolvedValue({});
-    service = new ClientsService(prisma as any, cryptoService as any, scopeSeedService as any);
+    service = new ClientsService(prisma as any, cryptoService as any, scopeSeedService as any, cacheService as any, corsOriginService as any);
   });
 
   describe('create', () => {
