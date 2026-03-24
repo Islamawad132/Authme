@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
@@ -17,6 +17,11 @@ async function bootstrap() {
   });
 
   app.useLogger(app.get(Logger));
+
+  // Enable URI-based versioning: versioned routes are accessible at /api/v{N}/...
+  // Unversioned routes continue to work (backward-compatible) but carry
+  // Deprecation + Sunset headers injected by DeprecationInterceptor.
+  app.enableVersioning({ type: VersioningType.URI, prefix: 'api/v' });
 
   app.use(
     helmet({
