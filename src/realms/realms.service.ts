@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
 import { ScopeSeedService } from '../scopes/scope-seed.service.js';
 import { ThemeService } from '../theme/theme.service.js';
+import { CacheService } from '../cache/cache.service.js';
 import { CreateRealmDto } from './dto/create-realm.dto.js';
 import { UpdateRealmDto } from './dto/update-realm.dto.js';
 
@@ -18,6 +19,7 @@ export class RealmsService {
     private readonly jwkService: JwkService,
     private readonly scopeSeedService: ScopeSeedService,
     private readonly themeService: ThemeService,
+    private readonly cache: CacheService,
   ) {}
 
   private redactSmtpPassword(realm: any) {
@@ -98,27 +100,47 @@ export class RealmsService {
   }
 
   async findByName(name: string) {
+    const cached = await this.cache.getCachedRealmByName<any>(name);
+    if (cached) {
+      return this.redactSmtpPassword(cached);
+    }
+
     const realm = await this.prisma.realm.findUnique({
       where: { name },
     });
     if (!realm) {
       throw new NotFoundException(`Realm '${name}' not found`);
     }
+
+    await Promise.all([
+      this.cache.cacheRealmByName(name, realm),
+      this.cache.cacheRealmConfig(realm.id, realm),
+    ]);
+
     return this.redactSmtpPassword(realm);
   }
 
   async findByNameRaw(name: string) {
+    const cached = await this.cache.getCachedRealmByName<any>(name);
+    if (cached) return cached;
+
     const realm = await this.prisma.realm.findUnique({
       where: { name },
     });
     if (!realm) {
       throw new NotFoundException(`Realm '${name}' not found`);
     }
+
+    await Promise.all([
+      this.cache.cacheRealmByName(name, realm),
+      this.cache.cacheRealmConfig(realm.id, realm),
+    ]);
+
     return realm;
   }
 
   async update(name: string, dto: UpdateRealmDto) {
-    await this.findByNameRaw(name);
+    const existing = await this.findByNameRaw(name);
 
     // Validate theme names against available themes
     const themeFields = [dto.loginTheme, dto.accountTheme, dto.emailTheme, dto.themeName].filter(Boolean);
@@ -177,11 +199,15 @@ export class RealmsService {
       where: { name },
       data,
     });
+
+    await this.cache.invalidateRealmCache(existing.id, name);
+
     return this.redactSmtpPassword(realm);
   }
 
   async remove(name: string) {
-    await this.findByNameRaw(name);
+    const existing = await this.findByNameRaw(name);
+    await this.cache.invalidateRealmCache(existing.id, name);
     return this.prisma.realm.delete({ where: { name } });
   }
 }
