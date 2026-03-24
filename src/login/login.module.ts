@@ -6,6 +6,7 @@ import { UserFederationModule } from '../user-federation/user-federation.module.
 import { ThemeModule } from '../theme/theme.module.js';
 import { CustomAttributesModule } from '../custom-attributes/custom-attributes.module.js';
 import { RiskAssessmentModule } from '../risk-assessment/risk-assessment.module.js';
+import { MigrationModule } from '../migration/migration.module.js';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { RiskAssessmentModule } from '../risk-assessment/risk-assessment.module.
     ThemeModule,
     CustomAttributesModule,
     RiskAssessmentModule,
+    MigrationModule,
   ],
   controllers: [LoginController],
   providers: [LoginService],

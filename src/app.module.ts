@@ -54,6 +54,7 @@ import { VersioningModule } from './versioning/versioning.module.js';
 import { StepUpModule } from './step-up/step-up.module.js';
 import { OrganizationsModule } from './organizations/organizations.module.js';
 import { RiskAssessmentModule } from './risk-assessment/risk-assessment.module.js';
+import { MigrationModule } from './migration/migration.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
 import { AdminEventInterceptor } from './events/admin-event.interceptor.js';
 import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
@@ -118,6 +119,7 @@ import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
     StepUpModule,
     OrganizationsModule,
     RiskAssessmentModule,
+    MigrationModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

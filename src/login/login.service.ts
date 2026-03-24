@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { BruteForceService } from '../brute-force/brute-force.service.js';
 import { UserFederationService } from '../user-federation/user-federation.service.js';
+import { PasswordMigrationService } from '../migration/password-migration.service.js';
 
 @Injectable()
 export class LoginService {
@@ -12,6 +13,7 @@ export class LoginService {
     private readonly crypto: CryptoService,
     private readonly bruteForceService: BruteForceService,
     @Optional() private readonly federationService?: UserFederationService,
+    @Optional() private readonly passwordMigration?: PasswordMigrationService,
   ) {}
 
   async validateCredentials(
@@ -55,7 +57,19 @@ export class LoginService {
         throw new UnauthorizedException('Account is temporarily locked. Please try again later.');
       }
 
-      const valid = await this.crypto.verifyPassword(user.passwordHash, password);
+      let valid = await this.crypto.verifyPassword(user.passwordHash, password);
+
+      // If Argon2 fails, try migrated password format
+      if (!valid && (user as any).passwordAlgorithm && (user as any).passwordAlgorithm !== 'argon2' && this.passwordMigration) {
+        valid = await this.passwordMigration.verifyMigratedPassword(
+          password, user.passwordHash, (user as any).passwordAlgorithm,
+        );
+        if (valid) {
+          // Upgrade hash to Argon2 on successful migrated login
+          await this.passwordMigration.rehashToArgon2(user.id, password);
+        }
+      }
+
       if (!valid) {
         await this.bruteForceService.recordFailure(realm, user.id, ip);
         throw new UnauthorizedException('Invalid credentials');
