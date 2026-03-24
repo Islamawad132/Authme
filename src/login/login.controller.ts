@@ -8,6 +8,7 @@ import {
   Req,
   Res,
   BadRequestException,
+  ForbiddenException,
   Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -33,6 +34,7 @@ import { EventsService } from '../events/events.service.js';
 import { LoginEventType } from '../events/event-types.js';
 import { CustomAttributesService } from '../custom-attributes/custom-attributes.service.js';
 import { RiskAssessmentService } from '../risk-assessment/risk-assessment.service.js';
+import { CsrfService } from '../common/csrf/csrf.service.js';
 
 const SCOPE_DESCRIPTIONS: Record<string, string> = {
   openid: 'Verify your identity',
@@ -61,8 +63,32 @@ export class LoginController {
     private readonly themeEmail: ThemeEmailService,
     private readonly eventsService: EventsService,
     private readonly customAttributesService: CustomAttributesService,
+    private readonly csrfService: CsrfService,
     @Optional() private readonly riskAssessmentService?: RiskAssessmentService,
   ) {}
+
+  // ─── CSRF HELPERS ──────────────────────────────────────
+
+  /** Set a fresh CSRF cookie and return the token value for embedding in forms. */
+  private setCsrfCookie(realm: Realm, res: Response): string {
+    const token = this.csrfService.generateToken();
+    res.cookie(this.csrfService.cookieName(realm.name), token, {
+      httpOnly: true,
+      secure: process.env['NODE_ENV'] === 'production',
+      sameSite: 'strict',
+      path: `/realms/${realm.name}`,
+    });
+    return token;
+  }
+
+  /** Throw `ForbiddenException` when the double-submit CSRF token is invalid. */
+  private validateCsrf(realm: Realm, body: Record<string, string>, req: Request): void {
+    const bodyToken = body['_csrf'];
+    const cookieToken = req.cookies?.[this.csrfService.cookieName(realm.name)];
+    if (!this.csrfService.validate(bodyToken, cookieToken)) {
+      throw new ForbiddenException('Invalid or missing CSRF token');
+    }
+  }
 
   // ─── LOGIN ──────────────────────────────────────────────
 
@@ -73,6 +99,7 @@ export class LoginController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    const csrfToken = this.setCsrfCookie(realm, res);
     this.themeRender.render(res, realm, 'login', 'login', {
       pageTitle: 'Sign In',
       registrationAllowed: realm.registrationAllowed,
@@ -87,6 +114,7 @@ export class LoginController {
       code_challenge_method: query['code_challenge_method'] ?? '',
       error: query['error'] ?? '',
       info: query['info'] ?? '',
+      csrfToken,
     }, req);
   }
 
@@ -99,6 +127,7 @@ export class LoginController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    this.validateCsrf(realm, body, req);
     try {
       const user = await this.loginService.validateCredentials(
         realm,
@@ -346,9 +375,11 @@ export class LoginController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    const csrfToken = this.setCsrfCookie(realm, res);
     this.themeRender.render(res, realm, 'login', 'totp', {
       pageTitle: 'Two-Factor Authentication',
       error: error ?? '',
+      csrfToken,
     }, req);
   }
 
@@ -359,6 +390,7 @@ export class LoginController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    this.validateCsrf(realm, body, req);
     const challengeToken = req.cookies?.['AUTHME_MFA_CHALLENGE'];
     if (!challengeToken) {
       return res.redirect(`/realms/${realm.name}/login?error=${encodeURIComponent('MFA session expired. Please login again.')}`);
@@ -422,12 +454,14 @@ export class LoginController {
     if (realm.passwordRequireDigits) policyHints.push('At least one digit');
     if (realm.passwordRequireSpecialChars) policyHints.push('At least one special character');
 
+    const csrfToken = this.setCsrfCookie(realm, res);
     this.themeRender.render(res, realm, 'login', 'change-password', {
       pageTitle: 'Change Password',
       token: query['token'] ?? '',
       error: query['error'] ?? '',
       info: query['info'] ?? '',
       policyHints: policyHints.length > 0 ? policyHints : null,
+      csrfToken,
     }, req);
   }
 
@@ -435,8 +469,10 @@ export class LoginController {
   async handleChangePassword(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
+    this.validateCsrf(realm, body, req);
     const token = body['token'];
     const currentPassword = body['currentPassword'];
     const newPassword = body['newPassword'];
@@ -529,11 +565,13 @@ export class LoginController {
       (s) => SCOPE_DESCRIPTIONS[s] ?? s,
     );
 
+    const csrfToken = this.setCsrfCookie(realm, res);
     this.themeRender.render(res, realm, 'login', 'consent', {
       pageTitle: 'Grant Access',
       clientName: consentReq.clientName,
       scopes: scopeDescriptions,
       authReqId: newReqId,
+      csrfToken,
     }, req);
   }
 
@@ -541,8 +579,10 @@ export class LoginController {
   async handleConsent(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
+    this.validateCsrf(realm, body, req);
     const reqId = body['auth_req_id'];
     if (!reqId) {
       throw new BadRequestException('Missing consent request ID');
@@ -607,6 +647,7 @@ export class LoginController {
 
     const customAttributes = await this.customAttributesService.getRegistrationAttributes(realm.id);
 
+    const csrfToken = this.setCsrfCookie(realm, res);
     this.themeRender.render(res, realm, 'login', 'register', {
       pageTitle: 'Create Account',
       passwordMinLength: realm.passwordMinLength || 8,
@@ -635,6 +676,7 @@ export class LoginController {
       })),
       termsOfServiceUrl: (realm as any).termsOfServiceUrl ?? null,
       registrationApprovalRequired: (realm as any).registrationApprovalRequired ?? false,
+      csrfToken,
     }, req);
   }
 
@@ -642,8 +684,10 @@ export class LoginController {
   async handleRegistration(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
+    this.validateCsrf(realm, body, req);
     if (!realm.registrationAllowed) {
       return res.redirect(
         `/realms/${realm.name}/login?error=${encodeURIComponent('Registration is not allowed for this realm.')}`,
@@ -880,19 +924,24 @@ export class LoginController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    const csrfToken = this.setCsrfCookie(realm, res);
     this.themeRender.render(res, realm, 'login', 'forgot-password', {
       pageTitle: 'Forgot Password',
       info: query['info'] ?? '',
       error: query['error'] ?? '',
+      csrfToken,
     }, req);
   }
 
   @Post('forgot-password')
   async handleForgotPassword(
     @CurrentRealm() realm: Realm,
-    @Body('email') email: string,
+    @Body() body: Record<string, string>,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
+    this.validateCsrf(realm, body, req);
+    const email = body['email'];
     const successMessage = encodeURIComponent(
       'If an account with that email exists, we sent a password reset link.',
     );
@@ -959,10 +1008,12 @@ export class LoginController {
       }, req);
     }
 
+    const csrfToken = this.setCsrfCookie(realm, res);
     this.themeRender.render(res, realm, 'login', 'reset-password', {
       pageTitle: 'Reset Password',
       token,
       error: error ?? '',
+      csrfToken,
     }, req);
   }
 
@@ -970,8 +1021,10 @@ export class LoginController {
   async handleResetPassword(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
+    this.validateCsrf(realm, body, req);
     const token = body['token'];
     const password = body['password'];
     const confirmPassword = body['confirmPassword'];

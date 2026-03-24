@@ -120,6 +120,9 @@ model Realm {
   defaultLocale    String   @default("en") @map("default_locale") @db.VarChar(10)
   supportedLocales String[] @default(["en"]) @map("supported_locales")
 
+  // Session management
+  maxSessionsPerUser Int @default(10) @map("max_sessions_per_user")
+
   // Adaptive authentication / risk assessment
   adaptiveAuthEnabled  Boolean @default(false) @map("adaptive_auth_enabled")
   riskThresholdStepUp  Int     @default(50)    @map("risk_threshold_step_up")
@@ -865,6 +868,35 @@ model WebhookDelivery {
 
   @@index([webhookId, createdAt])
   @@map("webhook_deliveries")
+}
+
+/**
+ * Persistent outbox queue for webhook events (Issue #338).
+ *
+ * Events are written here before any delivery attempt, so a process crash
+ * after enqueue but before delivery can never lose the event.  A scheduler
+ * picks up PENDING rows, delivers them, and advances the status to
+ * DELIVERED or FAILED.  FAILED rows with attempts < maxAttempts are
+ * retried on the next scheduler tick.
+ */
+model WebhookEvent {
+  id         String   @id @default(uuid())
+  realmId    String   @map("realm_id")
+  eventType  String   @map("event_type")
+  payload    Json
+  /// PENDING | PROCESSING | DELIVERED | FAILED
+  status     String   @default("PENDING")
+  attempts   Int      @default(0)
+  maxAttempts Int     @default(4)   @map("max_attempts")
+  nextRetryAt DateTime @default(now()) @map("next_retry_at")
+  lastError  String?  @map("last_error")
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt      @map("updated_at")
+
+  @@index([status, nextRetryAt])
+  @@index([realmId, createdAt])
+  @@map("webhook_events")
 }
 
 // ─── ADMIN EVENTS ────────────────────────────────────────

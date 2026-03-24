@@ -118,6 +118,9 @@ model Realm {
   // SQLite: stored as JSON array text e.g. '["en","de"]'
   supportedLocales String @default("[\"en\"]") @map("supported_locales")
 
+  // Session management
+  maxSessionsPerUser Int @default(10) @map("max_sessions_per_user")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -847,6 +850,28 @@ model WebhookDelivery {
 
   @@index([webhookId, createdAt])
   @@map("webhook_deliveries")
+}
+
+/// Persistent outbox queue for webhook events (Issue #338).
+model WebhookEvent {
+  id          String   @id @default(uuid())
+  realmId     String   @map("realm_id")
+  eventType   String   @map("event_type")
+  // SQLite: Json → String (JSON-serialised text)
+  payload     String
+  /// PENDING | PROCESSING | DELIVERED | FAILED
+  status      String   @default("PENDING")
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(4)   @map("max_attempts")
+  nextRetryAt DateTime @default(now()) @map("next_retry_at")
+  lastError   String?  @map("last_error")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt      @map("updated_at")
+
+  @@index([status, nextRetryAt])
+  @@index([realmId, createdAt])
+  @@map("webhook_events")
 }
 
 // ─── ADMIN EVENTS ────────────────────────────────────────

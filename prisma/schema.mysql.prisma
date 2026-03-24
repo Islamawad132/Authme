@@ -120,6 +120,9 @@ model Realm {
   // MySQL: JSON array (MySQL 8+ native JSON)
   supportedLocales Json   @default("[\"en\"]") @map("supported_locales")
 
+  // Session management
+  maxSessionsPerUser Int @default(10) @map("max_sessions_per_user")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -848,6 +851,28 @@ model WebhookDelivery {
 
   @@index([webhookId, createdAt])
   @@map("webhook_deliveries")
+}
+
+/// Persistent outbox queue for webhook events (Issue #338).
+model WebhookEvent {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  realmId     String   @map("realm_id") @db.VarChar(36)
+  eventType   String   @map("event_type")
+  // MySQL: Json maps to JSON column
+  payload     Json
+  /// PENDING | PROCESSING | DELIVERED | FAILED
+  status      String   @default("PENDING") @db.VarChar(16)
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(4)   @map("max_attempts")
+  nextRetryAt DateTime @default(now()) @map("next_retry_at")
+  lastError   String?  @map("last_error") @db.Text
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt      @map("updated_at")
+
+  @@index([status, nextRetryAt])
+  @@index([realmId, createdAt])
+  @@map("webhook_events")
 }
 
 // ─── ADMIN EVENTS ────────────────────────────────────────

@@ -74,7 +74,7 @@
       <input type="password" id="disablePassword" name="currentPassword" required autocomplete="current-password">
     </div>
     <button type="submit" class="btn-primary" style="background: #dc2626;"
-      onclick="return confirm('{{msg "accountMfaDisableConfirm"}}')">
+      data-confirm-msg="{{msg "accountMfaDisableConfirm"}}">
       {{msg "accountMfaDisable"}}
     </button>
   </form>
@@ -111,7 +111,8 @@
         </div>
         <button
           type="button"
-          onclick="removePasskey('{{this.id}}')"
+          data-credential-id="{{this.id}}"
+          class="remove-passkey-btn"
           style="background: none; border: 1px solid #fca5a5; color: #dc2626; border-radius: 4px; padding: 0.3rem 0.75rem; cursor: pointer; font-size: 0.85rem;"
         >Remove</button>
       </div>
@@ -138,9 +139,21 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{scriptNonce}}">
 (function() {
   const realmName = '{{realmName}}';
+
+  // Attach confirm dialog to MFA disable submit buttons
+  document.querySelectorAll('button[data-confirm-msg]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      if (!confirm(btn.getAttribute('data-confirm-msg'))) { e.preventDefault(); }
+    });
+  });
+
+  // Attach remove-passkey handlers
+  document.querySelectorAll('.remove-passkey-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { removePasskey(btn.getAttribute('data-credential-id')); });
+  });
 
   function showStatus(msg, isError) {
     const el = document.getElementById('passkey-status');
@@ -216,7 +229,7 @@
     }
   });
 
-  window.removePasskey = async function(credentialId) {
+  async function removePasskey(credentialId) {
     if (!confirm('Remove this passkey? You will no longer be able to use it to sign in.')) return;
     try {
       const res = await fetch('/realms/' + realmName + '/account/webauthn/credentials/' + credentialId, {
@@ -228,7 +241,7 @@
     } catch (err) {
       showStatus('Error removing passkey: ' + err.message, true);
     }
-  };
+  }
 
   // Helpers
   function base64urlToBuffer(base64url) {

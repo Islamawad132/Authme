@@ -6,6 +6,7 @@ import {
 import { createHmac } from 'crypto';
 import type { Realm } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CryptoService } from '../crypto/crypto.service.js';
 import { CreateWebhookDto, UpdateWebhookDto } from './webhooks.dto.js';
 
 export interface DispatchEventOptions {
@@ -25,30 +26,60 @@ const WEBHOOK_SELECT = {
   updatedAt: true,
 } as const;
 
-/** Retry delays in milliseconds: 1s, 10s, 60s */
+/** Retry delays in milliseconds: 1s, 10s, 60s (used by testWebhook inline delivery) */
 const RETRY_DELAYS_MS = [1_000, 10_000, 60_000];
 
 @Injectable()
 export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly crypto: CryptoService,
+  ) {}
+
+  /**
+   * Typed accessor for the webhookEvent table.
+   * The type will be present after `prisma generate` runs following the
+   * 20260324960000_add_webhook_event_queue migration.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private get db(): any {
+    return this.prisma;
+  }
 
   // ─── CRUD ──────────────────────────────────────────────
 
+  /**
+   * Create a webhook.
+   *
+   * The caller-supplied secret is encrypted with AES-256-GCM before being
+   * stored in the database.  The plaintext secret is returned in the response
+   * body exactly once so the caller can configure their receiver; it cannot be
+   * retrieved again (only rotated via the update endpoint).
+   */
   async create(realm: Realm, dto: CreateWebhookDto) {
+    const encryptedSecret = this.crypto.encrypt(dto.secret);
+
     const webhook = await this.prisma.webhook.create({
       data: {
         realmId: realm.id,
         url: dto.url,
-        secret: dto.secret,
+        secret: encryptedSecret,
         enabled: dto.enabled ?? true,
         eventTypes: dto.eventTypes,
         description: dto.description,
       },
       select: WEBHOOK_SELECT,
     });
-    return webhook;
+
+    return {
+      ...webhook,
+      // Return the raw secret once so the caller can store it securely.
+      // It is not persisted in plaintext and will not be returned again.
+      secret: dto.secret,
+      secretWarning: 'Store this secret securely. It will not be shown again.',
+    };
   }
 
   async findAll(realm: Realm) {
@@ -70,19 +101,47 @@ export class WebhooksService {
     return webhook;
   }
 
+  /**
+   * Update a webhook.
+   *
+   * If a new secret is provided it is encrypted before being stored.
+   * The plaintext value is returned once in the response body.
+   */
   async update(realm: Realm, id: string, dto: UpdateWebhookDto) {
     await this.findOne(realm, id);
-    return this.prisma.webhook.update({
+
+    const data: {
+      url?: string;
+      secret?: string;
+      enabled?: boolean;
+      eventTypes?: string[];
+      description?: string;
+    } = {
+      url: dto.url,
+      enabled: dto.enabled,
+      eventTypes: dto.eventTypes,
+      description: dto.description,
+    };
+
+    if (dto.secret !== undefined) {
+      data.secret = this.crypto.encrypt(dto.secret);
+    }
+
+    const updated = await this.prisma.webhook.update({
       where: { id },
-      data: {
-        url: dto.url,
-        secret: dto.secret,
-        enabled: dto.enabled,
-        eventTypes: dto.eventTypes,
-        description: dto.description,
-      },
+      data,
       select: WEBHOOK_SELECT,
     });
+
+    if (dto.secret !== undefined) {
+      return {
+        ...updated,
+        secret: dto.secret,
+        secretWarning: 'Store this secret securely. It will not be shown again.',
+      };
+    }
+
+    return updated;
   }
 
   async remove(realm: Realm, id: string) {
@@ -93,7 +152,7 @@ export class WebhooksService {
   // ─── Test Webhook ───────────────────────────────────────
 
   async testWebhook(realm: Realm, id: string) {
-    const webhook = await this.findOne(realm, id);
+    await this.findOne(realm, id);
     const rawWebhook = await this.prisma.webhook.findFirst({
       where: { id, realmId: realm.id },
     });
@@ -125,31 +184,19 @@ export class WebhooksService {
   // ─── Event Dispatch ────────────────────────────────────
 
   /**
-   * Dispatch an event to all matching webhooks for the realm.
-   * Non-blocking: schedules delivery asynchronously.
+   * Enqueue an event for durable, scheduled delivery (Issue #338 fix).
+   *
+   * Rather than firing the HTTP request inline (fire-and-forget with
+   * `setImmediate`), we write a `WebhookEvent` row to the database and return
+   * immediately.  The row is durable: if the process crashes after this call
+   * returns, the event will still be picked up and delivered by
+   * `WebhookSchedulerService` on the next scheduler tick.
+   *
+   * The method returns a Promise so callers can optionally `await` it for
+   * back-pressure, but it is safe to call without awaiting — any enqueue error
+   * is logged and swallowed so it never crashes the caller.
    */
-  dispatchEvent(options: DispatchEventOptions): void {
-    // Fire-and-forget — never block the caller
-    setImmediate(() => {
-      this.doDispatch(options).catch((err) => {
-        this.logger.warn(
-          `dispatchEvent error for realm=${options.realmId} type=${options.eventType}: ${(err as Error).message}`,
-        );
-      });
-    });
-  }
-
-  private async doDispatch(options: DispatchEventOptions): Promise<void> {
-    const webhooks = await this.prisma.webhook.findMany({
-      where: {
-        realmId: options.realmId,
-        enabled: true,
-        eventTypes: { has: options.eventType },
-      },
-    });
-
-    if (webhooks.length === 0) return;
-
+  async dispatchEvent(options: DispatchEventOptions): Promise<void> {
     const fullPayload = {
       eventType: options.eventType,
       timestamp: new Date().toISOString(),
@@ -157,11 +204,22 @@ export class WebhooksService {
       ...options.payload,
     };
 
-    await Promise.allSettled(
-      webhooks.map((webhook) =>
-        this.deliverWebhook(webhook, options.eventType, fullPayload),
-      ),
-    );
+    try {
+      await this.db.webhookEvent.create({
+        data: {
+          realmId: options.realmId,
+          eventType: options.eventType,
+          payload: fullPayload as any,
+          status: 'PENDING',
+        },
+      });
+    } catch (err) {
+      // Log but do not throw — a failed enqueue must never crash the caller.
+      this.logger.error(
+        `Failed to enqueue webhook event for realm=${options.realmId} ` +
+        `type=${options.eventType}: ${(err as Error).message}`,
+      );
+    }
   }
 
   // ─── Delivery with Retry ───────────────────────────────
@@ -171,8 +229,13 @@ export class WebhooksService {
     eventType: string,
     payload: Record<string, unknown>,
   ) {
+    // Decrypt the stored secret so it can be used for HMAC signing.
+    // The plaintext secret never leaves this method; only the HMAC
+    // signature is sent over the wire.
+    const plaintextSecret = this.crypto.decrypt(webhook.secret);
+
     const body = JSON.stringify(payload);
-    const signature = this.signPayload(webhook.secret, body);
+    const signature = this.signPayload(plaintextSecret, body);
 
     // Create initial delivery record
     const delivery = await this.prisma.webhookDelivery.create({

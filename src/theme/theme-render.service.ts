@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { relative } from 'path';
+import { randomBytes } from 'crypto';
 import type { Request, Response } from 'express';
 import type { Realm } from '@prisma/client';
 import { ThemeService } from './theme.service.js';
@@ -92,6 +93,25 @@ export class ThemeRenderService {
       customCss: sanitizeCss(colors.customCss ?? ''),
     };
 
+    // Generate a cryptographically random nonce for this response.  The nonce
+    // is embedded in a per-response Content-Security-Policy header so that only
+    // the inline <script> blocks produced by our own templates are allowed —
+    // removing the need for the blanket 'unsafe-inline' directive (Issue #370).
+    // The header also ensures login/account pages always carry a CSP even when
+    // the request bypasses the global helmet middleware (Issue #352).
+    const scriptNonce = randomBytes(16).toString('base64');
+    res.setHeader(
+      'Content-Security-Policy',
+      [
+        "default-src 'self'",
+        `script-src 'self' 'nonce-${scriptNonce}'`,
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com",
+        "img-src 'self' data: blob:",
+        "connect-src 'self'",
+      ].join('; '),
+    );
+
     res.render(relativeTemplate, {
       layout: relativeLayout,
       ...data,
@@ -106,6 +126,8 @@ export class ThemeRenderService {
       dir: isRtl ? 'rtl' : 'ltr',
       languageSwitcher,
       currentLangLabel: this.getLocaleLabel(locale),
+      // CSP nonce for inline <script> blocks in theme templates
+      scriptNonce,
     });
   }
 

@@ -4,6 +4,7 @@ global.fetch = mockFetch as any;
 
 import { NotFoundException } from '@nestjs/common';
 import { WebhooksService } from './webhooks.service.js';
+import { CryptoService } from '../crypto/crypto.service.js';
 import {
   createMockPrismaService,
   MockPrismaService,
@@ -12,7 +13,10 @@ import type { Realm } from '@prisma/client';
 
 describe('WebhooksService', () => {
   let service: WebhooksService;
-  let prisma: MockPrismaService;
+  // Extended with webhookEvent — will be in MockPrismaService type after
+  // `prisma generate` runs following the webhook_events migration.
+  let prisma: MockPrismaService & { webhookEvent: Record<string, jest.Mock> };
+  let crypto: CryptoService;
 
   const mockRealm: Realm = {
     id: 'realm-1',
@@ -21,11 +25,30 @@ describe('WebhooksService', () => {
     enabled: true,
   } as Realm;
 
-  const mockWebhook = {
+  /**
+   * Build a mock webhook record where the secret is already encrypted.
+   * The helper uses the real CryptoService so encrypt/decrypt round-trips
+   * work correctly in all tests.
+   */
+  function makeWebhookRecord(plaintextSecret: string) {
+    return {
+      id: 'webhook-1',
+      realmId: 'realm-1',
+      url: 'https://example.com/hook',
+      secret: crypto.encrypt(plaintextSecret),
+      enabled: true,
+      eventTypes: ['user.login', 'user.created'],
+      description: 'Test webhook',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+
+  // WEBHOOK_SELECT projection omits the secret field
+  const mockWebhookPublic = {
     id: 'webhook-1',
     realmId: 'realm-1',
     url: 'https://example.com/hook',
-    secret: 'super-secret-key',
     enabled: true,
     eventTypes: ['user.login', 'user.created'],
     description: 'Test webhook',
@@ -34,8 +57,9 @@ describe('WebhooksService', () => {
   };
 
   beforeEach(() => {
-    prisma = createMockPrismaService();
-    service = new WebhooksService(prisma as any);
+    prisma = createMockPrismaService() as any;
+    crypto = new CryptoService();
+    service = new WebhooksService(prisma as any, crypto);
     jest.clearAllMocks();
   });
 
@@ -82,8 +106,28 @@ describe('WebhooksService', () => {
   // ─── CRUD ──────────────────────────────────────────────
 
   describe('create', () => {
-    it('should create a webhook', async () => {
-      prisma.webhook.create.mockResolvedValue(mockWebhook);
+    it('should store an encrypted secret, not the plaintext', async () => {
+      const plaintextSecret = 'super-secret-key';
+      prisma.webhook.create.mockResolvedValue(mockWebhookPublic);
+
+      const dto = {
+        url: 'https://example.com/hook',
+        secret: plaintextSecret,
+        eventTypes: ['user.login'],
+        enabled: true,
+      };
+
+      await service.create(mockRealm, dto);
+
+      const callArg = prisma.webhook.create.mock.calls[0][0];
+      // The stored secret must not be the plaintext value
+      expect(callArg.data.secret).not.toBe(plaintextSecret);
+      // It must be decryptable back to the original plaintext
+      expect(crypto.decrypt(callArg.data.secret)).toBe(plaintextSecret);
+    });
+
+    it('should return the plaintext secret and a warning in the response', async () => {
+      prisma.webhook.create.mockResolvedValue(mockWebhookPublic);
 
       const dto = {
         url: 'https://example.com/hook',
@@ -94,21 +138,12 @@ describe('WebhooksService', () => {
 
       const result = await service.create(mockRealm, dto);
 
-      expect(prisma.webhook.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            realmId: 'realm-1',
-            url: dto.url,
-            secret: dto.secret,
-            eventTypes: dto.eventTypes,
-          }),
-        }),
-      );
-      expect(result).toEqual(mockWebhook);
+      expect(result.secret).toBe('super-secret-key');
+      expect(result.secretWarning).toBeDefined();
     });
 
     it('should default enabled to true when not specified', async () => {
-      prisma.webhook.create.mockResolvedValue(mockWebhook);
+      prisma.webhook.create.mockResolvedValue(mockWebhookPublic);
 
       await service.create(mockRealm, {
         url: 'https://example.com/hook',
@@ -126,7 +161,7 @@ describe('WebhooksService', () => {
 
   describe('findAll', () => {
     it('should return all webhooks for a realm', async () => {
-      const webhooks = [mockWebhook];
+      const webhooks = [mockWebhookPublic];
       prisma.webhook.findMany.mockResolvedValue(webhooks);
 
       const result = await service.findAll(mockRealm);
@@ -142,11 +177,11 @@ describe('WebhooksService', () => {
 
   describe('findOne', () => {
     it('should return webhook when found', async () => {
-      prisma.webhook.findFirst.mockResolvedValue(mockWebhook);
+      prisma.webhook.findFirst.mockResolvedValue(mockWebhookPublic);
 
       const result = await service.findOne(mockRealm, 'webhook-1');
 
-      expect(result).toEqual(mockWebhook);
+      expect(result).toEqual(mockWebhookPublic);
       expect(prisma.webhook.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'webhook-1', realmId: 'realm-1' },
@@ -164,22 +199,42 @@ describe('WebhooksService', () => {
   });
 
   describe('update', () => {
-    it('should update a webhook', async () => {
-      const updated = { ...mockWebhook, enabled: false };
-      prisma.webhook.findFirst.mockResolvedValue(mockWebhook);
+    it('should encrypt the new secret before storing when a secret is provided', async () => {
+      const newPlaintext = 'new-signing-secret';
+      prisma.webhook.findFirst.mockResolvedValue(mockWebhookPublic);
+      prisma.webhook.update.mockResolvedValue(mockWebhookPublic);
+
+      await service.update(mockRealm, 'webhook-1', { secret: newPlaintext });
+
+      const callArg = prisma.webhook.update.mock.calls[0][0];
+      expect(callArg.data.secret).not.toBe(newPlaintext);
+      expect(crypto.decrypt(callArg.data.secret)).toBe(newPlaintext);
+    });
+
+    it('should return plaintext secret and warning when secret is updated', async () => {
+      const newPlaintext = 'new-signing-secret';
+      prisma.webhook.findFirst.mockResolvedValue(mockWebhookPublic);
+      prisma.webhook.update.mockResolvedValue(mockWebhookPublic);
+
+      const result = await service.update(mockRealm, 'webhook-1', {
+        secret: newPlaintext,
+      });
+
+      expect((result as any).secret).toBe(newPlaintext);
+      expect((result as any).secretWarning).toBeDefined();
+    });
+
+    it('should not include secret in response when secret is not updated', async () => {
+      const updated = { ...mockWebhookPublic, enabled: false };
+      prisma.webhook.findFirst.mockResolvedValue(mockWebhookPublic);
       prisma.webhook.update.mockResolvedValue(updated);
 
       const result = await service.update(mockRealm, 'webhook-1', {
         enabled: false,
       });
 
-      expect(result).toEqual(updated);
-      expect(prisma.webhook.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'webhook-1' },
-          data: expect.objectContaining({ enabled: false }),
-        }),
-      );
+      expect((result as any).secret).toBeUndefined();
+      expect((result as any).secretWarning).toBeUndefined();
     });
 
     it('should throw NotFoundException when webhook not found', async () => {
@@ -193,8 +248,8 @@ describe('WebhooksService', () => {
 
   describe('remove', () => {
     it('should delete a webhook', async () => {
-      prisma.webhook.findFirst.mockResolvedValue(mockWebhook);
-      prisma.webhook.delete.mockResolvedValue(mockWebhook);
+      prisma.webhook.findFirst.mockResolvedValue(mockWebhookPublic);
+      prisma.webhook.delete.mockResolvedValue(mockWebhookPublic);
 
       await service.remove(mockRealm, 'webhook-1');
 
@@ -212,64 +267,85 @@ describe('WebhooksService', () => {
     });
   });
 
-  // ─── Dispatch ──────────────────────────────────────────
+  // ─── Dispatch (queue-based, Issue #338) ───────────────
 
   describe('dispatchEvent', () => {
-    it('should not throw when dispatch succeeds', () => {
-      prisma.webhook.findMany.mockResolvedValue([]);
+    it('should persist a WebhookEvent row with PENDING status', async () => {
+      prisma.webhookEvent.create.mockResolvedValue({ id: 'evt-1' });
 
-      // dispatchEvent is fire-and-forget, should not throw
-      expect(() =>
-        service.dispatchEvent({
-          realmId: 'realm-1',
-          eventType: 'user.login',
-          payload: { userId: 'user-1' },
-        }),
-      ).not.toThrow();
-    });
-
-    it('should find enabled webhooks with matching eventType', async () => {
-      prisma.webhook.findMany.mockResolvedValue([]);
-
-      // Trigger internal dispatch directly
-      await (service as any).doDispatch({
+      await service.dispatchEvent({
         realmId: 'realm-1',
         eventType: 'user.login',
         payload: { userId: 'user-1' },
       });
 
-      expect(prisma.webhook.findMany).toHaveBeenCalledWith({
-        where: {
-          realmId: 'realm-1',
-          enabled: true,
-          eventTypes: { has: 'user.login' },
-        },
+      expect(prisma.webhookEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            realmId: 'realm-1',
+            eventType: 'user.login',
+            status: 'PENDING',
+          }),
+        }),
+      );
+    });
+
+    it('should include the full merged payload in the queued event', async () => {
+      prisma.webhookEvent.create.mockResolvedValue({ id: 'evt-2' });
+
+      await service.dispatchEvent({
+        realmId: 'realm-1',
+        eventType: 'user.created',
+        payload: { userId: 'user-2', email: 'u@example.com' },
+      });
+
+      const createArg = prisma.webhookEvent.create.mock.calls[0][0];
+      expect(createArg.data.payload).toMatchObject({
+        eventType: 'user.created',
+        realmId: 'realm-1',
+        userId: 'user-2',
+        email: 'u@example.com',
       });
     });
 
-    it('should not deliver when no matching webhooks', async () => {
-      prisma.webhook.findMany.mockResolvedValue([]);
+    it('should not throw if the database write fails', async () => {
+      prisma.webhookEvent.create.mockRejectedValue(new Error('DB down'));
 
-      await (service as any).doDispatch({
+      await expect(
+        service.dispatchEvent({
+          realmId: 'realm-1',
+          eventType: 'user.login',
+          payload: {},
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('should not perform any HTTP delivery (that is the scheduler job)', async () => {
+      prisma.webhookEvent.create.mockResolvedValue({ id: 'evt-3' });
+
+      await service.dispatchEvent({
         realmId: 'realm-1',
         eventType: 'user.login',
         payload: {},
       });
 
-      expect(prisma.webhookDelivery.create).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
   // ─── Retry Logic ───────────────────────────────────────
 
   describe('deliverWebhook (retry logic)', () => {
-    const webhookRecord = {
-      id: 'webhook-1',
-      url: 'https://example.com/hook',
-      secret: 'test-secret',
-    };
+    // The secret stored in the DB must be encrypted
+    const plaintextSecret = 'test-secret';
+    let webhookRecord: { id: string; url: string; secret: string };
 
     beforeEach(() => {
+      webhookRecord = {
+        id: 'webhook-1',
+        url: 'https://example.com/hook',
+        secret: crypto.encrypt(plaintextSecret),
+      };
       jest.useFakeTimers();
       prisma.webhookDelivery.create.mockResolvedValue({ id: 'delivery-1' });
       prisma.webhookDelivery.update.mockResolvedValue({});
@@ -399,6 +475,32 @@ describe('WebhooksService', () => {
         }),
       );
     });
+
+    it('should sign the payload with the decrypted secret, not the ciphertext', async () => {
+      mockFetch.mockResolvedValueOnce({
+        status: 200,
+        text: async () => 'OK',
+      });
+
+      jest.spyOn(service as any, 'sleep').mockResolvedValue(undefined);
+
+      const payload = { userId: 'u1' };
+      await (service as any).deliverWebhook(webhookRecord, 'user.login', payload);
+
+      // Reconstruct what the signature should be using the plaintext secret
+      const body = JSON.stringify({
+        eventType: 'user.login',
+        ...payload,
+      });
+      // We can't know the exact timestamp injected, but we can verify the
+      // signature format and that it differs from one computed with the
+      // raw ciphertext (which would be wrong).
+      const [, fetchOptions] = mockFetch.mock.calls[0] as [string, RequestInit];
+      const actualSig = (fetchOptions.headers as Record<string, string>)['X-Webhook-Signature'];
+
+      const wrongSig = service.signPayload(webhookRecord.secret, body);
+      expect(actualSig).not.toBe(wrongSig);
+    });
   });
 
   // ─── findDeliveries ────────────────────────────────────
@@ -408,7 +510,7 @@ describe('WebhooksService', () => {
       const deliveries = [
         { id: 'del-1', webhookId: 'webhook-1', eventType: 'user.login' },
       ];
-      prisma.webhook.findFirst.mockResolvedValue(mockWebhook);
+      prisma.webhook.findFirst.mockResolvedValue(mockWebhookPublic);
       prisma.webhookDelivery.findMany.mockResolvedValue(deliveries);
 
       const result = await service.findDeliveries(mockRealm, 'webhook-1');

@@ -104,6 +104,28 @@ export class LoginService {
     ip?: string,
     userAgent?: string,
   ): Promise<string> {
+    const maxSessions = (realm as any).maxSessionsPerUser as number | undefined;
+    if (maxSessions !== undefined && maxSessions > 0) {
+      // Count active SSO (login) sessions for this user in this realm
+      const activeSessions = await this.prisma.loginSession.findMany({
+        where: {
+          userId: user.id,
+          realmId: realm.id,
+          expiresAt: { gt: new Date() },
+        },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+
+      // FIFO eviction: delete the oldest sessions until we are below the limit
+      if (activeSessions.length >= maxSessions) {
+        const toDelete = activeSessions.slice(0, activeSessions.length - maxSessions + 1);
+        await this.prisma.loginSession.deleteMany({
+          where: { id: { in: toDelete.map((s) => s.id) } },
+        });
+      }
+    }
+
     const token = this.crypto.generateSecret(32);
     const tokenHash = this.crypto.sha256(token);
 

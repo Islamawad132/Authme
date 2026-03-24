@@ -140,6 +140,8 @@ export class AuthService {
       throw new BadRequestException('MFA setup required. Please set up two-factor authentication.');
     }
 
+    await this.enforceSessionLimit(realm, user.id);
+
     const session = await this.prisma.session.create({
       data: {
         userId: user.id,
@@ -196,6 +198,8 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
+    await this.enforceSessionLimit(realm, user.id);
+
     const session = await this.prisma.session.create({
       data: {
         userId: user.id,
@@ -230,6 +234,7 @@ export class AuthService {
         where: { id: client.serviceAccountUserId },
       });
       if (user) {
+        await this.enforceSessionLimit(realm, user.id);
         const session = await this.prisma.session.create({
           data: {
             userId: user.id,
@@ -412,6 +417,8 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
+    await this.enforceSessionLimit(realm, user.id);
+
     const session = await this.prisma.session.create({
       data: {
         userId: user.id,
@@ -524,6 +531,8 @@ export class AuthService {
 
     // Clean up the device code
     await this.prisma.deviceCode.delete({ where: { id: deviceCode.id } });
+
+    await this.enforceSessionLimit(realm, user.id);
 
     const session = await this.prisma.session.create({
       data: {
@@ -856,5 +865,43 @@ export class AuthService {
     }
 
     return allRoles;
+  }
+
+  /**
+   * Enforce the per-realm maximum concurrent OAuth sessions limit for a user.
+   * If the user already has `maxSessionsPerUser` or more active sessions, the
+   * oldest ones are deleted (FIFO) so that after this call there is room for
+   * exactly one additional session.
+   *
+   * A `maxSessionsPerUser` value of 0 means "unlimited" — no eviction occurs.
+   */
+  private async enforceSessionLimit(realm: Realm, userId: string): Promise<void> {
+    const maxSessions = (realm as any).maxSessionsPerUser as number | undefined;
+    if (!maxSessions || maxSessions <= 0) return;
+
+    const activeSessions = await this.prisma.session.findMany({
+      where: {
+        userId,
+        user: { realmId: realm.id },
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+
+    if (activeSessions.length >= maxSessions) {
+      const toEvict = activeSessions.slice(0, activeSessions.length - maxSessions + 1);
+      const evictIds = toEvict.map((s) => s.id);
+
+      // Revoke all refresh tokens for the evicted sessions before deleting them
+      await this.prisma.refreshToken.updateMany({
+        where: { sessionId: { in: evictIds }, isOffline: false },
+        data: { revoked: true },
+      });
+
+      await this.prisma.session.deleteMany({
+        where: { id: { in: evictIds } },
+      });
+    }
   }
 }
