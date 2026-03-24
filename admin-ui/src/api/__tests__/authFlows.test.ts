@@ -7,34 +7,7 @@ import {
   createAuthFlow,
   updateAuthFlow,
   deleteAuthFlow,
-  type AuthFlow,
 } from '../authFlows';
-
-// ─── Helpers ─────────────────────────────────────────────────
-
-function makeFlow(overrides: Partial<AuthFlow> = {}): AuthFlow {
-  return {
-    id: 'flow-1',
-    realmId: 'realm-1',
-    name: 'Basic Login',
-    description: 'Password only',
-    isDefault: false,
-    steps: [
-      {
-        id: 'password-1',
-        type: 'password',
-        required: true,
-        order: 1,
-        condition: null,
-        fallbackStepId: null,
-        config: {},
-      },
-    ],
-    createdAt: '2024-01-01T00:00:00.000Z',
-    updatedAt: '2024-01-01T00:00:00.000Z',
-    ...overrides,
-  };
-}
 
 const BASE = '/admin';
 

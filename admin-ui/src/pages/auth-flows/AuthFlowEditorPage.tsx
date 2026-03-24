@@ -49,7 +49,7 @@ export default function AuthFlowEditorPage() {
     mutationFn: (flow: Partial<AuthFlow>) =>
       updateAuthFlow(name!, flowId!, {
         name: flow.name,
-        description: flow.description,
+        description: flow.description ?? undefined,
         isDefault: flow.isDefault,
         steps: flow.steps,
       }),
