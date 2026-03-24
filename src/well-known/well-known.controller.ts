@@ -74,6 +74,10 @@ export class WellKnownController {
       code_challenge_methods_supported: ['S256'],
       backchannel_logout_supported: true,
       backchannel_logout_session_supported: true,
+      // WebAuthn / FIDO2 support
+      webauthn_registration_endpoint: `${realmUrl}/webauthn/register/options`,
+      webauthn_authentication_endpoint: `${realmUrl}/webauthn/authenticate/options`,
+      ...((realm as any).webAuthnEnabled ? { passkey_endpoint: `${realmUrl}/webauthn` } : {}),
     };
   }
 

@@ -132,4 +132,10 @@ export class LoginService {
   async findUserById(userId: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { id: userId } });
   }
+
+  async findUserByUsername(realm: Realm, username: string): Promise<User | null> {
+    return this.prisma.user.findUnique({
+      where: { realmId_username: { realmId: realm.id, username } },
+    });
+  }
 }

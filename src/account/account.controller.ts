@@ -19,6 +19,7 @@ import { CryptoService } from '../crypto/crypto.service.js';
 import { PasswordPolicyService } from '../password-policy/password-policy.service.js';
 import { MfaService } from '../mfa/mfa.service.js';
 import { ThemeRenderService } from '../theme/theme-render.service.js';
+import { WebAuthnService } from '../webauthn/webauthn.service.js';
 
 @ApiExcludeController()
 @Controller('realms/:realmName/account')
@@ -32,6 +33,7 @@ export class AccountController {
     private readonly passwordPolicyService: PasswordPolicyService,
     private readonly mfaService: MfaService,
     private readonly themeRender: ThemeRenderService,
+    private readonly webAuthnService: WebAuthnService,
   ) {}
 
   private async getSessionUser(realm: Realm, req: Request) {
@@ -53,6 +55,21 @@ export class AccountController {
 
     const query = req.query as Record<string, string>;
     const mfaEnabled = await this.mfaService.isMfaEnabled(user.id);
+    const webAuthnEnabled = (realm as any).webAuthnEnabled ?? false;
+
+    let webAuthnCredentials: any[] = [];
+    if (webAuthnEnabled) {
+      const rawCredentials = await this.webAuthnService.getUserCredentials(user.id);
+      webAuthnCredentials = rawCredentials.map((c) => ({
+        id: c.id,
+        friendlyName: c.friendlyName,
+        deviceType: c.deviceType,
+        backedUp: c.backedUp,
+        transports: c.transports,
+        createdAt: c.createdAt.toLocaleDateString(),
+        lastUsedAt: c.lastUsedAt ? c.lastUsedAt.toLocaleDateString() : null,
+      }));
+    }
 
     this.themeRender.render(res, realm, 'account', 'account', {
       pageTitle: 'My Account',
@@ -62,6 +79,8 @@ export class AccountController {
       firstName: user.firstName ?? '',
       lastName: user.lastName ?? '',
       mfaEnabled,
+      webAuthnEnabled,
+      webAuthnCredentials: webAuthnCredentials.length > 0 ? webAuthnCredentials : null,
       success: query['success'] ?? '',
       error: query['error'] ?? '',
     }, req);
