@@ -49,14 +49,15 @@ describe('UsersController', () => {
   });
 
   describe('findAll', () => {
-    it('should call usersService.findAll with realm, skip, and limit', () => {
+    it('should call usersService.findAll with realm, skip, limit, and filters', () => {
       const pagination = { skip: 0, limit: 10 };
+      const searchParams = {} as any;
       const expected = [{ id: 'u1' }, { id: 'u2' }];
       usersService.findAll.mockReturnValue(expected);
 
-      const result = controller.findAll(realm, pagination as any);
+      const result = controller.findAll(realm, pagination as any, searchParams);
 
-      expect(usersService.findAll).toHaveBeenCalledWith(realm, 0, 10);
+      expect(usersService.findAll).toHaveBeenCalledWith(realm, 0, 10, expect.any(Object));
       expect(result).toEqual(expected);
     });
   });

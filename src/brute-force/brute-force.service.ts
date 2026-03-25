@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { Realm, User } from '@prisma/client';
@@ -79,7 +79,18 @@ export class BruteForceService {
     });
   }
 
-  async unlockUser(userId: string): Promise<void> {
+  async unlockUser(realmId: string, userId: string): Promise<void> {
+    // Verify the user exists and belongs to the specified realm before unlocking.
+    // Without this check, a caller with access to realm A could unlock (or
+    // manipulate) a user that lives in realm B simply by knowing their userId.
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, realmId },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new NotFoundException(`User not found`);
+    }
+
     // Clear the lock on the user record.
     await this.prisma.user.update({
       where: { id: userId },
@@ -89,7 +100,7 @@ export class BruteForceService {
     // recordFailure() would count the old failures on the very next login
     // attempt and immediately re-lock the account.
     await this.prisma.loginFailure.deleteMany({
-      where: { userId },
+      where: { realmId, userId },
     });
   }
 

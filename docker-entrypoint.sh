@@ -80,6 +80,16 @@ echo "Running Prisma migrations..."
 # (a TypeScript file that cannot be executed without a compiler in the production
 # image).  The schema file is always present at prisma/schema.prisma because the
 # Dockerfile copies the entire ./prisma directory from the build stage.
+#
+# If prisma.config.ts features (e.g. custom output paths) are needed in the
+# future, generate a minimal JS shim here so Prisma can pick it up without
+# requiring a TypeScript compiler at runtime.
+if [ ! -f prisma.config.js ]; then
+  cat > prisma.config.js << 'JSEOF'
+module.exports = { schema: 'prisma/schema.prisma' };
+JSEOF
+fi
+
 npx prisma migrate deploy --schema prisma/schema.prisma
 
 echo "Starting AuthMe..."

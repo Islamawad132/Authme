@@ -130,16 +130,56 @@ export class UsersService {
     await this.emailService.sendEmail(realm.name, email, subject, html);
   }
 
-  async findAll(realm: Realm, skip: number, take: number) {
+  async findAll(
+    realm: Realm,
+    skip: number,
+    take: number,
+    filters?: {
+      search?: string;
+      username?: string;
+      email?: string;
+      firstName?: string;
+      lastName?: string;
+    },
+  ) {
+    const { search, username, email, firstName, lastName } = filters ?? {};
+
+    // Build field-level filter conditions. Each provided param narrows the
+    // result set with a case-insensitive contains match.
+    const fieldFilters: Prisma.UserWhereInput[] = [];
+    if (username) fieldFilters.push({ username: { contains: username, mode: 'insensitive' } });
+    if (email) fieldFilters.push({ email: { contains: email, mode: 'insensitive' } });
+    if (firstName) fieldFilters.push({ firstName: { contains: firstName, mode: 'insensitive' } });
+    if (lastName) fieldFilters.push({ lastName: { contains: lastName, mode: 'insensitive' } });
+
+    // `search` performs an OR across all text fields so a caller can supply a
+    // single term and match any of them.
+    const searchFilter: Prisma.UserWhereInput | undefined = search
+      ? {
+          OR: [
+            { username: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+            { firstName: { contains: search, mode: 'insensitive' } },
+            { lastName: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      : undefined;
+
+    const where: Prisma.UserWhereInput = {
+      realmId: realm.id,
+      ...(fieldFilters.length > 0 ? { AND: fieldFilters } : {}),
+      ...(searchFilter ?? {}),
+    };
+
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
-        where: { realmId: realm.id },
+        where,
         select: USER_SELECT,
         skip,
         take,
         orderBy: { createdAt: 'asc' },
       }),
-      this.prisma.user.count({ where: { realmId: realm.id } }),
+      this.prisma.user.count({ where }),
     ]);
     return { users, total };
   }

@@ -60,6 +60,20 @@ export class TokensService {
         }
       }
 
+      // Look up the user identified by `sub` so we can include their current
+      // username in the response.  RFC 7662 §2.2 recommends including
+      // `username` when the resource server needs it, and many clients rely
+      // on it being present even when the claim is not embedded in the JWT.
+      const sub = payload.sub as string | undefined;
+      let username: string | undefined;
+      if (sub) {
+        const user = await this.prisma.user.findUnique({
+          where: { id: sub },
+          select: { username: true },
+        });
+        username = user?.username;
+      }
+
       return {
         active: true,
         sub: payload.sub,
@@ -68,6 +82,7 @@ export class TokensService {
         exp: payload.exp,
         iat: payload.iat,
         scope: payload['scope'],
+        username,
         preferred_username: payload['preferred_username'],
         email: payload['email'],
         realm_access: payload['realm_access'],

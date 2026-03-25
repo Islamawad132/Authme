@@ -93,6 +93,21 @@ export class CorsOriginService {
       });
 
       const origins = new Set<string>();
+
+      // Always allow the server's own origin so the embedded admin console
+      // can make API calls without CORS issues on fresh installs.
+      const baseUrl = process.env['BASE_URL'];
+      if (baseUrl) {
+        try {
+          const { origin } = new URL(baseUrl);
+          origins.add(origin);
+        } catch { /* invalid BASE_URL — skip */ }
+      }
+      // Also allow localhost origins for development
+      const port = process.env['PORT'] ?? '3000';
+      origins.add(`http://localhost:${port}`);
+      origins.add(`http://127.0.0.1:${port}`);
+
       for (const client of clients) {
         for (const o of client.webOrigins) {
           if (o === '*') {

@@ -32,12 +32,13 @@ describe('BruteForceController', () => {
   });
 
   describe('unlockUser', () => {
-    it('should call service.unlockUser with userId', async () => {
+    it('should call service.unlockUser with realmId and userId', async () => {
       bruteForceService.unlockUser.mockResolvedValue(undefined);
+      const realm = { id: 'realm-1', name: 'test' } as any;
 
-      await controller.unlockUser('user-1');
+      await controller.unlockUser(realm, 'user-1');
 
-      expect(bruteForceService.unlockUser).toHaveBeenCalledWith('user-1');
+      expect(bruteForceService.unlockUser).toHaveBeenCalledWith('realm-1', 'user-1');
     });
   });
 });

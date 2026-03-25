@@ -266,6 +266,27 @@ export class AuthService {
             expiresAt: new Date(Date.now() + realm.refreshTokenLifespan * 1000),
           },
         });
+
+        // Prevent unbounded session growth for service accounts: keep only the
+        // most recent 100 sessions, deleting any older ones beyond that cap.
+        const SERVICE_ACCOUNT_SESSION_LIMIT = 100;
+        const oldSessions = await this.prisma.session.findMany({
+          where: { userId: user.id },
+          orderBy: { createdAt: 'desc' },
+          skip: SERVICE_ACCOUNT_SESSION_LIMIT,
+          select: { id: true },
+        });
+        if (oldSessions.length > 0) {
+          const oldIds = oldSessions.map((s) => s.id);
+          await this.prisma.refreshToken.updateMany({
+            where: { sessionId: { in: oldIds }, isOffline: false },
+            data: { revoked: true },
+          });
+          await this.prisma.session.deleteMany({
+            where: { id: { in: oldIds } },
+          });
+        }
+
         return this.issueTokens(realm, user, client_id, session.id, scope, undefined, new Date());
       }
     }

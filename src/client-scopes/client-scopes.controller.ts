@@ -79,6 +79,15 @@ export class ClientScopesController {
 
   // ── Protocol Mappers ────────────────────────────
 
+  @Get('client-scopes/:scopeId/protocol-mappers')
+  @ApiOperation({ summary: 'List protocol mappers for a client scope' })
+  @ApiResponse({ status: 200, description: 'List of protocol mappers' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  getMappers(@CurrentRealm() realm: Realm, @Param('scopeId') scopeId: string) {
+    return this.service.getMappers(realm, scopeId);
+  }
+
   @Post('client-scopes/:scopeId/protocol-mappers')
   @ApiOperation({ summary: 'Add a protocol mapper to a scope' })
   @ApiResponse({ status: 201, description: 'Protocol mapper added' })

@@ -11,8 +11,9 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
+import { IsOptional, IsString } from 'class-validator';
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
@@ -20,6 +21,28 @@ import { SetPasswordDto } from './dto/set-password.dto.js';
 import { PaginationDto } from '../common/dto/pagination.dto.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
+
+class UserSearchDto {
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsString()
+  username?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+}
 
 @ApiTags('Users')
 @Controller('admin/realms/:realmName/users')
@@ -41,8 +64,23 @@ export class UsersController {
   @ApiOperation({ summary: 'List users in a realm' })
   @ApiResponse({ status: 200, description: 'List of users' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  findAll(@CurrentRealm() realm: Realm, @Query() pagination: PaginationDto) {
-    return this.usersService.findAll(realm, pagination.skip, pagination.limit);
+  @ApiQuery({ name: 'search', required: false, description: 'Free-text search across username, email, firstName, lastName' })
+  @ApiQuery({ name: 'username', required: false, description: 'Filter by username (contains, case-insensitive)' })
+  @ApiQuery({ name: 'email', required: false, description: 'Filter by email (contains, case-insensitive)' })
+  @ApiQuery({ name: 'firstName', required: false, description: 'Filter by first name (contains, case-insensitive)' })
+  @ApiQuery({ name: 'lastName', required: false, description: 'Filter by last name (contains, case-insensitive)' })
+  findAll(
+    @CurrentRealm() realm: Realm,
+    @Query() pagination: PaginationDto,
+    @Query() search: UserSearchDto,
+  ) {
+    return this.usersService.findAll(realm, pagination.skip, pagination.limit, {
+      search: search.search,
+      username: search.username,
+      email: search.email,
+      firstName: search.firstName,
+      lastName: search.lastName,
+    });
   }
 
   @Get(':userId')

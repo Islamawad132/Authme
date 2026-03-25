@@ -104,19 +104,15 @@ async function bootstrap() {
 
       corsOriginService.isOriginAllowed(origin).then(
         (allowed) => {
-          if (allowed) {
-            callback(null, origin);
-          } else {
-            // Returning an error causes the `cors` middleware to respond with
-            // 403 and no Access-Control-Allow-Origin header.  This is important
-            // for OPTIONS preflight requests: passing `false` instead would make
-            // `cors` call next() without ending the response, and since no route
-            // is registered for OPTIONS the request falls through to Express's
-            // default 404 handler — which is the bug described in issue #501.
-            callback(new Error('Not allowed by CORS'));
-          }
+          // For allowed origins, echo the origin string back so the CORS
+          // middleware emits Access-Control-Allow-Origin: <origin>.
+          // For disallowed origins, pass `false` — the CORS middleware will
+          // call next() with no ACAO header.  To prevent OPTIONS requests from
+          // falling through to the 404 handler, we register a catch-all
+          // OPTIONS handler below.
+          callback(null, allowed ? origin : false);
         },
-        () => { callback(new Error('Not allowed by CORS')); },
+        () => { callback(null, false); },
       );
     },
     credentials: true,
@@ -124,6 +120,16 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-api-key'],
     preflightContinue: false,
     optionsSuccessStatus: 204,
+  });
+
+  // Catch-all OPTIONS handler: when a disallowed origin sends a preflight,
+  // the CORS middleware passes it through (callback(null, false) calls next()).
+  // Without this handler the request would reach Express's default 404 handler.
+  // Return 204 with no body — the absence of ACAO tells the browser the
+  // request is blocked, which is the correct CORS rejection behaviour.
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.getInstance().options('*', (_req: any, res: any) => {
+    res.status(204).end();
   });
 
   // ── Reverse-proxy trust configuration ──────────────────────────────────────

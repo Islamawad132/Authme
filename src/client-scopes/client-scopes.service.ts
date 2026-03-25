@@ -72,6 +72,15 @@ export class ClientScopesService {
   }
 
   // Protocol mapper management
+  async getMappers(realm: Realm, scopeId: string) {
+    // Confirm the scope belongs to this realm before returning its mappers.
+    await this.findById(realm, scopeId);
+    return this.prisma.protocolMapper.findMany({
+      where: { clientScopeId: scopeId },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async addMapper(realm: Realm, scopeId: string, data: {
     name: string;
     mapperType: string;
