@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsObject, Min, MinLength, Matches } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsInt, IsArray, IsObject, Min, MinLength, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateRealmDto {
@@ -250,4 +250,76 @@ export class CreateRealmDto {
   @IsString()
   @MinLength(1)
   emailTheme?: string;
+
+  // Impersonation
+  @ApiPropertyOptional({ default: false, description: 'Allow admin impersonation of users' })
+  @IsOptional()
+  @IsBoolean()
+  impersonationEnabled?: boolean;
+
+  @ApiPropertyOptional({ default: 3600, description: 'Max duration (seconds) of an impersonation session' })
+  @IsOptional()
+  @IsInt()
+  impersonationMaxDuration?: number;
+
+  // WebAuthn / passkeys
+  @ApiPropertyOptional({ default: false, description: 'Enable WebAuthn / passkey authentication' })
+  @IsOptional()
+  @IsBoolean()
+  webAuthnEnabled?: boolean;
+
+  @ApiPropertyOptional({ description: 'WebAuthn Relying Party display name' })
+  @IsOptional()
+  @IsString()
+  webAuthnRpName?: string;
+
+  @ApiPropertyOptional({ description: 'WebAuthn Relying Party ID (origin domain)' })
+  @IsOptional()
+  @IsString()
+  webAuthnRpId?: string;
+
+  // Adaptive authentication
+  @ApiPropertyOptional({ default: false, description: 'Enable AI-powered adaptive / risk-based authentication' })
+  @IsOptional()
+  @IsBoolean()
+  adaptiveAuthEnabled?: boolean;
+
+  @ApiPropertyOptional({ default: 70, description: 'Risk score threshold (0-100) that triggers step-up MFA' })
+  @IsOptional()
+  @IsInt()
+  riskThresholdStepUp?: number;
+
+  @ApiPropertyOptional({ default: 90, description: 'Risk score threshold (0-100) that blocks the login attempt' })
+  @IsOptional()
+  @IsInt()
+  riskThresholdBlock?: number;
+
+  // Localisation
+  @ApiPropertyOptional({ default: 'en', description: 'Default locale for this realm' })
+  @IsOptional()
+  @IsString()
+  defaultLocale?: string;
+
+  @ApiPropertyOptional({ description: 'List of locales supported by this realm', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  supportedLocales?: string[];
+
+  // Legal / registration controls
+  @ApiPropertyOptional({ description: 'URL to the terms-of-service page shown during registration' })
+  @IsOptional()
+  @IsString()
+  termsOfServiceUrl?: string;
+
+  @ApiPropertyOptional({ default: false, description: 'Require admin approval before a self-registered account is activated' })
+  @IsOptional()
+  @IsBoolean()
+  registrationApprovalRequired?: boolean;
+
+  @ApiPropertyOptional({ description: 'Whitelist of email domains permitted to self-register (empty = all allowed)', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  allowedEmailDomains?: string[];
 }

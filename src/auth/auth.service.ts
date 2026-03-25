@@ -358,6 +358,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
+    // #532 — Enforce that the refresh token was issued to the requesting client
+    if (storedToken.clientId && storedToken.clientId !== client_id) {
+      throw new UnauthorizedException('Refresh token was not issued to this client');
+    }
+
     // Rotate: revoke old token
     await this.prisma.refreshToken.update({
       where: { id: storedToken.id },

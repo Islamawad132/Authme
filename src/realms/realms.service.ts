@@ -201,6 +201,24 @@ export class RealmsService {
       loginTheme: dto.loginTheme,
       accountTheme: dto.accountTheme,
       emailTheme: dto.emailTheme,
+      // Impersonation
+      impersonationEnabled: dto.impersonationEnabled,
+      impersonationMaxDuration: dto.impersonationMaxDuration,
+      // WebAuthn / passkeys
+      webAuthnEnabled: dto.webAuthnEnabled,
+      webAuthnRpName: dto.webAuthnRpName,
+      webAuthnRpId: dto.webAuthnRpId,
+      // Adaptive authentication
+      adaptiveAuthEnabled: dto.adaptiveAuthEnabled,
+      riskThresholdStepUp: dto.riskThresholdStepUp,
+      riskThresholdBlock: dto.riskThresholdBlock,
+      // Localisation
+      defaultLocale: dto.defaultLocale,
+      supportedLocales: dto.supportedLocales,
+      // Legal / registration controls
+      termsOfServiceUrl: dto.termsOfServiceUrl,
+      registrationApprovalRequired: dto.registrationApprovalRequired,
+      allowedEmailDomains: dto.allowedEmailDomains,
     };
 
     // Only update password if a real value is provided (not the redacted placeholder)

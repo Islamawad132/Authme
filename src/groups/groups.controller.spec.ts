@@ -122,7 +122,7 @@ describe('GroupsController', () => {
     it('should call groupsService.addUserToGroup with realm, userId, and groupId', () => {
       mockGroupsService.addUserToGroup.mockReturnValue(undefined);
 
-      const result = controller.addUserToGroup(realm, 'user-1', 'group-1');
+      const result = controller.addUserToGroupPut(realm, 'user-1', 'group-1');
 
       expect(mockGroupsService.addUserToGroup).toHaveBeenCalledWith(realm, 'user-1', 'group-1');
       expect(result).toBeUndefined();

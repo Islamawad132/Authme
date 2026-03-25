@@ -89,12 +89,24 @@ export class GroupsController {
   }
 
   @Post('users/:userId/groups/:groupId')
-  @Put('users/:userId/groups/:groupId')
-  @ApiOperation({ summary: 'Add user to group (POST or PUT)' })
+  @ApiOperation({ summary: 'Add user to group (POST)' })
   @ApiResponse({ status: 200, description: 'User added to group' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'User or group not found' })
-  addUserToGroup(
+  addUserToGroupPost(
+    @CurrentRealm() realm: Realm,
+    @Param('userId') userId: string,
+    @Param('groupId') groupId: string,
+  ) {
+    return this.groupsService.addUserToGroup(realm, userId, groupId);
+  }
+
+  @Put('users/:userId/groups/:groupId')
+  @ApiOperation({ summary: 'Add user to group (PUT)' })
+  @ApiResponse({ status: 200, description: 'User added to group' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User or group not found' })
+  addUserToGroupPut(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
     @Param('groupId') groupId: string,
