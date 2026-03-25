@@ -66,14 +66,31 @@ interface NextResponseStatic {
 }
 
 /**
- * Decode a JWT payload without verification (verification happens server-side
- * via JWKS when using `getServerAuth`).  Here we just need the `exp` claim to
- * decide whether to redirect without an extra round-trip.
+ * Decode a JWT payload without cryptographic signature verification.
+ *
+ * SECURITY NOTE (#10): This function only checks the token's expiry claim
+ * (`exp`) and validates that the token is structurally well-formed (three
+ * dot-separated parts, valid base64url encoding).  It does NOT verify the
+ * signature.  A tampered or forged token with a future `exp` will pass this
+ * check.
+ *
+ * This is intentional for Edge Middleware: signature verification requires the
+ * JWKS public key and an async network fetch, which adds latency on every
+ * request.  The authoritative verification MUST be performed server-side via
+ * `verifyToken` (JWKS) before acting on any token claims for authorization
+ * decisions.  Middleware should only be used as a first-pass redirect guard,
+ * not as a security boundary by itself.
  */
 function isTokenExpiredLocally(token: string): boolean {
   try {
-    const [, payloadB64] = token.split('.');
-    if (!payloadB64) return true;
+    const parts = token.split('.');
+    // Structural validation: a well-formed JWT has exactly three parts.
+    if (parts.length !== 3) return true;
+
+    const [, payloadB64] = parts;
+    // Validate the payload segment contains only valid base64url characters.
+    if (!/^[A-Za-z0-9_-]+$/.test(payloadB64)) return true;
+
     const json = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
     const payload = JSON.parse(json) as { exp?: number };
     if (!payload.exp) return false;

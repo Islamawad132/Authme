@@ -9,7 +9,14 @@ const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
 export function loadConfig(): CliConfig | null {
   if (!existsSync(CONFIG_FILE)) return null;
   const raw = readFileSync(CONFIG_FILE, 'utf-8');
-  return JSON.parse(raw) as CliConfig;
+  try {
+    return JSON.parse(raw) as CliConfig;
+  } catch {
+    throw new Error(
+      `Config file at ${CONFIG_FILE} contains invalid JSON. ` +
+        'Fix or remove it and run `authme login` again.',
+    );
+  }
 }
 
 export function saveConfig(config: CliConfig): void {

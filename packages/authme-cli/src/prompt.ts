@@ -12,7 +12,7 @@ export function ask(question: string): Promise<string> {
 
 export async function askPassword(question: string): Promise<string> {
   process.stdout.write(question);
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let password = '';
     const stdin = process.stdin;
     if (stdin.setRawMode) stdin.setRawMode(true);
@@ -31,12 +31,12 @@ export async function askPassword(question: string): Promise<string> {
           process.stdout.write('\b \b');
         }
       } else if (ch === '\u0003') {
-        // Ctrl+C
+        // Ctrl+C — reject the promise so the caller can handle it cleanly
         if (stdin.setRawMode) stdin.setRawMode(false);
         stdin.pause();
         stdin.removeListener('data', onData);
         console.log();
-        throw new Error('Interrupted');
+        reject(new Error('Interrupted'));
       } else {
         password += ch;
         process.stdout.write('*');

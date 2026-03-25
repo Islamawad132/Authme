@@ -91,10 +91,7 @@ export function createHttpClient(config: CliConfig): HttpClient {
 }
 
 export function handleApiError(error: unknown): never {
-  if (error instanceof Error) {
-    console.error(chalk.red(error.message));
-  } else {
-    console.error(chalk.red('An unexpected error occurred'));
-  }
-  process.exit(1);
+  const message =
+    error instanceof Error ? error.message : 'An unexpected error occurred';
+  throw new Error(chalk.red(message));
 }

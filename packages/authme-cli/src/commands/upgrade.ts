@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import chalk from 'chalk';
 import { HttpClient } from '../http.js';
 import { success, warn } from '../output.js';
@@ -175,8 +175,9 @@ async function handleRollback(opts: {
 
   console.log(chalk.dim(`\n  Running: prisma migrate resolve --rolled-back ${lastMigration}\n`));
   try {
-    const out = execSync(
-      `npx prisma migrate resolve --rolled-back ${lastMigration}`,
+    const out = execFileSync(
+      'npx',
+      ['prisma', 'migrate', 'resolve', '--rolled-back', lastMigration],
       { encoding: 'utf-8', stdio: ['inherit', 'pipe', 'pipe'] },
     );
     console.log(out);

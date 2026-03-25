@@ -107,7 +107,14 @@ export function registerRealmCommands(program: Command): void {
     .option('--json', 'Output as JSON')
     .action(async (file: string, opts) => {
       const raw = readFileSync(file, 'utf-8');
-      const body = JSON.parse(raw);
+      let body: unknown;
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        console.error(`Error: "${file}" does not contain valid JSON.`);
+        process.exitCode = 1;
+        return;
+      }
       const client = new HttpClient();
       const query: Record<string, string> = {};
       if (opts.overwrite) query.overwrite = 'true';

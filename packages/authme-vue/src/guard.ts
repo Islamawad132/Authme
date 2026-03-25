@@ -99,7 +99,9 @@ export function createAuthGuard(
         '[authme-vue] createAuthGuard: no AuthmeClient available. ' +
           'Pass the client as the second argument or install AuthmePlugin.',
       );
-      return true; // fail-open so navigation is not permanently blocked
+      // Fail closed: no client means we cannot verify identity, so block
+      // navigation and redirect to the login route.
+      return { path: loginRoute, query: { next: to.fullPath } };
     }
 
     const meta = to.meta as AuthRouteMeta | undefined;

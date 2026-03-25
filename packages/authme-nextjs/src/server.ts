@@ -78,9 +78,21 @@ export interface ReadonlyRequestCookies {
 // ── JWT decode (no verification — use verifyToken from authme-sdk/server for full JWKS validation) ──
 
 /**
- * Decode a JWT payload.  For server components, this avoids an extra network
- * call when the token was already verified upstream (e.g. in middleware).
- * For full cryptographic verification use `verifyToken` from `authme-sdk/server`.
+ * Decode a JWT payload WITHOUT cryptographic signature verification.
+ *
+ * SECURITY NOTE: This function decodes the payload segment of a JWT by
+ * base64url-decoding it.  It does NOT validate the signature, issuer (`iss`),
+ * audience (`aud`), or any other security-relevant claims beyond expiry.
+ * The decoded claims must NOT be trusted for authorization decisions.
+ *
+ * Intended use — convenience reading in Server Components where the token has
+ * already been cryptographically verified by a trusted upstream layer (e.g.
+ * your API gateway, the AuthMe Edge middleware backed by JWKS verification, or
+ * a call to `verifyToken` from `authme-sdk/server`).
+ *
+ * If you are making access-control decisions based on the returned claims,
+ * you MUST verify the token first with `verifyToken` from `authme-sdk/server`
+ * (which performs full JWKS signature verification).
  */
 function decodeJwtPayload(token: string): TokenPayload | null {
   try {
@@ -104,6 +116,16 @@ function isExpired(payload: TokenPayload): boolean {
 
 /**
  * Read and decode the auth session from request cookies (Next.js Server Components).
+ *
+ * WARNING (#11): This function decodes the JWT locally WITHOUT verifying its
+ * cryptographic signature.  It is provided for convenience when reading user
+ * identity in Server Components where an upstream layer has already verified
+ * the token (e.g. middleware + JWKS).
+ *
+ * DO NOT use the returned `payload` for authorization decisions (role checks,
+ * permission gates, data access) without first verifying the token with
+ * `verifyToken` from `authme-sdk/server`.  An attacker who can set an
+ * arbitrary cookie value could otherwise forge any claims returned here.
  *
  * Returns `AuthSession | null`.  The token is decoded locally (no JWKS call).
  * Call `verifyToken` from `authme-sdk/server` if you need cryptographic validation.
