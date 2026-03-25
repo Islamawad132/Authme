@@ -359,8 +359,16 @@ export class AuthService {
     }
 
     // #532 — Enforce that the refresh token was issued to the requesting client
-    if (storedToken.clientId && storedToken.clientId !== client_id) {
-      throw new UnauthorizedException('Refresh token was not issued to this client');
+    if (storedToken.clientId) {
+      if (storedToken.clientId !== client_id) {
+        throw new UnauthorizedException('Refresh token was not issued to this client');
+      }
+    } else {
+      // Legacy token without clientId — backfill it for future checks
+      await this.prisma.refreshToken.update({
+        where: { id: storedToken.id },
+        data: { clientId: client_id },
+      });
     }
 
     // Rotate: revoke old token

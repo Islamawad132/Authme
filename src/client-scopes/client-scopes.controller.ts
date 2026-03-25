@@ -97,7 +97,7 @@ export class ClientScopesController {
   addMapper(
     @CurrentRealm() realm: Realm,
     @Param('scopeId') scopeId: string,
-    @Body() body: { name: string; mapperType: string; protocol?: string; config?: Record<string, unknown> },
+    @Body() body: { name: string; mapperType?: string; protocolMapper?: string; protocol?: string; config?: Record<string, unknown> },
   ) {
     return this.service.addMapper(realm, scopeId, body);
   }

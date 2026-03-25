@@ -138,12 +138,25 @@ export class ClientsService {
     const cached = await this.cache.getCachedClientConfig<typeof CLIENT_SELECT>(cacheKey);
     if (cached) return cached as unknown as Prisma.ClientGetPayload<{ select: typeof CLIENT_SELECT }>;
 
-    const client = await this.prisma.client.findUnique({
+    let client = await this.prisma.client.findUnique({
       where: {
         realmId_clientId: { realmId: realm.id, clientId },
       },
       select: CLIENT_SELECT,
     });
+
+    // Fallback: if the identifier looks like a UUID, try the primary key (id column)
+    if (!client && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId)) {
+      client = await this.prisma.client.findUnique({
+        where: { id: clientId },
+        select: CLIENT_SELECT,
+      }) ?? null;
+      // Ensure the found client belongs to this realm
+      if (client && client.realmId !== realm.id) {
+        client = null;
+      }
+    }
+
     if (!client) {
       throw new NotFoundException(`Client '${clientId}' not found`);
     }

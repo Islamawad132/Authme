@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Req, Res, UnauthorizedException, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Req, Res, UnauthorizedException, BadRequestException, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { Public } from '../common/decorators/public.decorator.js';
@@ -23,6 +23,13 @@ export class AdminAuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    if (!body.username || typeof body.username !== 'string') {
+      throw new BadRequestException('username is required');
+    }
+    if (!body.password || typeof body.password !== 'string') {
+      throw new BadRequestException('password is required');
+    }
+
     const ip = resolveClientIp(req);
 
     const { rateLimitHeaders, ...tokenResponse } = await this.adminAuthService.login(

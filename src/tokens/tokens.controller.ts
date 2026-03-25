@@ -170,10 +170,10 @@ export class TokensController {
   @ApiResponse({ status: 400, description: 'invalid_grant — refresh token not found or already revoked' })
   logout(
     @CurrentRealm() realm: Realm,
-    @Body() body: { refresh_token?: string },
+    @Body() body: { refresh_token?: string } = {},
     @Req() req: Request,
   ) {
-    return this.tokensService.logout(realm, resolveClientIp(req), body.refresh_token);
+    return this.tokensService.logout(realm, resolveClientIp(req), body?.refresh_token);
   }
 
   @Get('logout')
