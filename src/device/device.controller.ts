@@ -19,6 +19,7 @@ import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
+import { BruteForceService } from '../brute-force/brute-force.service.js';
 import { ThemeRenderService } from '../theme/theme-render.service.js';
 
 @ApiTags('Device Authorization')
@@ -30,6 +31,7 @@ export class DeviceController {
     private readonly deviceService: DeviceService,
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly bruteForce: BruteForceService,
     private readonly themeRender: ThemeRenderService,
   ) {}
 
@@ -87,14 +89,28 @@ export class DeviceController {
         }, req);
       }
 
+      // Check brute-force lockout before attempting password verification
+      const lockStatus = this.bruteForce.checkLocked(realm, user);
+      if (lockStatus.locked) {
+        return this.themeRender.render(res, realm, 'login', 'device', {
+          pageTitle: 'Device Authorization',
+          userCode: body.user_code,
+          error: 'Account is temporarily locked due to too many failed attempts. Please try again later.',
+        }, req);
+      }
+
       const valid = await this.crypto.verifyPassword(user.passwordHash, body.password);
       if (!valid) {
+        await this.bruteForce.recordFailure(realm, user.id, req.ip);
         return this.themeRender.render(res, realm, 'login', 'device', {
           pageTitle: 'Device Authorization',
           userCode: body.user_code,
           error: 'Invalid credentials',
         }, req);
       }
+
+      // Successful authentication — reset failure counter
+      await this.bruteForce.resetFailures(realm.id, user.id);
 
       await this.deviceService.approveDevice(realm, body.user_code, user.id);
       return this.themeRender.render(res, realm, 'login', 'device-success', {

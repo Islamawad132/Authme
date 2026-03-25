@@ -114,10 +114,25 @@ export class OAuthController {
       }
     }
 
-    // No valid session: redirect to login page with OAuth params
+    // No valid session: redirect to login page with OAuth params.
+    // Only relay params from the explicit allowlist to prevent open-redirect
+    // and parameter-injection attacks via arbitrary query string forwarding.
+    const OAUTH_PARAM_ALLOWLIST = new Set([
+      'client_id',
+      'redirect_uri',
+      'response_type',
+      'scope',
+      'state',
+      'nonce',
+      'code_challenge',
+      'code_challenge_method',
+      'prompt',
+      'acr_values',
+      'login_hint',
+    ]);
     const loginParams = new URLSearchParams();
     for (const [key, value] of Object.entries(query)) {
-      if (value) loginParams.set(key, value);
+      if (value && OAUTH_PARAM_ALLOWLIST.has(key)) loginParams.set(key, value);
     }
     res.redirect(302, `/realms/${realm.name}/login?${loginParams.toString()}`);
   }

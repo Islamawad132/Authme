@@ -6,6 +6,8 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { createHash } from 'crypto';
+import { readFileSync } from 'fs';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PluginLoaderService } from './plugin-loader.service.js';
 import { PluginRegistry } from './plugin-registry.js';
@@ -60,24 +62,42 @@ export class PluginManagerService implements OnModuleInit {
     const discovered = await this.loader.discoverAll();
     this.logger.log(`Discovered ${discovered.length} plugin(s).`);
 
-    for (const { plugin } of discovered) {
-      await this.installOrSync(plugin);
+    for (const { plugin, sourcePath } of discovered) {
+      await this.installOrSync(plugin, sourcePath);
     }
 
     this.logger.log(`Plugin system initialised. ${this.registry.size} plugin(s) registered.`);
   }
 
   /**
-   * Install a plugin if it is not already in the DB, or sync its state from DB.
+   * Compute a SHA-256 hex digest of a file on disk.
+   * Returns null if the file cannot be read (e.g. bundled/virtual module).
    */
-  private async installOrSync(plugin: AuthMePlugin): Promise<void> {
+  private computeFileHash(filePath: string): string | null {
     try {
+      const contents = readFileSync(filePath);
+      return createHash('sha256').update(contents).digest('hex');
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Install a plugin if it is not already in the DB, or sync its state from DB.
+   * @param sourcePath Absolute path to the plugin's resolved entry file — used
+   *   for integrity verification.
+   */
+  private async installOrSync(plugin: AuthMePlugin, sourcePath: string): Promise<void> {
+    try {
+      const currentHash = this.computeFileHash(sourcePath);
+
       let record = await this.prisma.installedPlugin.findUnique({
         where: { name: plugin.name },
       });
 
       if (!record) {
-        // First time seeing this plugin — persist it as enabled by default
+        // First time seeing this plugin — persist it as enabled by default,
+        // recording the current file hash as the trusted baseline.
         record = await this.prisma.installedPlugin.create({
           data: {
             name: plugin.name,
@@ -85,18 +105,35 @@ export class PluginManagerService implements OnModuleInit {
             type: plugin.type,
             enabled: true,
             config: Prisma.JsonNull,
+            fileHash: currentHash,
           },
         });
 
         const context = this.buildContext(plugin, null);
         await this.invokeLifecycle(plugin, 'onInstall', context);
-        this.logger.log(`Installed new plugin '${plugin.name}'.`);
+        this.logger.log(`Installed new plugin '${plugin.name}' (hash: ${currentHash ?? 'unavailable'}).`);
       } else {
-        // Already known — update version in case it changed
+        // Already known — verify file integrity against the stored hash.
+        if (record.fileHash && currentHash && record.fileHash !== currentHash) {
+          this.logger.warn(
+            `Integrity check failed for plugin '${plugin.name}': ` +
+            `stored hash ${record.fileHash} does not match current file hash ${currentHash}. ` +
+            `The plugin file may have been modified after installation. ` +
+            `If this is expected (e.g. a manual update), re-install the plugin to update the baseline.`,
+          );
+        } else if (!record.fileHash && currentHash) {
+          // No stored hash yet (plugin was recorded before this feature existed) — store it now.
+          await this.prisma.installedPlugin.update({
+            where: { name: plugin.name },
+            data: { fileHash: currentHash },
+          });
+        }
+
+        // Update version in case it changed
         if (record.version !== plugin.version) {
           await this.prisma.installedPlugin.update({
             where: { name: plugin.name },
-            data: { version: plugin.version },
+            data: { version: plugin.version, fileHash: currentHash },
           });
         }
       }

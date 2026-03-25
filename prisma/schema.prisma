@@ -1065,6 +1065,7 @@ model InstalledPlugin {
   type        String   // "auth-provider" | "event-listener" | "token-enrichment" | "theme"
   enabled     Boolean  @default(true)
   config      Json?
+  fileHash    String?  @map("file_hash") // SHA-256 of the plugin's main entry file at install time
   installedAt DateTime @default(now()) @map("installed_at")
   updatedAt   DateTime @updatedAt      @map("updated_at")
 
