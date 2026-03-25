@@ -1209,3 +1209,42 @@ model RevokedToken {
   @@index([expiresAt])
   @@map("revoked_tokens")
 }
+
+// ─── SERVICE ACCOUNTS ─────────────────────────────────────
+
+model ServiceAccount {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  realmId     String   @map("realm_id") @db.VarChar(36)
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  apiKeys ApiKey[]
+
+  @@unique([realmId, name])
+  @@index([realmId])
+  @@map("service_accounts")
+}
+
+model ApiKey {
+  id               String    @id @default(uuid()) @db.VarChar(36)
+  serviceAccountId String    @map("service_account_id") @db.VarChar(36)
+  keyPrefix        String    @map("key_prefix") @db.VarChar(16)
+  keyHash          String    @map("key_hash") @db.VarChar(255)
+  name             String?   @db.VarChar(255)
+  scopes           String    @db.Text
+  expiresAt        DateTime? @map("expires_at")
+  lastUsedAt       DateTime? @map("last_used_at")
+  requestCount     Int       @default(0) @map("request_count")
+  revoked          Boolean   @default(false)
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  serviceAccount ServiceAccount @relation(fields: [serviceAccountId], references: [id], onDelete: Cascade)
+
+  @@index([serviceAccountId])
+  @@index([keyPrefix])
+  @@map("api_keys")
+}

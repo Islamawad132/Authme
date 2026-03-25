@@ -41,6 +41,13 @@ fi
 cp "${SCHEMA_SRC}" "${SCHEMA_DEST}"
 echo "  Copied schema.mysql.prisma → prisma/schema.prisma"
 
+# Update migration_lock.toml to match the target provider
+LOCK_FILE="${REPO_ROOT}/prisma/migrations/migration_lock.toml"
+if [[ -f "${LOCK_FILE}" ]]; then
+  sed -i 's/^provider = .*/provider = "mysql"/' "${LOCK_FILE}"
+  echo "  Updated migration_lock.toml provider → mysql"
+fi
+
 echo ""
 echo "Done. Next steps:"
 echo ""

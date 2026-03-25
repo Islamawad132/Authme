@@ -43,6 +43,13 @@ fi
 cp "${SCHEMA_SRC}" "${SCHEMA_DEST}"
 echo "  Copied schema.sqlite.prisma → prisma/schema.prisma"
 
+# Update migration_lock.toml to match the target provider
+LOCK_FILE="${REPO_ROOT}/prisma/migrations/migration_lock.toml"
+if [[ -f "${LOCK_FILE}" ]]; then
+  sed -i 's/^provider = .*/provider = "sqlite"/' "${LOCK_FILE}"
+  echo "  Updated migration_lock.toml provider → sqlite"
+fi
+
 echo ""
 echo "Done. Next steps:"
 echo ""
