@@ -32,6 +32,16 @@ export class RolesService {
     });
   }
 
+  async findByName(realm: Realm, roleName: string) {
+    const role = await this.prisma.role.findFirst({
+      where: { realmId: realm.id, clientId: null, name: roleName },
+    });
+    if (!role) {
+      throw new NotFoundException(`Role '${roleName}' not found`);
+    }
+    return role;
+  }
+
   async deleteRealmRole(realm: Realm, roleName: string) {
     const role = await this.prisma.role.findFirst({
       where: { realmId: realm.id, clientId: null, name: roleName },

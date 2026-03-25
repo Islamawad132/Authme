@@ -2,8 +2,15 @@ import { createInterface } from 'readline';
 
 export function ask(question: string): Promise<string> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    const onEnd = () => {
+      rl.close();
+      reject(new Error('stdin closed unexpectedly (EOF)'));
+    };
+    process.stdin.once('end', onEnd);
+
     rl.question(question, (answer) => {
+      process.stdin.removeListener('end', onEnd);
       rl.close();
       resolve(answer.trim());
     });

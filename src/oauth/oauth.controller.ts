@@ -77,7 +77,9 @@ export class OAuthController {
               const stepUpParams = new URLSearchParams();
               stepUpParams.set('acr', requiredAcr);
               stepUpParams.set('client_id', client.clientId);
-              stepUpParams.set('session_token', sessionCookie);
+              // session_token is intentionally omitted — the step-up challenge
+              // endpoint reads the session from the AUTHME_SESSION cookie so
+              // the token is never exposed in URLs, server logs, or Referer headers.
               // Encode the original OAuth params as a `continue` parameter so
               // the step-up UI can redirect back after success.
               const continueUrl = `/realms/${realm.name}/protocol/openid-connect/auth?${new URLSearchParams(query).toString()}`;

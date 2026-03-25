@@ -100,7 +100,20 @@ export class GroupsService {
 
     const memberships = await this.prisma.userGroup.findMany({
       where: { groupId },
-      include: { user: true },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            emailVerified: true,
+            firstName: true,
+            lastName: true,
+            enabled: true,
+            createdAt: true,
+          },
+        },
+      },
       orderBy: { user: { username: 'asc' } },
     });
 
