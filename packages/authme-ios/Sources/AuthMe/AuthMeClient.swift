@@ -202,9 +202,10 @@ public final class AuthMeClient: NSObject {
     public func logout() async {
         if let refreshToken = storage.refreshToken,
            let oidc = try? await fetchDiscovery(),
-           let endSessionEndpoint = oidc.endSessionEndpoint
+           let endSessionEndpoint = oidc.endSessionEndpoint,
+           let endSessionURL = URL(string: endSessionEndpoint)
         {
-            var request = URLRequest(url: URL(string: endSessionEndpoint)!)
+            var request = URLRequest(url: endSessionURL)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try? JSONEncoder().encode(["refresh_token": refreshToken])
@@ -245,7 +246,10 @@ public final class AuthMeClient: NSObject {
             throw AuthMeError.noRefreshToken
         }
 
-        var request = URLRequest(url: URL(string: oidc.tokenEndpoint)!)
+        guard let tokenURL = URL(string: oidc.tokenEndpoint) else {
+            throw AuthMeError.serverError("Invalid token endpoint URL: \(oidc.tokenEndpoint)")
+        }
+        var request = URLRequest(url: tokenURL)
         request.httpMethod = "POST"
         request.setValue(
             "application/x-www-form-urlencoded",
@@ -280,7 +284,10 @@ public final class AuthMeClient: NSObject {
 
         let oidc = try await fetchDiscovery()
 
-        var request = URLRequest(url: URL(string: oidc.userinfoEndpoint)!)
+        guard let userinfoURL = URL(string: oidc.userinfoEndpoint) else {
+            throw AuthMeError.serverError("Invalid userinfo endpoint URL: \(oidc.userinfoEndpoint)")
+        }
+        var request = URLRequest(url: userinfoURL)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await urlSession.data(for: request)
@@ -315,7 +322,10 @@ public final class AuthMeClient: NSObject {
         verifier: String,
         tokenEndpoint: String
     ) async throws -> TokenResponse {
-        var request = URLRequest(url: URL(string: tokenEndpoint)!)
+        guard let tokenURL = URL(string: tokenEndpoint) else {
+            throw AuthMeError.serverError("Invalid token endpoint URL: \(tokenEndpoint)")
+        }
+        var request = URLRequest(url: tokenURL)
         request.httpMethod = "POST"
         request.setValue(
             "application/x-www-form-urlencoded",

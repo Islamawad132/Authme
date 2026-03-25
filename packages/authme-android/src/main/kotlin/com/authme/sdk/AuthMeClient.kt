@@ -151,7 +151,12 @@ class AuthMeClient(
      */
     suspend fun handleRedirectIntent(intent: Intent?): Boolean {
         val uri = intent?.data ?: return false
-        if (!uri.toString().startsWith(config.redirectUri)) return false
+        // Use exact URI comparison (scheme + host + path) to prevent a crafted
+        // URI such as "com.example.myapp://callback.evil.com" from being accepted
+        // by a prefix match against "com.example.myapp://callback".
+        val incomingBase = uri.buildUpon().clearQuery().fragment(null).build()
+        val expectedBase = Uri.parse(config.redirectUri).buildUpon().clearQuery().fragment(null).build()
+        if (incomingBase != expectedBase) return false
 
         val oidc = fetchDiscovery()
 
@@ -405,8 +410,11 @@ class AuthMeClient(
 
         try {
             connection.connect()
-            val code = connection.responseCode
-            val body = connection.inputStream.bufferedReader().readText()
+            val code   = connection.responseCode
+            // For error responses the JVM throws if inputStream is read; use
+            // errorStream instead so we can surface a meaningful message.
+            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+            val body   = stream?.bufferedReader()?.readText() ?: ""
 
             if (code !in 200..299) {
                 throw AuthMeException.ServerError("HTTP $code: $body")

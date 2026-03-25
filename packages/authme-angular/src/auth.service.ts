@@ -140,7 +140,7 @@ export class AuthService implements OnDestroy {
       // Handle OIDC callback if URL has `code` param
       if (typeof window !== 'undefined') {
         const params = new URL(window.location.href).searchParams;
-        if (params.has('code')) {
+        if (params.has('code') && params.has('state')) {
           const success = await this.client.handleCallback();
           this._isAuthenticated$.next(success);
           if (success) this._user$.next(this.client.getUserInfo());

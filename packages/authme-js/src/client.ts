@@ -37,6 +37,10 @@ export class AuthmeClient {
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   private cachedUserInfo: UserInfo | null = null;
   private initialized = false;
+  // Bug #4 fix: guard against concurrent calls to init() (e.g. React StrictMode
+  // double-mount, multiple components calling init simultaneously).
+  private _initializing = false;
+  private _initPromise: Promise<boolean> | null = null;
   private callbackPromise: Promise<boolean> | null = null;
   private silentRefreshIframe: HTMLIFrameElement | null = null;
 
@@ -83,6 +87,19 @@ export class AuthmeClient {
    * existing session from storage. Must be called before other methods.
    */
   async init(): Promise<boolean> {
+    // Bug #4 fix: if init() is already in flight, return the same promise so
+    // concurrent callers coalesce onto a single initialization run.
+    if (this._initializing && this._initPromise) return this._initPromise;
+    if (this.initialized) return this.isAuthenticated();
+
+    this._initializing = true;
+    this._initPromise = this._init().finally(() => {
+      this._initializing = false;
+    });
+    return this._initPromise;
+  }
+
+  private async _init(): Promise<boolean> {
     await this.fetchDiscovery();
 
     const accessToken = this.storage.get('access_token');
@@ -265,10 +282,17 @@ export class AuthmeClient {
       try {
         const config = await this.getOidcConfig();
         if (config.end_session_endpoint) {
+          // Bug #3 fix: OIDC end_session_endpoint expects form-urlencoded, not JSON.
+          // Sending JSON causes the server to ignore the refresh_token parameter,
+          // leaving the server-side session alive.
+          const body = new URLSearchParams({
+            client_id: this.config.clientId,
+            refresh_token: refreshToken,
+          });
           await fetch(config.end_session_endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh_token: refreshToken }),
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
           });
         }
       } catch {
@@ -449,8 +473,14 @@ export class AuthmeClient {
     });
 
     if (!response.ok) {
-      this.clearTokens();
       const err = await response.json().catch(() => ({ error: 'refresh_failed' }));
+      // Bug #2 fix: only discard stored tokens when the server definitively rejects
+      // the refresh token (4xx — e.g. invalid_grant, token revoked).  On 5xx
+      // (server errors, network hiccups) the tokens may still be valid; clearing
+      // them would silently log the user out due to a transient server problem.
+      if (response.status >= 400 && response.status < 500) {
+        this.clearTokens();
+      }
       throw new Error(err.error_description ?? err.error);
     }
 
