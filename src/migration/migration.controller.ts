@@ -4,6 +4,7 @@ import { IsBoolean, IsObject, IsOptional, IsString } from 'class-validator';
 import { KeycloakImporterService } from './keycloak-importer.service.js';
 import { Auth0ImporterService } from './auth0-importer.service.js';
 import type { MigrationReport } from './migration-report.js';
+import type { KeycloakRealmExport } from './keycloak-types.js';
 import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard.js';
 
 class KeycloakImportDto {
@@ -48,7 +49,7 @@ export class MigrationController {
   @ApiResponse({ status: 400, description: 'Bad request — invalid payload or missing targetRealm' })
   @ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid admin API key' })
   async importKeycloak(@Body() dto: KeycloakImportDto): Promise<MigrationReport> {
-    return this.keycloakImporter.importRealm(dto.data, {
+    return this.keycloakImporter.importRealm(dto.data as unknown as KeycloakRealmExport, {
       dryRun: dto.dryRun ?? false,
       targetRealm: dto.targetRealm,
     });

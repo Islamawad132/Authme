@@ -221,7 +221,7 @@ export class OrganizationsService {
       throw new NotFoundException('User not found in realm');
     }
 
-    if (user.email.toLowerCase() !== invitation.email) {
+    if (!user.email || user.email.toLowerCase() !== invitation.email) {
       throw new ForbiddenException(
         'This invitation was issued to a different email address',
       );
