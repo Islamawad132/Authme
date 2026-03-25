@@ -83,10 +83,11 @@ export default function RoleListPage() {
           <h2 className="text-lg font-semibold text-gray-900">New Role</h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label htmlFor="new-role-name" className="mb-1.5 block text-sm font-medium text-gray-700">
                 Role Name
               </label>
               <input
+                id="new-role-name"
                 type="text"
                 required
                 value={newRole.name}
@@ -96,10 +97,11 @@ export default function RoleListPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label htmlFor="new-role-description" className="mb-1.5 block text-sm font-medium text-gray-700">
                 Description
               </label>
               <input
+                id="new-role-description"
                 type="text"
                 value={newRole.description}
                 onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}

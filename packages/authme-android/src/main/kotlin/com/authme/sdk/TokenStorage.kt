@@ -76,13 +76,22 @@ internal class TokenStorage(context: Context, realm: String, clientId: String) {
     // Bulk operations
     // -----------------------------------------------------------------------
 
-    /** Store a full token response. */
+    /** Store a full token response atomically. */
     fun store(tokens: TokenResponse) {
-        prefs.edit()
-            .putString(Key.ACCESS_TOKEN,  tokens.accessToken)
-            .apply { if (tokens.refreshToken != null) putString(Key.REFRESH_TOKEN, tokens.refreshToken) }
-            .apply { if (tokens.idToken != null) putString(Key.ID_TOKEN, tokens.idToken) }
-            .apply()
+        // Bug #438-6 fix: the previous code mixed SharedPreferences.Editor chaining with
+        // Kotlin's `apply` scope-function — the trailing `.apply()` was calling the Kotlin
+        // extension on whatever `Unit` the last lambda returned, NOT committing the editor.
+        // This meant only the first `.putString` was ever persisted.
+        // Fix: build the editor explicitly and call the Editor's own `apply()` at the end.
+        val editor = prefs.edit()
+            .putString(Key.ACCESS_TOKEN, tokens.accessToken)
+        if (tokens.refreshToken != null) {
+            editor.putString(Key.REFRESH_TOKEN, tokens.refreshToken)
+        }
+        if (tokens.idToken != null) {
+            editor.putString(Key.ID_TOKEN, tokens.idToken)
+        }
+        editor.apply()
     }
 
     /** Remove all stored tokens and PKCE state. */

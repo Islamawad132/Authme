@@ -5,7 +5,7 @@ import { getFederations } from '../../api/userFederation';
 export default function FederationListPage() {
   const { name } = useParams<{ name: string }>();
 
-  const { data: federations, isLoading } = useQuery({
+  const { data: federations, isLoading, error } = useQuery({
     queryKey: ['user-federations', name],
     queryFn: () => getFederations(name!),
     enabled: !!name,
@@ -22,6 +22,12 @@ export default function FederationListPage() {
           Add Provider
         </Link>
       </div>
+
+      {error && (
+        <div role="alert" className="rounded-md bg-red-50 p-4 text-sm text-red-700">
+          Failed to load data: {error.message}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-gray-500">Loading federation providers...</div>

@@ -1,4 +1,4 @@
-export { AuthmeClient } from './client.js';
+export { AuthmeClient, handleSilentCallback } from './client.js';
 export type {
   AuthmeConfig,
   AuthmeEventMap,

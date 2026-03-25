@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getLoginEvents, clearLoginEvents, type LoginEvent } from '../../api/events'
+import ConfirmDialog from '../../components/ConfirmDialog'
 
 const EVENT_TYPES = [
   'LOGIN',
@@ -49,6 +50,7 @@ export default function LoginEventsPage() {
   const queryClient = useQueryClient()
 
   const [filterType, setFilterType] = useState<string>('')
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
 
   const {
     data: events,
@@ -71,9 +73,12 @@ export default function LoginEventsPage() {
   })
 
   const handleClearEvents = () => {
-    if (window.confirm('Are you sure you want to clear all login events? This action cannot be undone.')) {
-      clearMutation.mutate()
-    }
+    setShowClearConfirm(true)
+  }
+
+  const handleClearConfirmed = () => {
+    setShowClearConfirm(false)
+    clearMutation.mutate()
   }
 
   const handleClearFilters = () => {
@@ -245,6 +250,13 @@ export default function LoginEventsPage() {
           </table>
         </div>
       )}
+      <ConfirmDialog
+        isOpen={showClearConfirm}
+        title="Clear Login Events"
+        message="Are you sure you want to clear all login events? This action cannot be undone."
+        onConfirm={handleClearConfirmed}
+        onCancel={() => setShowClearConfirm(false)}
+      />
     </div>
   )
 }

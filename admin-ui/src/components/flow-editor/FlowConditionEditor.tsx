@@ -83,10 +83,11 @@ export default function FlowConditionEditor({
 
           {/* Field */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
+            <label htmlFor="condition-field" className="block text-xs font-medium text-gray-600 mb-1">
               Context field
             </label>
             <input
+              id="condition-field"
               list="field-suggestions"
               value={condition.field}
               onChange={(e) => handleField(e.target.value)}
@@ -102,10 +103,11 @@ export default function FlowConditionEditor({
 
           {/* Operator */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
+            <label htmlFor="condition-operator" className="block text-xs font-medium text-gray-600 mb-1">
               Operator
             </label>
             <select
+              id="condition-operator"
               value={condition.operator}
               onChange={(e) => handleOperator(e.target.value as ConditionOperator)}
               className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -121,13 +123,14 @@ export default function FlowConditionEditor({
           {/* Value (only when operator needs one) */}
           {op.hasValue && (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label htmlFor="condition-value" className="block text-xs font-medium text-gray-600 mb-1">
                 Value
                 {(condition.operator === 'in' || condition.operator === 'not_in') && (
                   <span className="ml-1 text-gray-400">(comma-separated)</span>
                 )}
               </label>
               <input
+                id="condition-value"
                 value={valueDisplay}
                 onChange={(e) => handleValue(e.target.value)}
                 placeholder="Enter value..."

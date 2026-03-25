@@ -17,7 +17,7 @@ export default function SessionListPage() {
   const { name } = useParams<{ name: string }>();
   const queryClient = useQueryClient();
 
-  const { data: sessions, isLoading } = useQuery({
+  const { data: sessions, isLoading, error } = useQuery({
     queryKey: ['sessions', name],
     queryFn: () => getRealmSessions(name!),
     enabled: !!name,
@@ -40,6 +40,12 @@ export default function SessionListPage() {
           {sessions?.length ?? 0} active session{sessions?.length !== 1 ? 's' : ''}
         </span>
       </div>
+
+      {error && (
+        <div role="alert" className="rounded-md bg-red-50 p-4 text-sm text-red-700">
+          Failed to load data: {error.message}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-gray-500">Loading sessions...</div>
