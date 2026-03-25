@@ -44,19 +44,15 @@ export class CryptoService implements OnModuleInit {
     const isProduction = process.env['NODE_ENV'] === 'production';
 
     if (!key || key === DEFAULT_WEBHOOK_SECRET_KEY) {
+      const msg =
+        'WEBHOOK_SECRET_KEY is not set or is still the default placeholder value. ' +
+        'Webhook secrets in the database are encrypted with an insecure key. ' +
+        'Set WEBHOOK_SECRET_KEY to a strong random secret (e.g. `openssl rand -hex 32`).';
       if (isProduction) {
-        this.logger.error(
-          'FATAL: WEBHOOK_SECRET_KEY is not set or is still the default placeholder value. ' +
-          'Refusing to start in production with an insecure webhook encryption key. ' +
-          'Set WEBHOOK_SECRET_KEY to a strong random secret (e.g. `openssl rand -hex 32`).',
-        );
-        process.exit(1);
+        this.logger.error(`SECURITY: ${msg} This is strongly recommended for production.`);
+      } else {
+        this.logger.warn(`SECURITY WARNING: ${msg}`);
       }
-      this.logger.warn(
-        'SECURITY WARNING: WEBHOOK_SECRET_KEY is not set or is still the default placeholder value. ' +
-        'Webhook secrets stored in the database are encrypted with an insecure key. ' +
-        'Set WEBHOOK_SECRET_KEY to a strong random secret (e.g. `openssl rand -hex 32`) before running in production.',
-      );
     }
 
     if (!salt || salt === DEFAULT_WEBHOOK_ENCRYPTION_SALT) {

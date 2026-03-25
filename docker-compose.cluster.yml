@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: authme
-      POSTGRES_PASSWORD: authme
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
       POSTGRES_DB: authme
     ports:
       - '5432:5432'
@@ -18,7 +18,7 @@ services:
   app1:
     build: .
     environment:
-      DATABASE_URL: postgresql://authme:authme@db:5432/authme
+      DATABASE_URL: postgresql://authme:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/authme
       BASE_URL: http://localhost:8080
       NODE_ENV: production
       ADMIN_API_KEY: ${ADMIN_API_KEY:?Set ADMIN_API_KEY}
@@ -31,7 +31,7 @@ services:
   app2:
     build: .
     environment:
-      DATABASE_URL: postgresql://authme:authme@db:5432/authme
+      DATABASE_URL: postgresql://authme:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/authme
       BASE_URL: http://localhost:8080
       NODE_ENV: production
       ADMIN_API_KEY: ${ADMIN_API_KEY:?Set ADMIN_API_KEY}

@@ -92,9 +92,13 @@ async function bootstrap() {
       origin: string | undefined,
       callback: (err: Error | null, allow?: string | false) => void,
     ) => {
-      // Allow requests with no Origin header (server-to-server, curl, same-origin)
+      // Requests with no Origin header are server-to-server or same-origin.
+      // Returning false here means no ACAO header is emitted, which is correct:
+      // browsers always send an Origin on cross-origin requests, so omitting
+      // ACAO is safe and avoids the invalid combination of ACAO: * with
+      // Access-Control-Allow-Credentials: true.
       if (!origin) {
-        callback(null, '*');
+        callback(null, false);
         return;
       }
 

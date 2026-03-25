@@ -8,10 +8,12 @@ import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { ACR_VALUES_SUPPORTED } from '../step-up/step-up.service.js';
+import { RateLimitGuard, RateLimitByIp } from '../rate-limit/rate-limit.guard.js';
 
 @ApiTags('OIDC Discovery')
 @Controller('realms/:realmName')
-@UseGuards(RealmGuard)
+@UseGuards(RealmGuard, RateLimitGuard)
+@RateLimitByIp()
 @Public()
 export class WellKnownController {
   constructor(
