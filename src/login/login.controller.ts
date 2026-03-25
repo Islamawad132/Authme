@@ -685,6 +685,8 @@ export class LoginController {
   }
 
   @Post('register')
+  @UseGuards(RateLimitGuard)
+  @RateLimitByIp()
   async handleRegistration(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
@@ -937,6 +939,8 @@ export class LoginController {
   }
 
   @Post('forgot-password')
+  @UseGuards(RateLimitGuard)
+  @RateLimitByIp()
   async handleForgotPassword(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,

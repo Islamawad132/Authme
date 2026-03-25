@@ -18,8 +18,11 @@ export class CryptoService {
    */
   private readonly encryptionKey: Buffer = (() => {
     const raw = process.env['WEBHOOK_SECRET_KEY'] ?? 'dev-webhook-secret-key-replace-me';
-    // scrypt: N=2^14, r=8, p=1 → 32-byte key, salt is fixed per-application
-    return scryptSync(raw, 'authme-webhook-salt', 32) as Buffer;
+    // scrypt: N=2^14, r=8, p=1 → 32-byte key
+    // Salt is read from WEBHOOK_ENCRYPTION_SALT so operators can rotate it;
+    // falls back to the original hardcoded value for backwards compatibility.
+    const salt = process.env['WEBHOOK_ENCRYPTION_SALT'] ?? 'authme-webhook-salt';
+    return scryptSync(raw, salt, 32) as Buffer;
   })();
 
   async hashPassword(password: string): Promise<string> {

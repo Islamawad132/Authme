@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
   GoneException,
 } from '@nestjs/common';
@@ -218,6 +219,12 @@ export class OrganizationsService {
     });
     if (!user) {
       throw new NotFoundException('User not found in realm');
+    }
+
+    if (user.email.toLowerCase() !== invitation.email) {
+      throw new ForbiddenException(
+        'This invitation was issued to a different email address',
+      );
     }
 
     // Mark accepted and add member in a single transaction.

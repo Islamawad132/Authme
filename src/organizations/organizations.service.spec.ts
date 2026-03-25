@@ -64,7 +64,7 @@ describe('OrganizationsService', () => {
   const mockInvitation = {
     id: 'inv-1',
     organizationId: 'org-1',
-    email: 'bob@acme.com',
+    email: 'alice@acme.com',
     role: 'member',
     token: 'test-token-abc',
     expiresAt: new Date(Date.now() + 60_000),
