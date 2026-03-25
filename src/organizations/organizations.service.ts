@@ -236,6 +236,16 @@ export class OrganizationsService {
       );
     }
 
+    // Require email verification before accepting invitations.  An unverified
+    // address means the user hasn't proven they own the mailbox the invite was
+    // sent to — allowing them in would let anyone register with an arbitrary
+    // email and immediately gain access to the invited organisation.
+    if (invitedUser.emailVerified !== true) {
+      throw new ForbiddenException(
+        'Your email address must be verified before you can accept an invitation',
+      );
+    }
+
     // If the caller supplied an explicit userId it must match the user we
     // resolved by email.  This prevents an admin from accepting an invitation
     // on behalf of an arbitrary user by swapping the userId in the request

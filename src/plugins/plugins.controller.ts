@@ -20,8 +20,14 @@ export class PluginsController {
   @ApiOperation({ summary: 'List all installed plugins' })
   @ApiResponse({ status: 200, description: 'Array of installed plugin descriptors' })
   @ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid admin API key' })
-  list() {
-    return this.pluginManager.listPlugins();
+  async list() {
+    try {
+      return await this.pluginManager.listPlugins();
+    } catch {
+      // If the plugin subsystem failed to initialise (e.g. no plugins directory),
+      // return an empty list rather than a 500 so the admin UI stays functional.
+      return [];
+    }
   }
 
   @Get(':name')

@@ -80,6 +80,11 @@ export class EventsController {
     @Query() query: ExportEventsQueryDto,
     @Res() res: Response,
   ) {
+    // Flush headers immediately so the response is committed before any
+    // interceptor runs after this async method resolves — prevents
+    // ERR_HTTP_HEADERS_SENT when an interceptor tries to set headers on an
+    // already-streaming response.
+    res.flushHeaders();
     await this.auditExportService.exportLoginEvents(
       {
         realmId: realm.id,
@@ -132,6 +137,8 @@ export class EventsController {
     @Query() query: ExportEventsQueryDto,
     @Res() res: Response,
   ) {
+    // Flush headers immediately — same reason as exportLoginEvents above.
+    res.flushHeaders();
     await this.auditExportService.exportAdminEvents(
       {
         realmId: realm.id,

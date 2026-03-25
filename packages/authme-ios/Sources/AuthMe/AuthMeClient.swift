@@ -97,7 +97,9 @@ public final class AuthMeClient: NSObject {
         storage.pkceVerifier = verifier
         storage.authState    = state
 
-        var components = URLComponents(string: oidc.authorizationEndpoint)!
+        guard var components = URLComponents(string: oidc.authorizationEndpoint) else {
+            throw AuthMeError.serverError("Invalid authorization endpoint URL: \(oidc.authorizationEndpoint)")
+        }
         components.queryItems = [
             URLQueryItem(name: "response_type",           value: "code"),
             URLQueryItem(name: "client_id",               value: config.clientId),
@@ -443,9 +445,16 @@ public final class AuthMeClient: NSObject {
 
 private extension Dictionary where Key == String, Value == String {
     func percentEncoded() -> Data? {
-        map { key, value in
-            let encodedKey   = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? key
-            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+        // `urlQueryAllowed` does not encode `+`, `&`, or `=`, which are
+        // structural characters in application/x-www-form-urlencoded bodies.
+        // Build a custom set that excludes those characters so they are always
+        // percent-encoded when they appear inside a key or value.
+        var formAllowed = CharacterSet.urlQueryAllowed
+        formAllowed.remove(charactersIn: "+&=")
+
+        return map { key, value in
+            let encodedKey   = key.addingPercentEncoding(withAllowedCharacters: formAllowed) ?? key
+            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: formAllowed) ?? value
             return "\(encodedKey)=\(encodedValue)"
         }
         .joined(separator: "&")

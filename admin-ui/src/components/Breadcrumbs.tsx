@@ -46,6 +46,7 @@ function useBreadcrumbs(): Crumb[] {
       'user-federation': 'User Federation',
       'identity-providers': 'Identity Providers',
       'saml-providers': 'SAML Providers',
+      'auth-flows': 'Authentication Flows',
       new: 'New',
     };
 

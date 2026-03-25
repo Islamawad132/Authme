@@ -59,6 +59,7 @@ describe('OrganizationsService', () => {
     id: 'user-1',
     realmId: 'realm-1',
     email: 'alice@acme.com',
+    emailVerified: true,
     username: 'alice',
   };
 

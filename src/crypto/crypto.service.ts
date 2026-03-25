@@ -1,4 +1,4 @@
-import { Injectable, UnprocessableEntityException } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, UnprocessableEntityException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { randomBytes, createHash, createCipheriv, createDecipheriv, scryptSync } from 'crypto';
 
@@ -14,8 +14,14 @@ const ALGORITHM = 'aes-256-gcm';
 const IV_BYTES = 12;   // 96-bit IV recommended for GCM
 const TAG_BYTES = 16;  // 128-bit authentication tag
 
+/** Default/placeholder values that must never be used in production. */
+const DEFAULT_WEBHOOK_SECRET_KEY = 'dev-webhook-secret-key-replace-me';
+const DEFAULT_WEBHOOK_ENCRYPTION_SALT = 'authme-webhook-salt';
+
 @Injectable()
-export class CryptoService {
+export class CryptoService implements OnModuleInit {
+  private readonly logger = new Logger(CryptoService.name);
+
   /**
    * 32-byte key derived from the WEBHOOK_SECRET_KEY environment variable.
    * The raw env value is run through scrypt so operators can supply any
@@ -24,13 +30,33 @@ export class CryptoService {
    * absent – startup should be blocked by env validation in production.
    */
   private readonly encryptionKey: Buffer = (() => {
-    const raw = process.env['WEBHOOK_SECRET_KEY'] ?? 'dev-webhook-secret-key-replace-me';
+    const raw = process.env['WEBHOOK_SECRET_KEY'] ?? DEFAULT_WEBHOOK_SECRET_KEY;
     // scrypt: N=2^14, r=8, p=1 → 32-byte key
     // Salt is read from WEBHOOK_ENCRYPTION_SALT so operators can rotate it;
     // falls back to the original hardcoded value for backwards compatibility.
-    const salt = process.env['WEBHOOK_ENCRYPTION_SALT'] ?? 'authme-webhook-salt';
+    const salt = process.env['WEBHOOK_ENCRYPTION_SALT'] ?? DEFAULT_WEBHOOK_ENCRYPTION_SALT;
     return scryptSync(raw, salt, 32) as Buffer;
   })();
+
+  onModuleInit(): void {
+    const key = process.env['WEBHOOK_SECRET_KEY'];
+    const salt = process.env['WEBHOOK_ENCRYPTION_SALT'];
+
+    if (!key || key === DEFAULT_WEBHOOK_SECRET_KEY) {
+      this.logger.warn(
+        'SECURITY WARNING: WEBHOOK_SECRET_KEY is not set or is still the default placeholder value. ' +
+        'Webhook secrets stored in the database are encrypted with an insecure key. ' +
+        'Set WEBHOOK_SECRET_KEY to a strong random secret (e.g. `openssl rand -hex 32`) before running in production.',
+      );
+    }
+
+    if (!salt || salt === DEFAULT_WEBHOOK_ENCRYPTION_SALT) {
+      this.logger.warn(
+        'SECURITY WARNING: WEBHOOK_ENCRYPTION_SALT is not set or is still the default placeholder value. ' +
+        'Set WEBHOOK_ENCRYPTION_SALT to a unique random value (e.g. `openssl rand -hex 16`) before running in production.',
+      );
+    }
+  }
 
   async hashPassword(password: string): Promise<string> {
     if (password.length > MAX_PASSWORD_LENGTH) {

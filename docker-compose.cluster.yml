@@ -21,7 +21,7 @@ services:
       DATABASE_URL: postgresql://authme:authme@db:5432/authme
       BASE_URL: http://localhost:8080
       NODE_ENV: production
-      ADMIN_API_KEY: changeme
+      ADMIN_API_KEY: ${ADMIN_API_KEY:?Set ADMIN_API_KEY}
     depends_on:
       db:
         condition: service_healthy
@@ -34,7 +34,7 @@ services:
       DATABASE_URL: postgresql://authme:authme@db:5432/authme
       BASE_URL: http://localhost:8080
       NODE_ENV: production
-      ADMIN_API_KEY: changeme
+      ADMIN_API_KEY: ${ADMIN_API_KEY:?Set ADMIN_API_KEY}
     depends_on:
       db:
         condition: service_healthy

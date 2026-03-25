@@ -37,5 +37,10 @@ export const AuthmePlugin = {
   install(app: App, options: AuthmePluginOptions): void {
     const client = new AuthmeClient(options);
     app.provide(AUTHME_KEY, client);
+    // Kick off OIDC discovery and session restoration immediately so that
+    // guards and composables see the correct auth state on first render.
+    client.init().catch((err: unknown) => {
+      console.error('[authme-vue] init() failed:', err);
+    });
   },
 };

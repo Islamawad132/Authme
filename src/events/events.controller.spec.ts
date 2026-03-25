@@ -193,7 +193,7 @@ describe('EventsController', () => {
 
   describe('exportLoginEvents', () => {
     it('should delegate to auditExportService.exportLoginEvents', async () => {
-      const mockRes = {} as any;
+      const mockRes = { flushHeaders: jest.fn() } as any;
       const query = {
         format: 'csv' as const,
         offset: 0,
@@ -226,7 +226,7 @@ describe('EventsController', () => {
 
   describe('exportAdminEvents', () => {
     it('should delegate to auditExportService.exportAdminEvents', async () => {
-      const mockRes = {} as any;
+      const mockRes = { flushHeaders: jest.fn() } as any;
       const query = {
         format: 'json' as const,
         offset: 0,

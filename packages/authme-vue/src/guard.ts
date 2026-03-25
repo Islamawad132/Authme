@@ -79,20 +79,27 @@ export function createAuthGuard(
 ): NavigationGuard {
   const { loginRoute = '/login', roles: globalRoles = [] } = options;
 
+  // inject() must be called synchronously during component setup (or plugin
+  // install).  Calling it inside an async function body causes Vue to throw
+  // because the active component instance is no longer set once the first
+  // await resumes.  Capture the reference here, synchronously, so the async
+  // guard below can close over it safely.
+  let injectedClient: AuthmeClient | undefined;
+  if (!clientOverride) {
+    try {
+      injectedClient = inject<AuthmeClient>(AUTHME_KEY);
+    } catch {
+      // Outside component context — client must be passed explicitly.
+    }
+  }
+
   return async (
     to: RouteLocationNormalized,
     _from: RouteLocationNormalized,
   ) => {
-    // Resolve the client — prefer the explicit override, then injected.
-    let client: AuthmeClient | undefined = clientOverride;
-    if (!client) {
-      // inject() only works inside component setup context; fall back gracefully.
-      try {
-        client = inject<AuthmeClient>(AUTHME_KEY);
-      } catch {
-        // Outside component context — client must be passed explicitly.
-      }
-    }
+    // Resolve the client — prefer the explicit override, then the reference
+    // captured synchronously above.
+    const client: AuthmeClient | undefined = clientOverride ?? injectedClient;
 
     if (!client) {
       console.warn(

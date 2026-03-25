@@ -7,6 +7,7 @@ import {
   type SeededRealm,
   type TestContext,
 } from './setup';
+import { MfaService } from '../src/mfa/mfa.service.js';
 
 describe('MFA Flows (e2e)', () => {
   let app: INestApplication<App>;
@@ -100,7 +101,7 @@ describe('MFA Flows (e2e)', () => {
       // Call the MfaService directly through Prisma — the account TOTP setup
       // is behind a session-based UI flow, so we drive enrollment via the
       // service layer directly to keep this test self-contained.
-      const mfaService = app.get('MfaService');
+      const mfaService = app.get(MfaService);
       const setup = await mfaService.setupTotp(
         seeded.user.id,
         REALM_NAME,
@@ -133,7 +134,7 @@ describe('MFA Flows (e2e)', () => {
       });
       const validCode = totp.generate();
 
-      const mfaService = app.get('MfaService');
+      const mfaService = app.get(MfaService);
       const recoveryCodes = await mfaService.verifyAndActivateTotp(
         seeded.user.id,
         validCode,
@@ -169,7 +170,7 @@ describe('MFA Flows (e2e)', () => {
     it('should consume a recovery code via the service', async () => {
       // Get one real recovery code (raw text was returned during activation;
       // we regenerate via the service to get fresh raw codes for testing)
-      const mfaService = app.get('MfaService');
+      const mfaService = app.get(MfaService);
 
       // Generate fresh recovery codes (re-generation is idempotent)
       const freshCodes = await mfaService.generateRecoveryCodes(seeded.user.id);
@@ -193,7 +194,7 @@ describe('MFA Flows (e2e)', () => {
     });
 
     it('should reject an invalid recovery code', async () => {
-      const mfaService = app.get('MfaService');
+      const mfaService = app.get(MfaService);
       const result = await mfaService.verifyRecoveryCode(
         seeded.user.id,
         'TOTALLY-INVALID-CODE',

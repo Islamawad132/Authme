@@ -41,17 +41,20 @@ export class StepUpController {
   ) {}
 
   /**
-   * GET /realms/:realm/step-up/challenge?acr=...&client_id=...&session_token=...
+   * GET /realms/:realm/step-up/challenge?acr=...&client_id=...
    *
    * Initiates a step-up flow for the current SSO session.  Returns the
    * challenge type and, when the required level is MFA, an mfa_token to be
    * used with the verify endpoint.
+   *
+   * The session token is read from the `AUTHME_SESSION` cookie rather than a
+   * query parameter.  Passing security-sensitive tokens in the URL exposes
+   * them in server access logs, browser history, and HTTP Referer headers.
    */
   @Get('challenge')
   @ApiOperation({ summary: 'Initiate step-up authentication challenge' })
   @ApiQuery({ name: 'acr', required: true, description: 'Required ACR value' })
   @ApiQuery({ name: 'client_id', required: true, description: 'OAuth client_id' })
-  @ApiQuery({ name: 'session_token', required: true, description: 'Current SSO session token (AUTHME_SESSION cookie value)' })
   @ApiResponse({ status: 200, description: 'Challenge details (type, mfa_token) or satisfied status' })
   @ApiResponse({ status: 400, description: 'Bad request — missing parameters, unsupported ACR, or MFA not enrolled' })
   @ApiResponse({ status: 401, description: 'Invalid or expired session token' })
@@ -59,8 +62,12 @@ export class StepUpController {
     @CurrentRealm() realm: Realm,
     @Query('acr') requiredAcr: string,
     @Query('client_id') clientId: string,
-    @Query('session_token') sessionToken: string,
+    @Req() req: Request,
   ) {
+    // Read the session token from the HttpOnly cookie so it is never exposed
+    // in URLs (access logs, browser history, Referer headers).
+    const sessionToken: string | undefined = (req as any).cookies?.AUTHME_SESSION;
+
     if (!requiredAcr || !clientId || !sessionToken) {
       throw new BadRequestException('acr, client_id, and session_token are required');
     }
