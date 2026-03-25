@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
 import { RealmsService } from './realms.service.js';
@@ -18,10 +19,12 @@ import { ThemeService } from '../theme/theme.service.js';
 import { ThemeEmailService } from '../theme/theme-email.service.js';
 import { CreateRealmDto } from './dto/create-realm.dto.js';
 import { UpdateRealmDto } from './dto/update-realm.dto.js';
+import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard.js';
 
 @ApiTags('Realms')
 @Controller('admin/realms')
 @ApiSecurity('admin-api-key')
+@UseGuards(AdminApiKeyGuard)
 export class RealmsController {
   constructor(
     private readonly realmsService: RealmsService,

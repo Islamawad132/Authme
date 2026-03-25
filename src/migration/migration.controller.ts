@@ -1,23 +1,39 @@
-import { Controller, Post, Body, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, UseGuards } from '@nestjs/common';
 import { ApiSecurity, ApiTags, ApiOperation } from '@nestjs/swagger';
+import { IsBoolean, IsObject, IsOptional, IsString } from 'class-validator';
 import { KeycloakImporterService } from './keycloak-importer.service.js';
 import { Auth0ImporterService } from './auth0-importer.service.js';
 import type { MigrationReport } from './migration-report.js';
+import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard.js';
 
 class KeycloakImportDto {
-  data: any;
+  @IsObject()
+  data!: Record<string, unknown>;
+
+  @IsOptional()
+  @IsBoolean()
   dryRun?: boolean;
+
+  @IsOptional()
+  @IsString()
   targetRealm?: string;
 }
 
 class Auth0ImportDto {
-  data: any;
+  @IsObject()
+  data!: Record<string, unknown>;
+
+  @IsOptional()
+  @IsBoolean()
   dryRun?: boolean;
-  targetRealm: string;
+
+  @IsString()
+  targetRealm!: string;
 }
 
 @ApiTags('Migration')
 @ApiSecurity('admin-api-key')
+@UseGuards(AdminApiKeyGuard)
 @Controller('admin/migration')
 export class MigrationController {
   constructor(
