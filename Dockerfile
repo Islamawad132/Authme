@@ -39,9 +39,10 @@ COPY --from=build /app/package-lock.json ./package-lock.json
 COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 
 # Remove dev dependencies in production stage (not build stage)
-RUN npm prune --production
+RUN npm prune --omit=dev
 
-RUN addgroup -g 1000 -S authme && adduser -S authme -u 1000
+# Use the existing 'node' user (UID 1000, GID 1000) from the base image
+# instead of creating a new group/user that conflicts with the pre-existing GID
 
 ENV NODE_ENV=production
 EXPOSE 3000
@@ -50,7 +51,7 @@ COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 # Ensure the app directory is owned by the non-root user
-RUN chown -R authme:authme /app
+RUN chown -R node:node /app
 
-USER authme
+USER node
 ENTRYPOINT ["/docker-entrypoint.sh"]

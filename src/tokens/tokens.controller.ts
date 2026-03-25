@@ -45,8 +45,31 @@ export class TokensController {
     @Body() body: { token: string; client_id?: string; client_secret?: string },
     @Req() req: Request,
   ) {
-    await this.authenticateClient(realm, body.client_id, body.client_secret, req);
-    return this.tokensService.introspect(realm, body.token);
+    const callerClientId = await this.authenticateClient(realm, body.client_id, body.client_secret, req);
+    const result = await this.tokensService.introspect(realm, body.token);
+
+    // If the token is active, verify it was issued to the calling client.
+    // The azp (authorized party) claim is the canonical audience for OIDC
+    // tokens; fall back to aud when azp is absent (plain OAuth2 access tokens).
+    if (result.active) {
+      const tokenAzp = (result as Record<string, unknown>)['azp'] as string | undefined;
+      const tokenAud = (result as Record<string, unknown>)['aud'];
+      const audiences: string[] = tokenAzp
+        ? [tokenAzp]
+        : Array.isArray(tokenAud)
+          ? (tokenAud as string[])
+          : tokenAud
+            ? [tokenAud as string]
+            : [];
+
+      if (audiences.length > 0 && !audiences.includes(callerClientId)) {
+        // Token does not belong to this client — return inactive to prevent
+        // one public client from probing tokens issued to another client.
+        return { active: false };
+      }
+    }
+
+    return result;
   }
 
   @Post('revoke')
@@ -60,7 +83,8 @@ export class TokensController {
     @Body() body: { token: string; token_type_hint?: string; client_id?: string; client_secret?: string },
     @Req() req: Request,
   ) {
-    await this.authenticateClient(realm, body.client_id, body.client_secret, req);
+    const callerClientId = await this.authenticateClient(realm, body.client_id, body.client_secret, req);
+    await this.tokensService.assertTokenBelongsToClient(realm, body.token, callerClientId, body.token_type_hint);
     return this.tokensService.revoke(realm, body.token, body.token_type_hint);
   }
 
@@ -68,13 +92,15 @@ export class TokensController {
    * Authenticate the calling client via client_id/client_secret in the body
    * or via HTTP Basic Authentication (RFC 6749 §2.3.1).
    * Public clients are allowed with only client_id (no secret required).
+   *
+   * Returns the resolved clientId so callers can enforce token-ownership checks.
    */
   private async authenticateClient(
     realm: Realm,
     clientId?: string,
     clientSecret?: string,
     req?: Request,
-  ): Promise<void> {
+  ): Promise<string> {
     let cId = clientId;
     let cSecret = clientSecret;
 
@@ -131,6 +157,8 @@ export class TokensController {
         });
       }
     }
+
+    return cId;
   }
 
   @Post('logout')

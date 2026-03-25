@@ -115,7 +115,7 @@ async function bootstrap() {
           fontSrc: ["'self'", 'https://fonts.gstatic.com'],
           imgSrc: ["'self'", 'data:', 'blob:'],
           connectSrc: ["'self'"],
-          formAction: null,
+          formAction: ["'self'"],
           upgradeInsecureRequests: null,
         },
       },
@@ -124,7 +124,7 @@ async function bootstrap() {
         includeSubDomains: true,
         preload: true,
       },
-      crossOriginOpenerPolicy: false,
+      crossOriginOpenerPolicy: { policy: 'same-origin' },
       crossOriginResourcePolicy: false,
     }),
   );

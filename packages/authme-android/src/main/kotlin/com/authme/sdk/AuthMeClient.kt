@@ -54,6 +54,10 @@ class AuthMeClient(
     private val json        = Json { ignoreUnknownKeys = true }
     private val scope       = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var oidcConfig  : OIDCConfiguration? = null
+    /** Epoch-milliseconds of the last successful discovery fetch (used for TTL eviction). */
+    private var oidcConfigFetchedAt: Long? = null
+    /** Discovery documents are re-fetched after this interval (1 hour). */
+    private val discoveryTtlMs: Long = 3_600_000L
     private var refreshJob  : Job? = null
 
     // -----------------------------------------------------------------------
@@ -314,11 +318,27 @@ class AuthMeClient(
     // -----------------------------------------------------------------------
 
     private suspend fun fetchDiscovery(): OIDCConfiguration {
-        oidcConfig?.let { return it }
+        // Issue #457: the old code cached the discovery document forever with a
+        // simple null-check.  IdPs can rotate signing keys or change endpoint
+        // URLs; serving a stale document causes verification failures.
+        // Fix: evict the cache after discoveryTtlMs (1 hour), mirroring the iOS SDK.
+        val cachedAt = oidcConfigFetchedAt
+        val cached   = oidcConfig
+        if (cached != null && cachedAt != null &&
+            System.currentTimeMillis() - cachedAt < discoveryTtlMs
+        ) {
+            return cached
+        }
+
+        // Cache absent or expired — clear before fetching so a failed request
+        // does not leave stale data in place.
+        oidcConfig = null
+        oidcConfigFetchedAt = null
 
         val body   = httpGet(config.discoveryUrl)
         val result = json.decodeFromString<OIDCConfiguration>(body)
         oidcConfig = result
+        oidcConfigFetchedAt = System.currentTimeMillis()
         return result
     }
 
@@ -363,7 +383,15 @@ class AuthMeClient(
 
         refreshJob = scope.launch {
             delay(delay)
+            // Issue #457: runCatching previously discarded the Result, so any
+            // refresh failure (network error, revoked token, etc.) was silently
+            // swallowed. Log failures so they are at least visible in Logcat;
+            // callers who need programmatic handling should call refreshToken()
+            // directly and catch AuthMeException themselves.
             runCatching { refreshToken() }
+                .onFailure { err ->
+                    android.util.Log.e("AuthMe", "Auto-refresh failed: ${err.message}", err)
+                }
         }
     }
 

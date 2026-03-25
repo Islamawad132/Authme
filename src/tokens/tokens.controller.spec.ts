@@ -11,6 +11,7 @@ describe('TokensController', () => {
     revoke: jest.Mock;
     logout: jest.Mock;
     userinfo: jest.Mock;
+    assertTokenBelongsToClient: jest.Mock;
   };
   let mockPrisma: {
     client: { findUnique: jest.Mock };
@@ -47,6 +48,7 @@ describe('TokensController', () => {
       revoke: jest.fn(),
       logout: jest.fn(),
       userinfo: jest.fn(),
+      assertTokenBelongsToClient: jest.fn().mockResolvedValue(undefined),
     };
 
     mockPrisma = {
@@ -89,6 +91,7 @@ describe('TokensController', () => {
 
     it('should authenticate confidential client with secret', async () => {
       mockPrisma.client.findUnique.mockResolvedValue(confidentialClient);
+      mockTokensService.introspect.mockResolvedValue({ active: true, azp: 'confidential-app' });
       const body = { token: 'tok', client_id: 'confidential-app', client_secret: 'raw-secret' };
 
       await controller.introspect(realm, body, mockReq());
@@ -98,6 +101,7 @@ describe('TokensController', () => {
     });
 
     it('should support HTTP Basic authentication', async () => {
+      mockTokensService.introspect.mockResolvedValue({ active: true, azp: 'public-app' });
       const basicAuth = Buffer.from('public-app:').toString('base64');
       const req = mockReq({ headers: { authorization: `Basic ${basicAuth}` } });
 

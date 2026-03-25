@@ -220,18 +220,33 @@ export class OrganizationsService {
       throw new GoneException('Invitation has expired');
     }
 
-    const user = await this.prisma.user.findFirst({
-      where: { id: userId, realmId: realm.id },
+    // Look up the user by the invitation's email address — this is the
+    // authoritative check.  The email address embedded in the invitation is
+    // the one the invite was issued to; only the user that owns that address
+    // in this realm is permitted to accept it.
+    const invitedUser = await this.prisma.user.findFirst({
+      where: {
+        realmId: realm.id,
+        email: invitation.email,
+      },
     });
-    if (!user) {
-      throw new NotFoundException('User not found in realm');
-    }
-
-    if (!user.email || user.email.toLowerCase() !== invitation.email) {
+    if (!invitedUser) {
       throw new ForbiddenException(
-        'This invitation was issued to a different email address',
+        'No user with the invited email address exists in this realm',
       );
     }
+
+    // If the caller supplied an explicit userId it must match the user we
+    // resolved by email.  This prevents an admin from accepting an invitation
+    // on behalf of an arbitrary user by swapping the userId in the request
+    // body while the invitation email belongs to a different account.
+    if (userId && invitedUser.id !== userId) {
+      throw new ForbiddenException(
+        'The supplied userId does not match the user this invitation was issued to',
+      );
+    }
+
+    const resolvedUserId = invitedUser.id;
 
     // Mark accepted and add member in a single transaction.
     const [, member] = await this.prisma.$transaction([
@@ -243,12 +258,12 @@ export class OrganizationsService {
         where: {
           organizationId_userId: {
             organizationId: org.id,
-            userId,
+            userId: resolvedUserId,
           },
         },
         create: {
           organizationId: org.id,
-          userId,
+          userId: resolvedUserId,
           role: invitation.role,
         },
         update: {},

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   GoneException,
   NotFoundException,
 } from '@nestjs/common';
@@ -478,7 +479,7 @@ describe('OrganizationsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw NotFoundException when user does not exist in realm', async () => {
+    it('should throw ForbiddenException when no user exists for the invited email', async () => {
       prisma.organization.findUnique.mockResolvedValue(mockOrg);
       prisma.organizationInvitation.findUnique.mockResolvedValue(mockInvitation);
       prisma.user.findFirst.mockResolvedValue(null);
@@ -490,7 +491,7 @@ describe('OrganizationsService', () => {
           'test-token-abc',
           'ghost',
         ),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
