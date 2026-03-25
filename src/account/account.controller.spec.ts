@@ -22,6 +22,7 @@ describe('AccountController', () => {
     disableTotp: jest.Mock;
   };
   let themeRender: { render: jest.Mock };
+  let webAuthnService: { getUserCredentials: jest.Mock };
 
   const realm = {
     id: 'realm-1',
@@ -64,6 +65,7 @@ describe('AccountController', () => {
       disableTotp: jest.fn(),
     };
     themeRender = { render: jest.fn() };
+    webAuthnService = { getUserCredentials: jest.fn().mockResolvedValue([]) };
 
     controller = new AccountController(
       loginService as any,
@@ -72,6 +74,7 @@ describe('AccountController', () => {
       passwordPolicyService as any,
       mfaService as any,
       themeRender as any,
+      webAuthnService as any,
     );
 
     mockRes = { redirect: jest.fn() };

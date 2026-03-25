@@ -13,16 +13,33 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiSecurity, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsInt, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { SetPasswordDto } from './dto/set-password.dto.js';
-import { PaginationDto } from '../common/dto/pagination.dto.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 
-class UserSearchDto {
+class ListUsersQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number = 20;
+
+  get skip(): number {
+    const page = this.page ?? 1;
+    return (page - 1) * (this.limit ?? 20);
+  }
+
   @IsOptional()
   @IsString()
   search?: string;
@@ -71,15 +88,14 @@ export class UsersController {
   @ApiQuery({ name: 'lastName', required: false, description: 'Filter by last name (contains, case-insensitive)' })
   findAll(
     @CurrentRealm() realm: Realm,
-    @Query() pagination: PaginationDto,
-    @Query() search: UserSearchDto,
+    @Query() query: ListUsersQueryDto,
   ) {
-    return this.usersService.findAll(realm, pagination.skip, pagination.limit, {
-      search: search.search,
-      username: search.username,
-      email: search.email,
-      firstName: search.firstName,
-      lastName: search.lastName,
+    return this.usersService.findAll(realm, query.skip ?? 0, query.limit ?? 50, {
+      search: query.search,
+      username: query.username,
+      email: query.email,
+      firstName: query.firstName,
+      lastName: query.lastName,
     });
   }
 
