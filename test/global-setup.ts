@@ -44,7 +44,7 @@ export default async function globalSetup(): Promise<void> {
   // Quick connectivity check for PostgreSQL
   if (finalUrl.startsWith('postgresql://') || finalUrl.startsWith('postgres://')) {
     try {
-      execSync('npx prisma db execute --stdin <<< "SELECT 1"', {
+      execSync('echo "SELECT 1" | npx prisma db execute --stdin', {
         stdio: 'pipe',
         timeout: 10_000,
         env: { ...process.env, DATABASE_URL: finalUrl },

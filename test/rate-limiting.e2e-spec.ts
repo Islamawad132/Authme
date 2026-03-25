@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types';
+import { RateLimitService } from '../src/rate-limit/rate-limit.service';
 import {
   createTestApp,
   type SeededRealm,
@@ -45,7 +46,7 @@ describe('Rate Limiting (e2e)', () => {
   /** Reset the realm's rate-limit settings to safe defaults and flush the
    *  in-memory store by directly replacing each bucket. */
   const resetRateLimitStore = async () => {
-    const rateLimitService = app.get('RateLimitService');
+    const rateLimitService = app.get(RateLimitService);
     // Clear the internal in-memory store (private field) to reset buckets
     const store: Map<string, unknown> = (rateLimitService as any).store;
     store.clear();
@@ -128,10 +129,10 @@ describe('Rate Limiting (e2e)', () => {
     it('should NOT include X-RateLimit-* headers when rate limiting is off', async () => {
       const res = await tokenRequest().expect(200);
 
-      // When rate limiting is disabled, the guard returns { allowed: true,
-      // limit: 0, remaining: 0, resetAt: 0 } and the guard still sets headers
-      // but with limit=0 — verify the endpoint works without blocking
       expect(res.status).toBe(200);
+      expect(res.headers).not.toHaveProperty('x-ratelimit-limit');
+      expect(res.headers).not.toHaveProperty('x-ratelimit-remaining');
+      expect(res.headers).not.toHaveProperty('x-ratelimit-reset');
     });
   });
 

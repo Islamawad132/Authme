@@ -45,7 +45,7 @@ describe('MFA (TOTP) flows (e2e)', () => {
         ),
       ).expect(200);
 
-      expect(res.body).toHaveProperty('mfaEnabled', false);
+      expect(res.body).toHaveProperty('enabled', false);
     });
   });
 
@@ -106,7 +106,7 @@ describe('MFA (TOTP) flows (e2e)', () => {
         ),
       ).expect(200);
 
-      expect(res.body).toHaveProperty('mfaEnabled', false);
+      expect(res.body).toHaveProperty('enabled', false);
     });
   });
 

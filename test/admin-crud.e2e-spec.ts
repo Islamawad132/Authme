@@ -145,8 +145,8 @@ describe('Admin CRUD API (e2e)', () => {
         adminRequest().get(`/admin/realms/${REALM_NAME}/users`),
       ).expect(200);
 
-      expect(Array.isArray(res.body)).toBe(true);
-      const found = res.body.find(
+      expect(Array.isArray(res.body.users)).toBe(true);
+      const found = res.body.users.find(
         (u: { username: string }) => u.username === 'e2e-user',
       );
       expect(found).toBeDefined();
@@ -240,7 +240,7 @@ describe('Admin CRUD API (e2e)', () => {
         adminRequest().get(`/admin/realms/${REALM_NAME}/users`),
       ).expect(200);
 
-      const user = usersRes.body.find(
+      const user = usersRes.body.users.find(
         (u: { username: string }) => u.username === 'e2e-user',
       );
       expect(user).toBeDefined();
@@ -264,7 +264,7 @@ describe('Admin CRUD API (e2e)', () => {
         adminRequest().get(`/admin/realms/${REALM_NAME}/users`),
       ).expect(200);
 
-      const user = usersRes.body.find(
+      const user = usersRes.body.users.find(
         (u: { username: string }) => u.username === 'e2e-user',
       );
 

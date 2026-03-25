@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 import { createHmac } from 'crypto';
+import { WebhooksService } from '../src/webhooks/webhooks.service';
 import {
   createTestApp,
   TEST_ADMIN_API_KEY,
@@ -305,7 +306,7 @@ describe('Webhook Delivery (e2e)', () => {
   describe('Webhook signing verification', () => {
     it('should verify that HMAC-SHA256 signature matches the payload', async () => {
       // Retrieve the service directly to verify the signing logic
-      const webhooksService = app.get('WebhooksService');
+      const webhooksService = app.get(WebhooksService);
 
       const testSecret = 'my-webhook-signing-secret';
       const testPayload = JSON.stringify({
@@ -328,7 +329,7 @@ describe('Webhook Delivery (e2e)', () => {
     });
 
     it('should produce different signatures for different secrets', async () => {
-      const webhooksService = app.get('WebhooksService');
+      const webhooksService = app.get(WebhooksService);
       const payload = JSON.stringify({ eventType: 'user.login' });
 
       const sig1 = webhooksService.signPayload('secret-one', payload);
@@ -338,7 +339,7 @@ describe('Webhook Delivery (e2e)', () => {
     });
 
     it('should produce different signatures for different payloads', async () => {
-      const webhooksService = app.get('WebhooksService');
+      const webhooksService = app.get(WebhooksService);
       const secret = 'same-secret';
 
       const sig1 = webhooksService.signPayload(
