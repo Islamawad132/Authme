@@ -49,7 +49,13 @@ export class CryptoService implements OnModuleInit {
         'Webhook secrets in the database are encrypted with an insecure key. ' +
         'Set WEBHOOK_SECRET_KEY to a strong random secret (e.g. `openssl rand -hex 32`).';
       if (isProduction) {
-        this.logger.error(`SECURITY: ${msg} This is strongly recommended for production.`);
+        this.logger.error(`SECURITY: ${msg}`);
+        console.error(
+          '\n\nFATAL: WEBHOOK_SECRET_KEY is not configured.\n' +
+          'Set WEBHOOK_SECRET_KEY=<random> in your environment before starting the server.\n' +
+          'Generate one with:  openssl rand -hex 32\n\n',
+        );
+        process.exit(1);
       } else {
         this.logger.warn(`SECURITY WARNING: ${msg}`);
       }

@@ -143,9 +143,19 @@ export function registerUserCommands(program: Command): void {
           process.exitCode = 1;
           return;
         }
-        const parsed: unknown = JSON.parse(raw);
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(raw);
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`Error: could not parse JSON file "${file}": ${msg}`);
+          process.exitCode = 1;
+          return;
+        }
         if (!Array.isArray(parsed)) {
-          throw new Error('JSON file must contain an array of user objects.');
+          console.error(`Error: JSON file "${file}" must contain an array of user objects.`);
+          process.exitCode = 1;
+          return;
         }
         users = parsed as BulkUserInput[];
       } else if (file.endsWith('.csv')) {

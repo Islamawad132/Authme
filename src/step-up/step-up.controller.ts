@@ -153,7 +153,6 @@ export class StepUpController {
   async verify(
     @CurrentRealm() realm: Realm,
     @Body() body: {
-      session_token: string;
       acr: string;
       client_id: string;
       mfa_token?: string;
@@ -172,10 +171,14 @@ export class StepUpController {
     },
     @Req() req: Request,
   ) {
-    const { session_token, acr, client_id, mfa_token, otp, password } = body;
+    // Read the session token from the HttpOnly cookie — never from the request
+    // body.  Accepting it in the body would allow it to be transmitted in URLs
+    // or plain-text POST bodies, exposing it in server logs and browser history.
+    const session_token: string | undefined = (req as any).cookies?.AUTHME_SESSION;
+    const { acr, client_id, mfa_token, otp, password } = body;
 
     if (!session_token || !acr || !client_id) {
-      throw new BadRequestException('session_token, acr, and client_id are required');
+      throw new BadRequestException('acr and client_id are required; session must be provided via the AUTHME_SESSION cookie');
     }
 
     // Validate the SSO session

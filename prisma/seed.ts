@@ -3,17 +3,10 @@ import * as argon2 from 'argon2';
 import { generateKeyPair, exportJWK } from 'jose';
 import { randomUUID, randomBytes } from 'crypto';
 
-// Use the PrismaPg adapter only for PostgreSQL connections.
-// For SQLite (DATABASE_URL starts with "file:") no adapter is needed.
-const databaseUrl = process.env['DATABASE_URL'] ?? '';
+// prisma is initialised inside main() so that the conditional dynamic import
+// does not become a top-level await (which requires "module": "ESNext" and a
+// supporting runtime flag).
 let prisma: PrismaClient;
-if (databaseUrl.startsWith('file:')) {
-  prisma = new PrismaClient();
-} else {
-  const { PrismaPg } = await import('@prisma/adapter-pg');
-  const adapter = new PrismaPg({ connectionString: databaseUrl });
-  prisma = new PrismaClient({ adapter });
-}
 
 async function exportKeyToPem(
   key: CryptoKey,
@@ -30,6 +23,17 @@ async function exportKeyToPem(
 }
 
 async function main() {
+  // Initialise Prisma here so the dynamic import stays inside an async
+  // function and never becomes a top-level await.
+  const databaseUrl = process.env['DATABASE_URL'] ?? '';
+  if (databaseUrl.startsWith('file:')) {
+    prisma = new PrismaClient();
+  } else {
+    const { PrismaPg } = await import('@prisma/adapter-pg');
+    const adapter = new PrismaPg({ connectionString: databaseUrl });
+    prisma = new PrismaClient({ adapter });
+  }
+
   console.log('Seeding database...');
 
   // Create test realm
@@ -42,21 +46,36 @@ async function main() {
 
   const realm = await prisma.realm.upsert({
     where: { name: 'test' },
-    update: {},
+    update: {
+      displayName: 'Test Realm',
+      enabled: true,
+      accessTokenLifespan: 300,
+      refreshTokenLifespan: 1800,
+    },
     create: {
       name: 'test',
       displayName: 'Test Realm',
       enabled: true,
       accessTokenLifespan: 300,
       refreshTokenLifespan: 1800,
-      signingKeys: {
-        create: {
-          kid,
-          algorithm: 'RS256',
-          publicKey: publicKeyPem,
-          privateKey: privateKeyPem,
-        },
-      },
+    },
+  });
+
+  // Upsert the signing key separately so that re-seeding replaces it with a
+  // fresh key pair rather than silently leaving the old one in place.
+  await prisma.signingKey.upsert({
+    where: { kid },
+    update: {
+      algorithm: 'RS256',
+      publicKey: publicKeyPem,
+      privateKey: privateKeyPem,
+    },
+    create: {
+      realmId: realm.id,
+      kid,
+      algorithm: 'RS256',
+      publicKey: publicKeyPem,
+      privateKey: privateKeyPem,
     },
   });
 

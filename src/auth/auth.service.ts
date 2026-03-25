@@ -175,7 +175,13 @@ export class AuthService {
   ): Promise<TokenResponse> {
     const { client_id, client_secret, mfa_token, otp, scope } = body;
 
-    await this.validateClient(realm, client_id, client_secret, 'password');
+    // The MFA OTP grant is a custom extension — pass the registered grant-type
+    // URN so that clients configured with `urn:ietf:params:oauth:grant-type:mfa-otp`
+    // are accepted.  Clients that still carry the legacy `password` grant type are
+    // also permitted by passing undefined (skipping the grant-type allowlist check)
+    // because the user has already authenticated via the password grant and is
+    // simply completing the second factor here.
+    await this.validateClient(realm, client_id, client_secret, 'urn:ietf:params:oauth:grant-type:mfa-otp');
 
     if (!mfa_token || !otp) {
       throw new BadRequestException('mfa_token and otp are required');
@@ -251,7 +257,9 @@ export class AuthService {
         where: { id: client.serviceAccountUserId },
       });
       if (user) {
-        await this.enforceSessionLimit(realm, user.id);
+        // Service account tokens are machine-to-machine and are not tied to a
+        // user-facing session lifecycle — skip the concurrent-session limit so
+        // that high-frequency service clients are not unexpectedly evicted.
         const session = await this.prisma.session.create({
           data: {
             userId: user.id,

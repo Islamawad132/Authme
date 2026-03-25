@@ -46,6 +46,18 @@ export class RolesController {
     return this.rolesService.findRealmRoles(realm);
   }
 
+  @Get('roles/:roleName')
+  @ApiOperation({ summary: 'Get a realm role by name' })
+  @ApiResponse({ status: 200, description: 'Realm role details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Role not found' })
+  findRealmRole(
+    @CurrentRealm() realm: Realm,
+    @Param('roleName') roleName: string,
+  ) {
+    return this.rolesService.findByName(realm, roleName);
+  }
+
   @Delete('roles/:roleName')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a realm role' })

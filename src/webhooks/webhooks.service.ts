@@ -170,8 +170,13 @@ export class WebhooksService {
       webhookId: id,
       test: true,
     };
-    const delivery = await this.deliverWebhook(rawWebhook, 'webhook.test', testPayload);
-    return { message: 'Test event sent', delivery };
+    // Fire-and-forget: do not await deliverWebhook.  The full retry sequence
+    // can take up to ~101 s; awaiting it inline would hang the HTTP response.
+    // The delivery record can be inspected via the delivery-logs endpoint.
+    void this.deliverWebhook(rawWebhook, 'webhook.test', testPayload).catch((err) => {
+      this.logger.warn(`Test webhook delivery failed for ${rawWebhook.url}: ${(err as Error).message}`);
+    });
+    return { status: 'queued', message: 'Test delivery initiated' };
   }
 
   // ─── Delivery Logs ─────────────────────────────────────
