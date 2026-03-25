@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -78,6 +79,19 @@ export class RealmsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Realm not found' })
   update(
+    @Param('realmName') realmName: string,
+    @Body() dto: UpdateRealmDto,
+  ) {
+    return this.realmsService.update(realmName, dto);
+  }
+
+  @Patch(':realmName')
+  @ApiOperation({ summary: 'Partially update a realm' })
+  @ApiResponse({ status: 200, description: 'Realm updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Realm not found' })
+  partialUpdate(
     @Param('realmName') realmName: string,
     @Body() dto: UpdateRealmDto,
   ) {

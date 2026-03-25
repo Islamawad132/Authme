@@ -619,6 +619,7 @@ describe('AuthService', () => {
       id: 'rt-1',
       sessionId: 'session-1',
       tokenHash: FAKE_REFRESH_TOKEN_HASH,
+      clientId: 'my-client', // Must match the requesting client
       revoked: false,
       expiresAt: new Date(Date.now() + 3600 * 1000), // 1 hour from now
       session: {

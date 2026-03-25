@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -115,6 +116,20 @@ export class UsersController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'User not found' })
   update(
+    @CurrentRealm() realm: Realm,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.usersService.update(realm, userId, dto);
+  }
+
+  @Patch(':userId')
+  @ApiOperation({ summary: 'Partially update a user' })
+  @ApiResponse({ status: 200, description: 'User updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  partialUpdate(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
     @Body() dto: UpdateUserDto,

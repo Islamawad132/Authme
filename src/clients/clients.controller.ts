@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -61,6 +62,20 @@ export class ClientsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Client not found' })
   update(
+    @CurrentRealm() realm: Realm,
+    @Param('clientId') clientId: string,
+    @Body() dto: UpdateClientDto,
+  ) {
+    return this.clientsService.update(realm, clientId, dto);
+  }
+
+  @Patch(':clientId')
+  @ApiOperation({ summary: 'Partially update a client' })
+  @ApiResponse({ status: 200, description: 'Client updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  partialUpdate(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,
     @Body() dto: UpdateClientDto,
