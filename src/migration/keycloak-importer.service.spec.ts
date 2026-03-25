@@ -75,6 +75,9 @@ describe('KeycloakImporterService', () => {
       user: { findFirst: jest.fn(), create: jest.fn() },
       userRole: { create: jest.fn() },
       identityProvider: { findFirst: jest.fn(), create: jest.fn() },
+      // $transaction executes the callback synchronously with `prisma` itself
+      // as the transaction client so that all mocks remain reachable.
+      $transaction: jest.fn().mockImplementation((cb: (tx: any) => Promise<any>) => cb(prisma)),
     };
 
     const module = await Test.createTestingModule({
@@ -140,7 +143,7 @@ describe('KeycloakImporterService', () => {
           displayName: 'Test KC Realm',
           accessTokenLifespan: 600,
           smtpHost: 'smtp.example.com',
-          bruteForceProtected: true,
+          bruteForceEnabled: true,
           maxLoginFailures: 10,
         }),
       }));

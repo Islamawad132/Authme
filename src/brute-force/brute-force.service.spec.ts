@@ -157,7 +157,6 @@ describe('BruteForceService', () => {
         where: { id: 'user-1' },
         data: {
           lockedUntil: new Date('2099-12-31T23:59:59Z'),
-          enabled: false,
         },
       });
     });
@@ -185,14 +184,14 @@ describe('BruteForceService', () => {
   // ─── unlockUser ─────────────────────────────────────────────
 
   describe('unlockUser', () => {
-    it('should set lockedUntil to null', async () => {
+    it('should set lockedUntil to null and re-enable the account', async () => {
       prisma.user.update.mockResolvedValue({});
 
       await service.unlockUser('user-1');
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { lockedUntil: null },
+        data: { lockedUntil: null, enabled: true },
       });
     });
   });

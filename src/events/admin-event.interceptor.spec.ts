@@ -228,7 +228,7 @@ describe('AdminEventInterceptor', () => {
       });
     });
 
-    it('should skip unrecognized resource paths', (done) => {
+    it('should fall back to REALM resource type for unrecognized paths under /realms/', (done) => {
       const context = createContext({
         method: 'POST',
         path: '/admin/realms/test/unknown-resource',
@@ -236,7 +236,9 @@ describe('AdminEventInterceptor', () => {
 
       interceptor.intercept(context as any, nextHandler).subscribe({
         complete: () => {
-          expect(eventsService.recordAdminEvent).not.toHaveBeenCalled();
+          expect(eventsService.recordAdminEvent).toHaveBeenCalledWith(
+            expect.objectContaining({ resourceType: ResourceType.REALM }),
+          );
           done();
         },
       });
