@@ -76,21 +76,19 @@ if [ "$ADMIN_PASSWORD" = "admin" ]; then
 fi
 
 echo "Running Prisma migrations..."
-# Pass --schema explicitly so Prisma does not attempt to load prisma.config.ts
-# (a TypeScript file that cannot be executed without a compiler in the production
-# image).  The schema file is always present at prisma/schema.prisma because the
-# Dockerfile copies the entire ./prisma directory from the build stage.
-#
-# If prisma.config.ts features (e.g. custom output paths) are needed in the
-# future, generate a minimal JS shim here so Prisma can pick it up without
-# requiring a TypeScript compiler at runtime.
+# Prisma 7 requires prisma.config.ts with both schema path AND datasource URL.
+# The production image has no TypeScript compiler, so we generate a JS equivalent.
 if [ ! -f prisma.config.js ]; then
-  cat > prisma.config.js << 'JSEOF'
-module.exports = { schema: 'prisma/schema.prisma' };
+  cat > prisma.config.js << JSEOF
+const { defineConfig } = require('prisma/config');
+module.exports = defineConfig({
+  schema: 'prisma/schema.prisma',
+  datasource: { url: process.env.DATABASE_URL },
+});
 JSEOF
 fi
 
-npx prisma migrate deploy --schema prisma/schema.prisma
+npx prisma migrate deploy
 
 echo "Starting AuthMe..."
 exec node dist/main.js

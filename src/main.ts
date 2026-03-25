@@ -87,31 +87,37 @@ async function bootstrap() {
   // need (passing `true` to the callback only works for simple string origins,
   // not for the async/callback form used here).
   const corsOriginService = app.get(CorsOriginService);
+  // Build the set of same-origin URLs so the admin console always works.
+  const serverPort = process.env['PORT'] ?? '3000';
+  const sameOrigins = new Set<string>([
+    `http://localhost:${serverPort}`,
+    `http://127.0.0.1:${serverPort}`,
+    `http://0.0.0.0:${serverPort}`,
+  ]);
+  if (process.env['BASE_URL']) {
+    try { sameOrigins.add(new URL(process.env['BASE_URL']).origin); } catch {}
+  }
+
   app.enableCors({
     origin: (
       origin: string | undefined,
       callback: (err: Error | null, allow?: string | false) => void,
     ) => {
-      // Requests with no Origin header are server-to-server or same-origin.
-      // Returning false here means no ACAO header is emitted, which is correct:
-      // browsers always send an Origin on cross-origin requests, so omitting
-      // ACAO is safe and avoids the invalid combination of ACAO: * with
-      // Access-Control-Allow-Credentials: true.
+      // No Origin header = server-to-server or same-origin navigation.
       if (!origin) {
         callback(null, false);
         return;
       }
 
+      // Always allow the server's own origins (admin console, dev tools).
+      if (sameOrigins.has(origin)) {
+        callback(null, origin);
+        return;
+      }
+
+      // Check client webOrigins from the database.
       corsOriginService.isOriginAllowed(origin).then(
-        (allowed) => {
-          // For allowed origins, echo the origin string back so the CORS
-          // middleware emits Access-Control-Allow-Origin: <origin>.
-          // For disallowed origins, pass `false` — the CORS middleware will
-          // call next() with no ACAO header.  To prevent OPTIONS requests from
-          // falling through to the 404 handler, we register a catch-all
-          // OPTIONS handler below.
-          callback(null, allowed ? origin : false);
-        },
+        (allowed) => callback(null, allowed ? origin : false),
         () => { callback(null, false); },
       );
     },
@@ -127,8 +133,11 @@ async function bootstrap() {
   // Without this handler the request would reach Express's default 404 handler.
   // Return 204 with no body — the absence of ACAO tells the browser the
   // request is blocked, which is the correct CORS rejection behaviour.
+  // Express 5 uses path-to-regexp v8 which requires '{*path}' syntax
+  // instead of the old '*' wildcard. This catches all OPTIONS preflight
+  // requests that weren't handled by the CORS middleware (disallowed origins).
   const httpAdapter = app.getHttpAdapter();
-  httpAdapter.getInstance().options('*', (_req: any, res: any) => {
+  httpAdapter.getInstance().options('{*path}', (_req: any, res: any) => {
     res.status(204).end();
   });
 
