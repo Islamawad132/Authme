@@ -473,20 +473,52 @@ private extension Dictionary where Key == String, Value == String {
 // MARK: - Default presentation context
 
 /// A minimal `ASWebAuthenticationPresentationContextProviding` implementation that
-/// returns the app's key window.
+/// returns the app's key window using scene-based APIs.
+///
+/// The lookup strategy is:
+///   1. Prefer the foreground-active `UIWindowScene`'s key window (iOS 15+) or
+///      first key window (iOS < 15).
+///   2. Fall back to *any* connected `UIWindowScene` when no foreground-active
+///      scene is found (e.g. the app is mid-transition between states).
+///
+/// A bare `UIWindow()` is **never** returned; that creates a detached window that
+/// is not part of the scene hierarchy, causing `ASWebAuthenticationSession` to
+/// silently fail to present its browser sheet.  If no suitable window can be
+/// found at all the method traps with a clear message rather than returning a
+/// useless anchor.
 private final class DefaultPresentationContextProvider: NSObject,
     ASWebAuthenticationPresentationContextProviding
 {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         #if os(iOS)
-        let scene = UIApplication.shared.connectedScenes
+        let windowScenes = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
-            .first { $0.activationState == .foregroundActive }
+
+        // 1. Prefer a foreground-active scene.
+        let activeScene = windowScenes.first { $0.activationState == .foregroundActive }
+            ?? windowScenes.first // 2. Any connected scene as fallback.
+
         if #available(iOS 15, *) {
-            return scene?.keyWindow ?? UIWindow()
-        } else {
-            return scene?.windows.first(where: \.isKeyWindow) ?? UIWindow()
+            if let window = activeScene?.keyWindow {
+                return window
+            }
         }
+        // Pre-iOS-15 path, or iOS 15+ when keyWindow is nil (uncommon but possible
+        // during transitions).
+        if let window = activeScene?.windows.first(where: \.isKeyWindow)
+            ?? activeScene?.windows.first
+        {
+            return window
+        }
+
+        // No window is available — this should never happen in a correctly
+        // configured app, but trap loudly so the root cause is obvious rather
+        // than producing a cryptic, silent failure.
+        preconditionFailure(
+            "[AuthMe] DefaultPresentationContextProvider: no UIWindow found in any " +
+            "connected UIWindowScene. Ensure the app has an active window before " +
+            "calling login(), or supply a custom presentationContextProvider."
+        )
         #else
         return ASPresentationAnchor()
         #endif

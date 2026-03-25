@@ -600,10 +600,23 @@ export class AuthService {
       throw new UnauthorizedException('Invalid client');
     }
 
-    if (grantType && !client.grantTypes.includes(grantType)) {
-      throw new BadRequestException(
-        `Grant type '${grantType}' not allowed for this client`,
-      );
+    if (grantType) {
+      // For the device_code grant (RFC 8628) accept both the full URN and the
+      // shorthand alias so that clients stored with either value are permitted
+      // (issue #503).  All other grant types must match exactly.
+      const DEVICE_URN = 'urn:ietf:params:oauth:grant-type:device_code';
+      const isDeviceGrant =
+        grantType === DEVICE_URN || grantType === 'device_code';
+      const clientAllowsDevice =
+        client.grantTypes.includes(DEVICE_URN) ||
+        client.grantTypes.includes('device_code');
+
+      const allowed = isDeviceGrant ? clientAllowsDevice : client.grantTypes.includes(grantType);
+      if (!allowed) {
+        throw new BadRequestException(
+          `Grant type '${grantType}' not allowed for this client`,
+        );
+      }
     }
 
     if (client.clientType === 'CONFIDENTIAL') {

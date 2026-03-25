@@ -103,8 +103,20 @@ async function bootstrap() {
       }
 
       corsOriginService.isOriginAllowed(origin).then(
-        (allowed) => { callback(null, allowed ? origin : false); },
-        () => { callback(null, false); },
+        (allowed) => {
+          if (allowed) {
+            callback(null, origin);
+          } else {
+            // Returning an error causes the `cors` middleware to respond with
+            // 403 and no Access-Control-Allow-Origin header.  This is important
+            // for OPTIONS preflight requests: passing `false` instead would make
+            // `cors` call next() without ending the response, and since no route
+            // is registered for OPTIONS the request falls through to Express's
+            // default 404 handler — which is the bug described in issue #501.
+            callback(new Error('Not allowed by CORS'));
+          }
+        },
+        () => { callback(new Error('Not allowed by CORS')); },
       );
     },
     credentials: true,

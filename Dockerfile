@@ -35,8 +35,10 @@ COPY --from=build /app/themes ./themes
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/package-lock.json ./package-lock.json
 
-# Prisma config needed for migrate deploy
-COPY --from=build /app/prisma.config.ts ./prisma.config.ts
+# prisma.config.ts is TypeScript and cannot be executed directly by Node in the
+# production image (no compiler present).  migrate deploy only needs the schema
+# file, which is already present under ./prisma/schema.prisma — the --schema flag
+# is passed explicitly in docker-entrypoint.sh instead.
 
 # Remove dev dependencies in production stage (not build stage)
 RUN npm prune --omit=dev

@@ -42,7 +42,9 @@ async function main() {
   });
   const publicKeyPem = await exportKeyToPem(publicKey, 'public');
   const privateKeyPem = await exportKeyToPem(privateKey, 'private');
-  const kid = randomUUID();
+  // Use a deterministic kid so re-seeding upserts the same row instead of
+  // accumulating stale keys on every run.
+  const kid = 'seed-default-signing-key';
 
   const realm = await prisma.realm.upsert({
     where: { name: 'test' },
@@ -63,8 +65,8 @@ async function main() {
 
   // Upsert the signing key separately so that re-seeding replaces it with a
   // fresh key pair rather than silently leaving the old one in place.
-  await prisma.signingKey.upsert({
-    where: { kid },
+  await prisma.realmSigningKey.upsert({
+    where: { realmId_kid: { realmId: realm.id, kid } },
     update: {
       algorithm: 'RS256',
       publicKey: publicKeyPem,
