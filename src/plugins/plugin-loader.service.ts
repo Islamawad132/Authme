@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { existsSync, readdirSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
+import { createHash } from 'crypto';
 import { join, resolve } from 'path';
 import type { AuthMePlugin } from './plugin.interface.js';
 
@@ -129,6 +130,26 @@ export class PluginLoaderService {
 
       for (const candidate of candidates) {
         if (existsSync(candidate)) {
+          // Compute SHA-256 hash BEFORE loading the plugin code
+          const fileHash = this.computeFileHash(candidate);
+          const manifestHash = this.getManifestHash(candidate);
+
+          if (manifestHash && fileHash && manifestHash !== fileHash) {
+            this.logger.error(
+              `Plugin integrity check FAILED for '${candidate}' — ` +
+              `expected hash ${manifestHash}, got ${fileHash}. ` +
+              `Plugin will NOT be loaded. Update the manifest if this change is intentional.`,
+            );
+            return null;
+          }
+
+          if (!manifestHash && fileHash) {
+            this.logger.warn(
+              `Plugin '${candidate}' has no manifest hash — loading without integrity verification. ` +
+              `Run 'authme plugins hash' to generate the manifest.`,
+            );
+          }
+
           loaded = await import(candidate);
           resolvedPath = candidate;
           break;
@@ -184,5 +205,34 @@ export class PluginLoaderService {
     if (!validTypes.includes(p['type'] as string)) return false;
 
     return true;
+  }
+
+  /**
+   * Compute SHA-256 hash of a file on disk.
+   */
+  private computeFileHash(filePath: string): string | null {
+    try {
+      const content = readFileSync(filePath);
+      return createHash('sha256').update(content).digest('hex');
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Look up the expected hash for a plugin file from the manifest.
+   * The manifest is a JSON file at `plugins/.manifest.json` mapping
+   * file paths to their SHA-256 hashes.
+   */
+  private getManifestHash(filePath: string): string | null {
+    try {
+      const manifestPath = resolve(process.cwd(), 'plugins', '.manifest.json');
+      if (!existsSync(manifestPath)) return null;
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as Record<string, string>;
+      // Try both absolute and relative path keys
+      return manifest[filePath] ?? manifest[resolve(filePath)] ?? null;
+    } catch {
+      return null;
+    }
   }
 }

@@ -32,6 +32,25 @@ class Auth0ImportDto {
   targetRealm!: string;
 }
 
+// Issue #461 — API limitation notes:
+//
+// 1. Both import endpoints process the entire payload synchronously in a single
+//    HTTP request.  Very large exports (tens of thousands of users) may hit the
+//    default request-body size limit (10 MB) or the gateway timeout.  Until
+//    chunked / streaming import is implemented, callers should split large
+//    exports into batches of ≤5 000 users before calling these endpoints.
+//
+// 2. Passwords imported from Keycloak are kept in their original hashed form
+//    only when the hashing algorithm is recognised (bcrypt, pbkdf2-sha256/512,
+//    argon2).  Users whose passwords used an unsupported algorithm are imported
+//    without a password hash; they will need to complete a password-reset flow
+//    on first login.
+//
+// 3. Auth0 social-identity links (FederatedIdentity rows) are imported as
+//    stubs; the actual OAuth tokens are not available in the Management API
+//    export and are therefore not migrated.  Users will need to re-link their
+//    social accounts after migration.
+
 @ApiTags('Migration')
 @ApiSecurity('admin-api-key')
 @UseGuards(AdminApiKeyGuard)

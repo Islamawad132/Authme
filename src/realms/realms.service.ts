@@ -179,11 +179,23 @@ export class RealmsService {
       failureResetTime: dto.failureResetTime,
       permanentLockoutAfter: dto.permanentLockoutAfter,
       registrationAllowed: dto.registrationAllowed,
+      requireEmailVerification: dto.requireEmailVerification,
       mfaRequired: dto.mfaRequired,
       offlineTokenLifespan: dto.offlineTokenLifespan,
       eventsEnabled: dto.eventsEnabled,
       eventsExpiration: dto.eventsExpiration,
       adminEventsEnabled: dto.adminEventsEnabled,
+      // Rate limiting fields
+      rateLimitEnabled: dto.rateLimitEnabled,
+      clientRateLimitPerMinute: dto.clientRateLimitPerMinute,
+      clientRateLimitPerHour: dto.clientRateLimitPerHour,
+      userRateLimitPerMinute: dto.userRateLimitPerMinute,
+      userRateLimitPerHour: dto.userRateLimitPerHour,
+      ipRateLimitPerMinute: dto.ipRateLimitPerMinute,
+      ipRateLimitPerHour: dto.ipRateLimitPerHour,
+      // Session management
+      maxSessionsPerUser: dto.maxSessionsPerUser,
+      // Theming
       themeName: dto.themeName,
       theme: dto.theme as Record<string, unknown> | undefined,
       loginTheme: dto.loginTheme,

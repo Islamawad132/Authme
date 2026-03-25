@@ -747,6 +747,7 @@ export class AuthService {
         scope: validatedScope,
         expiresAt: new Date(Date.now() + refreshLifespan * 1000),
         isOffline,
+        clientId,
       },
     });
 

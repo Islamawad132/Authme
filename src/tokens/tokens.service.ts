@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import type { Realm } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -72,6 +73,74 @@ export class TokensService {
       };
     } catch {
       return { active: false };
+    }
+  }
+
+  /**
+   * Verify that the given token was issued to `callerClientId`.
+   *
+   * For refresh tokens the ownership check is done against the stored record's
+   * clientId column.  For access tokens (JWTs) the azp / aud claim is used.
+   * Throws ForbiddenException when the token belongs to a different client so
+   * that a public client cannot revoke another client's tokens.
+   */
+  async assertTokenBelongsToClient(
+    realm: Realm,
+    token: string,
+    callerClientId: string,
+    tokenTypeHint?: string,
+  ): Promise<void> {
+    // --- Refresh token check ---
+    if (tokenTypeHint === 'refresh_token' || !tokenTypeHint) {
+      const tokenHash = this.crypto.sha256(token);
+      const storedToken = await this.prisma.refreshToken.findUnique({
+        where: { tokenHash },
+        select: { clientId: true },
+      });
+
+      if (storedToken) {
+        if (storedToken.clientId && storedToken.clientId !== callerClientId) {
+          throw new ForbiddenException({
+            error: 'access_denied',
+            error_description: 'The token was not issued to this client.',
+          });
+        }
+        // Token belongs to caller (or has no stored clientId) — allow.
+        return;
+      }
+    }
+
+    // --- Access token (JWT) check ---
+    if (tokenTypeHint === 'access_token' || !tokenTypeHint) {
+      try {
+        const signingKey = await this.prisma.realmSigningKey.findFirst({
+          where: { realmId: realm.id, active: true },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (signingKey) {
+          const payload = await this.jwkService.verifyJwt(token, signingKey.publicKey);
+          const p = payload as Record<string, unknown>;
+          const azp = p['azp'] as string | undefined;
+          const aud = p['aud'];
+          const audiences: string[] = azp
+            ? [azp]
+            : Array.isArray(aud)
+              ? (aud as string[])
+              : aud
+                ? [aud as string]
+                : [];
+
+          if (audiences.length > 0 && !audiences.includes(callerClientId)) {
+            throw new ForbiddenException({
+              error: 'access_denied',
+              error_description: 'The token was not issued to this client.',
+            });
+          }
+        }
+      } catch (err) {
+        if (err instanceof ForbiddenException) throw err;
+        // Expired/invalid JWT — nothing to revoke, fall through silently.
+      }
     }
   }
 

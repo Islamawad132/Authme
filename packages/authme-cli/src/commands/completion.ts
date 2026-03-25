@@ -7,7 +7,7 @@ _authme_completion() {
   local cur prev words cword
   _init_completion || return
 
-  local commands="login logout whoami init realm user client role group config completion"
+  local commands="login logout whoami init realm user client role group config completion upgrade migrate"
   local realm_cmds="list create get update delete export import"
   local user_cmds="list create get update delete set-password bulk-import"
   local client_cmds="list create get update delete rotate-secret"
@@ -73,6 +73,8 @@ _authme() {
         'group:Manage groups'
         'config:Manage CLI configuration'
         'completion:Output shell completion script'
+        'upgrade:Upgrade the AuthMe server to a new version'
+        'migrate:Migrate users and configuration from another IdP'
       )
       _describe 'command' commands
       ;;
@@ -110,7 +112,7 @@ _authme
 const FISH_COMPLETION = `
 # authme fish completion
 
-set -l authme_commands login logout whoami init realm user client role group config completion
+set -l authme_commands login logout whoami init realm user client role group config completion upgrade migrate
 
 complete -c authme -f -n '__fish_use_subcommand' -a login       -d 'Authenticate with an AuthMe server'
 complete -c authme -f -n '__fish_use_subcommand' -a logout      -d 'Clear saved credentials'
@@ -123,6 +125,8 @@ complete -c authme -f -n '__fish_use_subcommand' -a role        -d 'Manage roles
 complete -c authme -f -n '__fish_use_subcommand' -a group       -d 'Manage groups'
 complete -c authme -f -n '__fish_use_subcommand' -a config      -d 'Manage CLI configuration'
 complete -c authme -f -n '__fish_use_subcommand' -a completion  -d 'Output shell completion script'
+complete -c authme -f -n '__fish_use_subcommand' -a upgrade     -d 'Upgrade the AuthMe server to a new version'
+complete -c authme -f -n '__fish_use_subcommand' -a migrate     -d 'Migrate users and configuration from another IdP'
 
 # realm subcommands
 complete -c authme -f -n '__fish_seen_subcommand_from realm' -a 'list create get update delete export import'

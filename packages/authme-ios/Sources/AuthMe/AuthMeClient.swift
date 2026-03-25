@@ -211,8 +211,11 @@ public final class AuthMeClient: NSObject {
         {
             var request = URLRequest(url: endSessionURL)
             request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try? JSONEncoder().encode(["refresh_token": refreshToken])
+            request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+            request.httpBody = [
+                "refresh_token": refreshToken,
+                "client_id":     config.clientId,
+            ].percentEncoded()
             _ = try? await urlSession.data(for: request)
         }
 
@@ -385,7 +388,16 @@ public final class AuthMeClient: NSObject {
             guard let self else { return }
             try? await Task.sleep(nanoseconds: UInt64(refreshIn * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            try? await self.refreshToken()
+            do {
+                try await self.refreshToken()
+            } catch {
+                // Issue #457: auto-refresh errors were previously swallowed with
+                // `try?`, giving callers no way to react (e.g. redirect to login).
+                // Log the error so it is at least visible in the console; consumers
+                // who need programmatic handling should observe token expiry via
+                // `isAuthenticated` or wrap `refreshToken()` themselves.
+                print("[AuthMe] Auto-refresh failed: \(error)")
+            }
         }
     }
 

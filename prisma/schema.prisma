@@ -155,6 +155,7 @@ model Realm {
   loginRiskAssessments  LoginRiskAssessment[]
   userLoginProfiles     UserLoginProfile[]
   organizations         Organization[]
+  serviceAccounts       ServiceAccount[]
 
   @@map("realms")
 }
@@ -195,6 +196,8 @@ model User {
   recoveryCodes       RecoveryCode[]
   webAuthnCredentials WebAuthnCredential[]
   attributes          UserAttribute[]
+  loginRiskAssessments LoginRiskAssessment[]
+  userLoginProfile    UserLoginProfile?
 
   @@unique([realmId, username])
   @@unique([realmId, email])
@@ -313,6 +316,9 @@ model RefreshToken {
   scope     String?
   revoked   Boolean @default(false)
   isOffline Boolean @default(false) @map("is_offline")
+  /// The client that was granted this refresh token (security fix #456).
+  /// Nullable for backwards compatibility with tokens created before this migration.
+  clientId  String? @map("client_id")
 
   createdAt DateTime @default(now()) @map("created_at")
   expiresAt DateTime @map("expires_at")
@@ -1090,6 +1096,10 @@ model LoginRiskAssessment {
   createdAt         DateTime @default(now()) @map("created_at")
 
   realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  // Issue #462: userId had no @relation, leaving the foreign key disconnected
+  // from the User model. Added explicit relation so Prisma can enforce the FK
+  // and generate typed includes.
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([realmId, createdAt])
@@ -1109,6 +1119,10 @@ model UserLoginProfile {
   updatedAt           DateTime @updatedAt    @map("updated_at")
 
   realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  // Issue #462: userId had no @relation, leaving the foreign key disconnected
+  // from the User model. Added explicit relation so Prisma can enforce the FK
+  // and generate typed includes.
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([realmId])
   @@map("user_login_profiles")
@@ -1209,6 +1223,9 @@ model ServiceAccount {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  // Issue #462: realmId had no @relation, causing Prisma to treat it as an
+  // unconnected scalar. Added explicit relation to Realm with cascade delete.
+  realm   Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
   apiKeys ApiKey[]
 
   @@unique([realmId, name])

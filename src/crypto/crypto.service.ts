@@ -1,6 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { randomBytes, createHash, createCipheriv, createDecipheriv, scryptSync } from 'crypto';
+
+/** Maximum password length accepted by hashPassword / verifyPassword.
+ *  Argon2 has no built-in length limit; feeding it a multi-megabyte string
+ *  causes CPU exhaustion (DoS).  1 024 characters is a generous practical
+ *  limit that covers every legitimate password while bounding hashing time.
+ */
+const MAX_PASSWORD_LENGTH = 1024;
 
 // Algorithm constants for AES-256-GCM symmetric encryption.
 const ALGORITHM = 'aes-256-gcm';
@@ -26,6 +33,11 @@ export class CryptoService {
   })();
 
   async hashPassword(password: string): Promise<string> {
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      throw new UnprocessableEntityException(
+        `Password must not exceed ${MAX_PASSWORD_LENGTH} characters.`,
+      );
+    }
     return argon2.hash(password, {
       type: argon2.argon2id,
       memoryCost: 65536,
@@ -35,6 +47,13 @@ export class CryptoService {
   }
 
   async verifyPassword(hash: string, password: string): Promise<boolean> {
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      // Reject immediately — do not pass an oversized input to Argon2.
+      // Return false rather than throwing so callers treat it as a bad
+      // credential (no information about the limit is leaked to the client
+      // beyond the normal "invalid credentials" response).
+      return false;
+    }
     return argon2.verify(hash, password);
   }
 

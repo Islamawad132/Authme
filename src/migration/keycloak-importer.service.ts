@@ -26,7 +26,15 @@ export class KeycloakImporterService {
     options: KeycloakImportOptions,
   ): Promise<MigrationReport> {
     const report = createEmptyReport('keycloak', options.dryRun);
-    const realmName = options.targetRealm ?? data.realm;
+    // data.realm must be a string (the Keycloak export JSON "realm" field).
+    // Guard against callers that pass a raw JSON object where a string is
+    // expected — e.g. if the entire realm config object is accidentally used
+    // instead of just its "realm" (name) property.
+    const exportRealmName =
+      typeof data.realm === 'string'
+        ? data.realm
+        : (data.realm as any)?.realm ?? String(data.realm);
+    const realmName = options.targetRealm ?? exportRealmName;
 
     if (options.dryRun) {
       // Dry-run: simulate without writing — no transaction needed.
@@ -135,7 +143,11 @@ export class KeycloakImporterService {
   ): Promise<void> {
     const db = tx ?? this.prisma;
     for (const role of data.roles?.realm ?? []) {
-      if (['offline_access', 'uma_authorization', 'default-roles-' + data.realm].includes(role.name)) {
+      const sourceRealmName =
+        typeof data.realm === 'string'
+          ? data.realm
+          : (data.realm as any)?.realm ?? String(data.realm);
+      if (['offline_access', 'uma_authorization', 'default-roles-' + sourceRealmName].includes(role.name)) {
         continue; // Skip Keycloak built-in roles
       }
       try {
