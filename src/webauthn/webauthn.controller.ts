@@ -137,12 +137,13 @@ export class WebAuthnController {
       if (typeof val === 'string' && val) oauthParams[key] = val;
     }
 
-    // Create session
+    // Create session (invalidating any pre-existing cookie to prevent session fixation)
     const sessionToken = await this.loginService.createLoginSession(
       realm,
       user,
       req.ip,
       req.headers['user-agent'],
+      req.cookies?.['AUTHME_SESSION'] as string | undefined,
     );
 
     res.cookie('AUTHME_SESSION', sessionToken, {

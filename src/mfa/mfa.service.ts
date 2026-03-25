@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as OTPAuth from 'otpauth';
 import * as QRCode from 'qrcode';
 import { Interval } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
+import { RedisService } from '../redis/redis.service.js';
 import type { Realm } from '@prisma/client';
 
 /** The shape of the JSON object stored in PendingAction.data for MFA challenges. */
@@ -15,14 +16,49 @@ interface MfaChallengeData {
   attempts: number;
 }
 
+/** TTL in seconds for a used TOTP code entry — covers the full ±1-step window (3 periods × 30s). */
+const TOTP_USED_CODE_TTL_SECONDS = 90;
+
 @Injectable()
 export class MfaService {
   private readonly logger = new Logger(MfaService.name);
 
+  /**
+   * In-memory fallback store for used TOTP codes when Redis is unavailable.
+   * Key: `totp:used:{userId}:{code}`, Value: expiry timestamp (ms).
+   */
+  private readonly usedTotpCodes = new Map<string, number>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    @Optional() private readonly redis?: RedisService,
   ) {}
+
+  /** Mark a TOTP code as used, preventing replay within the window. */
+  private async markTotpCodeUsed(userId: string, code: string): Promise<void> {
+    const key = `totp:used:${userId}:${code}`;
+    if (this.redis?.isAvailable()) {
+      await this.redis.set(key, '1', TOTP_USED_CODE_TTL_SECONDS);
+    } else {
+      this.usedTotpCodes.set(key, Date.now() + TOTP_USED_CODE_TTL_SECONDS * 1000);
+    }
+  }
+
+  /** Returns true if the TOTP code was already used within the replay window. */
+  private async isTotpCodeUsed(userId: string, code: string): Promise<boolean> {
+    const key = `totp:used:${userId}:${code}`;
+    if (this.redis?.isAvailable()) {
+      return this.redis.exists(key);
+    }
+    const expiry = this.usedTotpCodes.get(key);
+    if (expiry === undefined) return false;
+    if (Date.now() > expiry) {
+      this.usedTotpCodes.delete(key);
+      return false;
+    }
+    return true;
+  }
 
   async setupTotp(userId: string, realmName: string, username: string) {
     // Delete any existing unverified credential
@@ -96,6 +132,12 @@ export class MfaService {
 
     if (!credential || !credential.verified) return false;
 
+    // Replay-attack prevention: reject codes already used within the window.
+    if (await this.isTotpCodeUsed(userId, code)) {
+      this.logger.warn(`Replay attack detected: TOTP code reuse for user ${userId}`);
+      return false;
+    }
+
     const totp = new OTPAuth.TOTP({
       secret: OTPAuth.Secret.fromBase32(credential.secretKey),
       algorithm: credential.algorithm,
@@ -104,7 +146,11 @@ export class MfaService {
     });
 
     const delta = totp.validate({ token: code, window: 1 });
-    return delta !== null;
+    if (delta === null) return false;
+
+    // Mark the code as used so it cannot be replayed within the TOTP window.
+    await this.markTotpCodeUsed(userId, code);
+    return true;
   }
 
   async verifyRecoveryCode(userId: string, code: string): Promise<boolean> {
