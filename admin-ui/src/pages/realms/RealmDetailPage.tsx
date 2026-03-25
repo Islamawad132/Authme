@@ -315,8 +315,9 @@ export default function RealmDetailPage() {
             <h2 className="text-lg font-semibold text-gray-900">General Settings</h2>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Name</label>
+              <label htmlFor="realm-name" className="mb-1.5 block text-sm font-medium text-gray-700">Name</label>
               <input
+                id="realm-name"
                 type="text"
                 value={realm.name}
                 disabled
@@ -326,8 +327,9 @@ export default function RealmDetailPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Display Name</label>
+              <label htmlFor="realm-display-name" className="mb-1.5 block text-sm font-medium text-gray-700">Display Name</label>
               <input
+                id="realm-display-name"
                 type="text"
                 value={form.displayName}
                 onChange={(e) => setForm({ ...form, displayName: e.target.value })}
@@ -398,11 +400,12 @@ export default function RealmDetailPage() {
 
           <div className="space-y-6">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label htmlFor="access-token-lifespan" className="mb-1.5 block text-sm font-medium text-gray-700">
                 Access Token Lifespan
               </label>
               <div className="flex items-center gap-3">
                 <input
+                  id="access-token-lifespan"
                   type="number"
                   min={1}
                   value={form.accessTokenLifespan}
@@ -422,11 +425,12 @@ export default function RealmDetailPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label htmlFor="refresh-token-lifespan" className="mb-1.5 block text-sm font-medium text-gray-700">
                 Refresh Token Lifespan
               </label>
               <div className="flex items-center gap-3">
                 <input
+                  id="refresh-token-lifespan"
                   type="number"
                   min={1}
                   value={form.refreshTokenLifespan}
@@ -446,11 +450,12 @@ export default function RealmDetailPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label htmlFor="offline-token-lifespan" className="mb-1.5 block text-sm font-medium text-gray-700">
                 Offline Token Lifespan
               </label>
               <div className="flex items-center gap-3">
                 <input
+                  id="offline-token-lifespan"
                   type="number"
                   min={60}
                   value={form.offlineTokenLifespan}
@@ -504,8 +509,9 @@ export default function RealmDetailPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">SMTP Host</label>
+                <label htmlFor="smtp-host" className="mb-1.5 block text-sm font-medium text-gray-700">SMTP Host</label>
                 <input
+                  id="smtp-host"
                   type="text"
                   value={form.smtpHost}
                   onChange={(e) => setForm({ ...form, smtpHost: e.target.value })}
@@ -514,8 +520,9 @@ export default function RealmDetailPage() {
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">SMTP Port</label>
+                <label htmlFor="smtp-port" className="mb-1.5 block text-sm font-medium text-gray-700">SMTP Port</label>
                 <input
+                  id="smtp-port"
                   type="number"
                   value={form.smtpPort}
                   onChange={(e) => setForm({ ...form, smtpPort: Number(e.target.value) })}
@@ -526,8 +533,9 @@ export default function RealmDetailPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Username</label>
+                <label htmlFor="smtp-username" className="mb-1.5 block text-sm font-medium text-gray-700">Username</label>
                 <input
+                  id="smtp-username"
                   type="text"
                   value={form.smtpUser}
                   onChange={(e) => setForm({ ...form, smtpUser: e.target.value })}
@@ -535,8 +543,9 @@ export default function RealmDetailPage() {
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
+                <label htmlFor="smtp-password" className="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
                 <PasswordInput
+                  id="smtp-password"
                   value={form.smtpPassword}
                   onChange={(e) => setForm({ ...form, smtpPassword: e.target.value })}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
@@ -545,8 +554,9 @@ export default function RealmDetailPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">From Address</label>
+              <label htmlFor="smtp-from" className="mb-1.5 block text-sm font-medium text-gray-700">From Address</label>
               <input
+                id="smtp-from"
                 type="email"
                 value={form.smtpFrom}
                 onChange={(e) => setForm({ ...form, smtpFrom: e.target.value })}

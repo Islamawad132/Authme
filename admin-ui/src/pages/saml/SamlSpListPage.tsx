@@ -5,7 +5,7 @@ import { getSamlSps } from '../../api/samlServiceProviders';
 export default function SamlSpListPage() {
   const { name } = useParams<{ name: string }>();
 
-  const { data: providers, isLoading } = useQuery({
+  const { data: providers, isLoading, error } = useQuery({
     queryKey: ['saml-service-providers', name],
     queryFn: () => getSamlSps(name!),
     enabled: !!name,
@@ -22,6 +22,12 @@ export default function SamlSpListPage() {
           Add Service Provider
         </Link>
       </div>
+
+      {error && (
+        <div role="alert" className="rounded-md bg-red-50 p-4 text-sm text-red-700">
+          Failed to load data: {error.message}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-gray-500">Loading service providers...</div>

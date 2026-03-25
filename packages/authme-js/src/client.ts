@@ -16,6 +16,50 @@ const DEFAULT_REFRESH_BUFFER = 30; // seconds before expiry to trigger refresh
 // For "eager" strategy, refresh this much earlier than the normal buffer
 const EAGER_REFRESH_MULTIPLIER = 2;
 
+/**
+ * Call this function on the page that serves as the silent-refresh redirect URI.
+ *
+ * Bug #438-1 fix: the `silentRefresh()` iframe flow requires the redirect-URI
+ * page to post an `authme:silent_callback` message back to the parent window.
+ * Without this, the parent's `message` event listener never fires and every
+ * silent refresh times out after 10 seconds.
+ *
+ * The redirect URI page (e.g. `/silent-callback.html`) must call this helper:
+ *
+ * ```html
+ * <!-- public/silent-callback.html -->
+ * <script type="module">
+ *   import { handleSilentCallback } from '@authme/js';
+ *   handleSilentCallback();
+ * </script>
+ * ```
+ *
+ * The function reads `code`, `state`, and `error` from the current URL's
+ * search params and posts them to the parent window via `postMessage`.
+ * It is a no-op outside of a browser iframe context.
+ */
+export function handleSilentCallback(): void {
+  if (typeof window === 'undefined') return;
+  // Only act when running inside an iframe
+  if (window.parent === window) return;
+
+  const params = new URL(window.location.href).searchParams;
+  const code = params.get('code');
+  const state = params.get('state');
+  const error = params.get('error');
+  const errorDescription = params.get('error_description');
+
+  window.parent.postMessage(
+    {
+      type: 'authme:silent_callback',
+      code,
+      state,
+      error: errorDescription ?? error,
+    },
+    window.location.origin,
+  );
+}
+
 export class AuthmeClient {
   private config: Required<
     Pick<AuthmeConfig, 'url' | 'realm' | 'clientId' | 'redirectUri'>
@@ -34,6 +78,14 @@ export class AuthmeClient {
   private storage: TokenStorage;
   private events = new EventEmitter<AuthmeEventMap>();
   private oidcConfig: OpenIDConfiguration | null = null;
+  // Bug #438-2 fix: the discovery document was cached forever.  If the IdP
+  // returns an error (e.g. 5xx) and `oidcConfig` somehow already held a stale
+  // value, that stale config would be served indefinitely.  More practically,
+  // key-rotation events (IdP JWKS changes) would go undetected.
+  // Fix: record the fetch timestamp and evict the cache after 1 hour so the
+  // discovery document is periodically re-fetched.
+  private oidcConfigFetchedAt: number | null = null;
+  private static readonly DISCOVERY_TTL_MS = 60 * 60 * 1000; // 1 hour
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
   private cachedUserInfo: UserInfo | null = null;
   private initialized = false;
@@ -670,13 +722,22 @@ export class AuthmeClient {
     const url = `${this.config.url}/realms/${this.config.realm}/.well-known/openid-configuration`;
     const response = await fetch(url);
     if (!response.ok) {
+      // On error, evict any stale cached config so the next call retries.
+      this.oidcConfig = null;
+      this.oidcConfigFetchedAt = null;
       throw new Error(`Failed to fetch OIDC discovery document from ${url}`);
     }
     this.oidcConfig = await response.json();
+    this.oidcConfigFetchedAt = Date.now();
   }
 
   private async getOidcConfig(): Promise<OpenIDConfiguration> {
-    if (!this.oidcConfig) {
+    const now = Date.now();
+    const isExpired =
+      this.oidcConfigFetchedAt === null ||
+      now - this.oidcConfigFetchedAt > AuthmeClient.DISCOVERY_TTL_MS;
+
+    if (!this.oidcConfig || isExpired) {
       await this.fetchDiscovery();
     }
     return this.oidcConfig!;

@@ -81,10 +81,11 @@ export default function FlowStepEditor({
           <>
             {/* Step ID (read-only) */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label htmlFor="step-id" className="block text-xs font-medium text-gray-600 mb-1">
                 Step ID
               </label>
               <input
+                id="step-id"
                 readOnly
                 value={step.id}
                 className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-500 font-mono"
@@ -93,10 +94,11 @@ export default function FlowStepEditor({
 
             {/* Type */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label htmlFor="step-type" className="block text-xs font-medium text-gray-600 mb-1">
                 Type
               </label>
               <select
+                id="step-type"
                 value={step.type}
                 onChange={(e) => update({ type: e.target.value as StepType })}
                 className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -122,10 +124,11 @@ export default function FlowStepEditor({
 
             {/* Fallback step */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+              <label htmlFor="step-fallback" className="block text-xs font-medium text-gray-600 mb-1">
                 Fallback step on failure
               </label>
               <select
+                id="step-fallback"
                 value={step.fallbackStepId ?? ''}
                 onChange={(e) => update({ fallbackStepId: e.target.value || null })}
                 className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"

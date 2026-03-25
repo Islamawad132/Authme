@@ -29,6 +29,10 @@ public final class AuthMeClient: NSObject {
     private let urlSession: URLSession
 
     private var oidcConfig: OIDCConfiguration?
+    /// Timestamp of the last successful discovery fetch (used for TTL eviction).
+    private var oidcConfigFetchedAt: Date?
+    /// Discovery documents are re-fetched after this interval (1 hour).
+    private static let discoveryTTL: TimeInterval = 3600
     private var refreshTask: Task<Void, Never>?
 
     /// Retained for the duration of an active login flow.
@@ -302,7 +306,22 @@ public final class AuthMeClient: NSObject {
     // MARK: - Discovery
 
     private func fetchDiscovery() async throws -> OIDCConfiguration {
-        if let cached = oidcConfig { return cached }
+        // Bug #438-7 fix: the old code cached the discovery document forever.
+        // An IdP can rotate signing keys or change endpoint URLs; serving a stale
+        // document leads to verification failures and broken flows.
+        // Fix: evict the cache after discoveryTTL (1 hour) so we periodically
+        // re-fetch the discovery document.
+        if let cached = oidcConfig,
+           let fetchedAt = oidcConfigFetchedAt,
+           Date().timeIntervalSince(fetchedAt) < Self.discoveryTTL
+        {
+            return cached
+        }
+
+        // Cache is absent or expired — clear it before fetching so a failed
+        // request does not leave stale data in place.
+        oidcConfig = nil
+        oidcConfigFetchedAt = nil
 
         let (data, response) = try await urlSession.data(from: config.discoveryURL)
 
@@ -312,6 +331,7 @@ public final class AuthMeClient: NSObject {
 
         let configuration = try JSONDecoder().decode(OIDCConfiguration.self, from: data)
         oidcConfig = configuration
+        oidcConfigFetchedAt = Date()
         return configuration
     }
 

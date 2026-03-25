@@ -76,6 +76,11 @@ export interface ReadonlyRequestCookies {
 }
 
 // ── JWT decode (no verification — use verifyToken from authme-sdk/server for full JWKS validation) ──
+// Bug #438-3 acknowledged: cookie-based auth in this module performs no
+// cryptographic signature verification.  This is a known, documented
+// limitation.  The security warnings in getServerAuth() JSDoc are intentional.
+// Consumers who need cryptographic assurance MUST call verifyToken() from
+// authme-sdk/server before trusting any claim from the decoded payload.
 
 /**
  * Decode a JWT payload WITHOUT cryptographic signature verification.

@@ -12,6 +12,8 @@ export default function AuthFlowListPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<AuthFlow | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newFlowName, setNewFlowName] = useState('');
 
   const { data: flows, isLoading, error } = useQuery({
     queryKey: ['auth-flows', name],
@@ -57,10 +59,17 @@ export default function AuthFlowListPage() {
   });
 
   function handleCreate() {
-    const flowName = window.prompt('Enter a name for the new authentication flow:');
-    if (!flowName?.trim()) return;
+    setNewFlowName('');
     setCreateError(null);
-    createMutation.mutate(flowName.trim());
+    setShowCreateModal(true);
+  }
+
+  function handleCreateConfirm() {
+    if (!newFlowName.trim()) return;
+    setCreateError(null);
+    createMutation.mutate(newFlowName.trim(), {
+      onSuccess: () => setShowCreateModal(false),
+    });
   }
 
   if (isLoading) {
@@ -200,6 +209,61 @@ export default function AuthFlowListPage() {
         onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="fixed inset-0 bg-black/50"
+            onClick={() => setShowCreateModal(false)}
+            aria-hidden="true"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-flow-dialog-title"
+            className="relative z-10 w-full max-w-md rounded-lg bg-white p-6 shadow-xl"
+          >
+            <h3 id="create-flow-dialog-title" className="text-lg font-semibold text-gray-900">
+              Create Authentication Flow
+            </h3>
+            <div className="mt-4">
+              <label htmlFor="new-flow-name" className="mb-1.5 block text-sm font-medium text-gray-700">
+                Flow Name
+              </label>
+              <input
+                id="new-flow-name"
+                type="text"
+                value={newFlowName}
+                onChange={(e) => setNewFlowName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateConfirm()}
+                autoFocus
+                placeholder="e.g. browser-flow"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+              />
+            </div>
+            {createError && (
+              <p className="mt-2 text-sm text-red-600">{createError}</p>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateConfirm}
+                disabled={!newFlowName.trim() || createMutation.isPending}
+                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+              >
+                {createMutation.isPending ? 'Creating...' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
