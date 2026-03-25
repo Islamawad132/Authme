@@ -76,7 +76,11 @@ if [ "$ADMIN_PASSWORD" = "admin" ]; then
 fi
 
 echo "Running Prisma migrations..."
-npx prisma migrate deploy
+# Pass --schema explicitly so Prisma does not attempt to load prisma.config.ts
+# (a TypeScript file that cannot be executed without a compiler in the production
+# image).  The schema file is always present at prisma/schema.prisma because the
+# Dockerfile copies the entire ./prisma directory from the build stage.
+npx prisma migrate deploy --schema prisma/schema.prisma
 
 echo "Starting AuthMe..."
 exec node dist/main.js
