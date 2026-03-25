@@ -62,13 +62,16 @@ export class WebhooksService {
   async create(realm: Realm, dto: CreateWebhookDto) {
     const encryptedSecret = this.crypto.encrypt(dto.secret);
 
+    // Accept `events` as an alias for `eventTypes` for API compatibility.
+    const resolvedEventTypes = dto.eventTypes ?? dto.events ?? [];
+
     const webhook = await this.prisma.webhook.create({
       data: {
         realmId: realm.id,
         url: dto.url,
         secret: encryptedSecret,
         enabled: dto.enabled ?? true,
-        eventTypes: dto.eventTypes,
+        eventTypes: resolvedEventTypes,
         description: dto.description,
       },
       select: WEBHOOK_SELECT,

@@ -94,8 +94,9 @@ export class UsersController {
   }
 
   @Post(':userId/send-verification-email')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Send or resend verification email to a user' })
-  @ApiResponse({ status: 201, description: 'Verification email sent' })
+  @ApiResponse({ status: 200, description: 'Verification email sent' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async sendVerificationEmail(

@@ -360,7 +360,9 @@ describe('OrganizationsService', () => {
         role: 'member',
       });
 
-      expect(result).toEqual(mockInvitation);
+      expect(result).toHaveProperty('token');
+      expect(result).toHaveProperty('expiresAt');
+      expect(typeof result.token).toBe('string');
       expect(prisma.organizationInvitation.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           organizationId: 'org-1',

@@ -95,8 +95,9 @@ export class RolesController {
   // ─── User Realm Role Assignment ─────────────────────────
 
   @Post('users/:userId/role-mappings/realm')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Assign realm roles to a user' })
-  @ApiResponse({ status: 201, description: 'Realm roles assigned' })
+  @ApiResponse({ status: 200, description: 'Realm roles assigned' })
   @ApiResponse({ status: 400, description: 'Invalid request body' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'User or role not found' })
@@ -141,8 +142,9 @@ export class RolesController {
   // ─── User Client Role Assignment ────────────────────────
 
   @Post('users/:userId/role-mappings/clients/:clientId')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Assign client roles to a user' })
-  @ApiResponse({ status: 201, description: 'Client roles assigned' })
+  @ApiResponse({ status: 200, description: 'Client roles assigned' })
   @ApiResponse({ status: 400, description: 'Invalid request body' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'User, client, or role not found' })

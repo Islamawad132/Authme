@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Get, Body, Req, Res, UnauthorizedException, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { Public } from '../common/decorators/public.decorator.js';
@@ -13,8 +13,9 @@ export class AdminAuthController {
 
   @Post('login')
   @Public()
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Admin login' })
-  @ApiResponse({ status: 201, description: 'Login successful, returns token' })
+  @ApiResponse({ status: 200, description: 'Login successful, returns token' })
   @ApiResponse({ status: 400, description: 'Invalid input' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(
@@ -38,8 +39,9 @@ export class AdminAuthController {
   }
 
   @Post('logout')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Admin logout – revoke current token' })
-  @ApiResponse({ status: 201, description: 'Logged out successfully' })
+  @ApiResponse({ status: 200, description: 'Logged out successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async logout(@Req() req: Request) {
     const authHeader = req.headers['authorization'];

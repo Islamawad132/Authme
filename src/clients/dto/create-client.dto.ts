@@ -60,6 +60,19 @@ export class CreateClientDto {
   @IsEnum({ CONFIDENTIAL: 'CONFIDENTIAL', PUBLIC: 'PUBLIC' })
   clientType?: 'CONFIDENTIAL' | 'PUBLIC';
 
+  /**
+   * Convenience alias for `clientType: 'PUBLIC'`.
+   * When `true` it is equivalent to sending `clientType: 'PUBLIC'`.
+   * Ignored when `clientType` is also provided.
+   */
+  @ApiPropertyOptional({
+    description: "Shorthand for clientType: 'PUBLIC'. Ignored when clientType is set.",
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  publicClient?: boolean;
+
   @ApiPropertyOptional({ default: true })
   @IsOptional()
   @IsBoolean()

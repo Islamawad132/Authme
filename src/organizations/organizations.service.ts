@@ -183,25 +183,31 @@ export class OrganizationsService {
   async createInvitation(realm: Realm, slug: string, dto: CreateInvitationDto) {
     const org = await this.findOne(realm, slug);
 
-    const token = randomBytes(32).toString('hex');
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
     const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
 
-    return this.prisma.organizationInvitation.create({
+    await this.prisma.organizationInvitation.create({
       data: {
         organizationId: org.id,
         email: dto.email.toLowerCase(),
         role: dto.role ?? 'member',
-        token,
+        token: tokenHash,
         expiresAt,
       },
     });
+
+    // Return the raw token so callers can embed it in the invitation email link.
+    // The hash stored in the database is never exposed.
+    return { token: rawToken, expiresAt };
   }
 
   async acceptInvitation(realm: Realm, slug: string, token: string, userId: string) {
     const org = await this.findOne(realm, slug);
 
+    const tokenHash = createHash('sha256').update(token).digest('hex');
     const invitation = await this.prisma.organizationInvitation.findUnique({
-      where: { token },
+      where: { token: tokenHash },
     });
 
     if (!invitation || invitation.organizationId !== org.id) {
