@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Logger,
   Post,
   UseGuards,
   Query,
@@ -36,6 +37,7 @@ import { LoginEventType } from '../events/event-types.js';
 import { CustomAttributesService } from '../custom-attributes/custom-attributes.service.js';
 import { RiskAssessmentService } from '../risk-assessment/risk-assessment.service.js';
 import { CsrfService } from '../common/csrf/csrf.service.js';
+import { resolveClientIp } from '../common/utils/proxy-ip.util.js';
 
 const SCOPE_DESCRIPTIONS: Record<string, string> = {
   openid: 'Verify your identity',
@@ -49,6 +51,8 @@ const SCOPE_DESCRIPTIONS: Record<string, string> = {
 @UseGuards(RealmGuard)
 @Public()
 export class LoginController {
+  private readonly logger = new Logger(LoginController.name);
+
   constructor(
     private readonly loginService: LoginService,
     private readonly oauthService: OAuthService,
@@ -134,7 +138,7 @@ export class LoginController {
         realm,
         body['username'],
         body['password'],
-        req.ip,
+        resolveClientIp(req),
       );
 
       // ── Adaptive authentication / risk assessment ──────────────────────────
@@ -143,7 +147,7 @@ export class LoginController {
           userId: user.id,
           realmId: realm.id,
           realmName: realm.name,
-          ipAddress: req.ip,
+          ipAddress: resolveClientIp(req),
           userAgent: req.headers['user-agent'] ?? null,
           deviceFingerprint: body['device_fingerprint'] ?? null,
           timestamp: new Date(),
@@ -167,7 +171,7 @@ export class LoginController {
             type: LoginEventType.LOGIN_ERROR,
             userId: user.id,
             clientId: body['client_id'],
-            ipAddress: req.ip,
+            ipAddress: resolveClientIp(req),
             error: `Login blocked by risk assessment (score=${assessment.riskScore})`,
           });
 
@@ -275,7 +279,7 @@ export class LoginController {
         // Realm requires MFA but user hasn't set it up yet
         // Create session first so they can set up TOTP
         const sessionToken = await this.loginService.createLoginSession(
-          realm, user, req.ip, req.headers['user-agent'],
+          realm, user, resolveClientIp(req), req.headers['user-agent'],
           req.cookies?.['AUTHME_SESSION'] as string | undefined,
         );
 
@@ -297,7 +301,7 @@ export class LoginController {
         realmId: realm.id,
         type: LoginEventType.LOGIN_ERROR,
         clientId: body['client_id'],
-        ipAddress: req.ip,
+        ipAddress: resolveClientIp(req),
         error: errMessage,
       });
 
@@ -325,7 +329,7 @@ export class LoginController {
     }
 
     const sessionToken = await this.loginService.createLoginSession(
-      realm, user, req.ip, req.headers['user-agent'],
+      realm, user, resolveClientIp(req), req.headers['user-agent'],
       req.cookies?.['AUTHME_SESSION'] as string | undefined,
     );
 
@@ -342,7 +346,7 @@ export class LoginController {
       type: LoginEventType.LOGIN,
       userId: user.id,
       clientId: oauthParams['client_id'],
-      ipAddress: req.ip,
+      ipAddress: resolveClientIp(req),
     });
 
     if (!client) {
@@ -407,6 +411,15 @@ export class LoginController {
       return res.redirect(`/realms/${realm.name}/login?error=${encodeURIComponent('MFA session expired or too many failed attempts. Please login again.')}`);
     }
 
+    // Ensure the challenge was issued for this realm (prevents cross-realm token reuse)
+    if (challenge.realmId !== realm.id) {
+      this.logger.warn(
+        `MFA cross-realm token use attempt: challenge realm ${challenge.realmId} used against realm ${realm.id}`,
+      );
+      res.clearCookie('AUTHME_MFA_CHALLENGE', { path: `/realms/${realm.name}` });
+      return res.redirect(`/realms/${realm.name}/login?error=${encodeURIComponent('MFA session expired. Please login again.')}`);
+    }
+
     const code = body['code'];
     const recoveryCode = body['recoveryCode'];
 
@@ -422,7 +435,7 @@ export class LoginController {
         realmId: realm.id,
         type: LoginEventType.MFA_VERIFY_ERROR,
         userId: challenge.userId,
-        ipAddress: req.ip,
+        ipAddress: resolveClientIp(req),
         error: 'Invalid MFA code',
       });
       // Same challenge token is reused — attempt counter was already incremented

@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Logger,
   Post,
   Query,
   Body,
@@ -21,12 +22,15 @@ import { WebAuthnService } from '../webauthn/webauthn.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
+import { resolveClientIp } from '../common/utils/proxy-ip.util.js';
 
 @ApiTags('Step-Up Authentication')
 @Controller('realms/:realmName/step-up')
 @UseGuards(RealmGuard)
 @Public()
 export class StepUpController {
+  private readonly logger = new Logger(StepUpController.name);
+
   constructor(
     private readonly stepUpService: StepUpService,
     private readonly prisma: PrismaService,
@@ -206,6 +210,14 @@ export class StepUpController {
         throw new UnauthorizedException('MFA token does not match session user');
       }
 
+      // Ensure the challenge was issued for this realm (prevents cross-realm token reuse)
+      if (challenge.realmId !== realm.id) {
+        this.logger.warn(
+          `MFA cross-realm token use attempt: challenge realm ${challenge.realmId} used against realm ${realm.id}`,
+        );
+        throw new UnauthorizedException('Invalid or expired MFA token');
+      }
+
       const verified = await this.mfaService.verifyTotp(challenge.userId, otp);
       if (!verified) {
         const recoveryVerified = await this.mfaService.verifyRecoveryCode(challenge.userId, otp);
@@ -233,7 +245,7 @@ export class StepUpController {
         throw new BadRequestException('password is required for password step-up');
       }
 
-      const ip = req.ip;
+      const ip = resolveClientIp(req);
       try {
         await this.loginService.validateCredentials(realm, user.username, password, ip);
       } catch {

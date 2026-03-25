@@ -16,6 +16,7 @@ import { ImpersonationService } from './impersonation.service.js';
 import { EndImpersonationBodyDto } from './dto/end-impersonation.dto.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
+import { resolveClientIp } from '../common/utils/proxy-ip.util.js';
 
 function getAdminUserId(req: Request): string {
   const adminUser = (req as Request & { adminUser?: { userId?: string } })['adminUser'];
@@ -51,7 +52,7 @@ export class ImpersonationController {
     @Req() req: Request,
   ) {
     const adminUserId = getAdminUserId(req);
-    const ip = req.ip;
+    const ip = resolveClientIp(req);
     return this.impersonationService.startImpersonation(
       realm,
       adminUserId,
@@ -77,7 +78,7 @@ export class ImpersonationController {
     @Req() req: Request,
   ) {
     const adminUserId = getAdminUserId(req);
-    const ip = req.ip;
+    const ip = resolveClientIp(req);
     await this.impersonationService.endImpersonation(
       realm,
       dto.impersonationSessionId,

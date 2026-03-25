@@ -46,6 +46,35 @@ if [ -z "$ADMIN_API_KEY" ]; then
   echo ""
 fi
 
+if [ "$ADMIN_API_KEY" = "changeme" ]; then
+  echo ""
+  echo "============================================"
+  echo "  WARNING: ADMIN_API_KEY is set to the"
+  echo "  insecure default value 'changeme'"
+  echo "============================================"
+  echo ""
+  echo "  Change ADMIN_API_KEY to a strong, randomly"
+  echo "  generated secret before exposing this"
+  echo "  instance to a network."
+  echo ""
+  echo "============================================"
+  echo ""
+fi
+
+if [ "$ADMIN_PASSWORD" = "admin" ]; then
+  echo ""
+  echo "============================================"
+  echo "  WARNING: ADMIN_PASSWORD is set to the"
+  echo "  weak default value 'admin'"
+  echo "============================================"
+  echo ""
+  echo "  Change ADMIN_PASSWORD to a strong password"
+  echo "  before exposing this instance to a network."
+  echo ""
+  echo "============================================"
+  echo ""
+fi
+
 echo "Running Prisma migrations..."
 npx prisma migrate deploy
 

@@ -67,7 +67,7 @@ describe('TokensController', () => {
   });
 
   const mockReq = (overrides: Record<string, unknown> = {}) =>
-    ({ ip: '127.0.0.1', headers: {}, ...overrides } as any);
+    ({ ip: '127.0.0.1', headers: {}, socket: { remoteAddress: '127.0.0.1' }, connection: { remoteAddress: '127.0.0.1' }, ...overrides } as any);
 
   describe('introspect', () => {
     it('should authenticate client and call tokensService.introspect', async () => {

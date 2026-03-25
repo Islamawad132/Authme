@@ -21,6 +21,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { BruteForceService } from '../brute-force/brute-force.service.js';
 import { ThemeRenderService } from '../theme/theme-render.service.js';
+import { resolveClientIp } from '../common/utils/proxy-ip.util.js';
 
 @ApiTags('Device Authorization')
 @Controller('realms/:realmName')
@@ -108,7 +109,7 @@ export class DeviceController {
 
       const valid = await this.crypto.verifyPassword(user.passwordHash, body.password);
       if (!valid) {
-        await this.bruteForce.recordFailure(realm, user.id, req.ip);
+        await this.bruteForce.recordFailure(realm, user.id, resolveClientIp(req));
         return this.themeRender.render(res, realm, 'login', 'device', {
           pageTitle: 'Device Authorization',
           userCode: body.user_code,

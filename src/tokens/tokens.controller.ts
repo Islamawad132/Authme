@@ -21,6 +21,7 @@ import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
+import { resolveClientIp } from '../common/utils/proxy-ip.util.js';
 
 @ApiTags('Tokens')
 @Controller('realms/:realmName/protocol/openid-connect')
@@ -142,7 +143,7 @@ export class TokensController {
     @Body() body: { refresh_token?: string },
     @Req() req: Request,
   ) {
-    return this.tokensService.logout(realm, req.ip, body.refresh_token);
+    return this.tokensService.logout(realm, resolveClientIp(req), body.refresh_token);
   }
 
   @Get('logout')
@@ -169,7 +170,7 @@ export class TokensController {
       );
     }
 
-    await this.tokensService.logoutByIdToken(realm, req.ip, idTokenHint);
+    await this.tokensService.logoutByIdToken(realm, resolveClientIp(req), idTokenHint);
 
     if (postLogoutRedirectUri) {
       const redirectUrl = new URL(postLogoutRedirectUri);

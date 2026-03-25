@@ -33,6 +33,7 @@ import type {
   RegistrationResponseJSON,
   AuthenticationResponseJSON,
 } from '@simplewebauthn/server';
+import { resolveClientIp } from '../common/utils/proxy-ip.util.js';
 
 @ApiExcludeController()
 @Controller('realms/:realmName')
@@ -150,7 +151,7 @@ export class WebAuthnController {
     const sessionToken = await this.loginService.createLoginSession(
       realm,
       user,
-      req.ip,
+      resolveClientIp(req),
       req.headers['user-agent'],
       req.cookies?.['AUTHME_SESSION'] as string | undefined,
     );
