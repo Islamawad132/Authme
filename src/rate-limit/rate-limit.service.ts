@@ -184,14 +184,11 @@ export class RateLimitService {
   }
 
   /**
-   * Increment a Redis key and set TTL if it's a new key.
+   * Atomically increment a Redis key using native INCR (no TOCTOU race).
    */
   private async redisIncr(key: string, ttl: number): Promise<string> {
-    // Use set + get pattern since RedisService doesn't expose INCR directly
-    const current = await this.redis.get(key);
-    const newCount = (current ? parseInt(current, 10) : 0) + 1;
-    await this.redis.set(key, String(newCount), ttl);
-    return String(newCount);
+    const count = await this.redis.incr(key, ttl);
+    return String(count);
   }
 
   /**

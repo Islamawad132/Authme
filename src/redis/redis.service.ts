@@ -111,6 +111,21 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return count > 0;
   }
 
+  /**
+   * Atomically increment a key by 1 and set TTL if the key is new.
+   * Uses native Redis INCR (atomic, no race condition).
+   * Returns the new count after increment.
+   */
+  async incr(key: string, ttlSeconds: number): Promise<number> {
+    if (!this.isAvailable()) return 0;
+    const count = await this.client!.incr(key);
+    // Set TTL only on the first increment (when count becomes 1)
+    if (count === 1) {
+      await this.client!.expire(key, ttlSeconds);
+    }
+    return count;
+  }
+
   /** Delete all keys matching a glob pattern (uses SCAN to avoid blocking). */
   async delPattern(pattern: string): Promise<void> {
     if (!this.isAvailable()) return;
