@@ -29,12 +29,13 @@ export class BruteForceController {
   }
 
   @Post('users/:userId/unlock')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Unlock a locked user' })
-  @ApiResponse({ status: 204, description: 'User unlocked' })
+  @ApiResponse({ status: 200, description: 'User unlocked' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Not found' })
   async unlockUser(@Param('userId') userId: string) {
     await this.bruteForceService.unlockUser(userId);
+    return { message: 'User unlocked' };
   }
 }

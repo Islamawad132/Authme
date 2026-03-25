@@ -28,6 +28,19 @@ export class CreateWebhookDto {
   @IsString({ each: true })
   eventTypes!: string[];
 
+  /**
+   * Alias for `eventTypes` for API compatibility with clients that send `events`.
+   * When `eventTypes` is not provided, `events` is used as a fallback.
+   */
+  @ApiPropertyOptional({
+    example: ['user.login', 'user.created'],
+    description: "Alias for eventTypes. Used when eventTypes is not provided.",
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  events?: string[];
+
   @ApiPropertyOptional({ example: 'My webhook for user events' })
   @IsOptional()
   @IsString()

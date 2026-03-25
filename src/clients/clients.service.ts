@@ -56,7 +56,11 @@ export class ClientsService {
       );
     }
 
-    const clientType = (dto.clientType ?? 'CONFIDENTIAL') as ClientType;
+    // Resolve clientType: explicit field takes precedence, then the publicClient
+    // convenience alias, then the default of CONFIDENTIAL.
+    const clientType = (
+      dto.clientType ?? (dto.publicClient === true ? 'PUBLIC' : 'CONFIDENTIAL')
+    ) as ClientType;
     let rawSecret: string | undefined;
     let secretHash: string | undefined;
 

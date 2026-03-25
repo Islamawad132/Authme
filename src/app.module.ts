@@ -56,6 +56,7 @@ import { OrganizationsModule } from './organizations/organizations.module.js';
 import { RiskAssessmentModule } from './risk-assessment/risk-assessment.module.js';
 import { MigrationModule } from './migration/migration.module.js';
 import { CorsModule } from './cors/cors.module.js';
+import { ServiceAccountsModule } from './service-accounts/service-accounts.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
 import { AdminEventInterceptor } from './events/admin-event.interceptor.js';
 import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
@@ -122,6 +123,7 @@ import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
     RiskAssessmentModule,
     MigrationModule,
     CorsModule,
+    ServiceAccountsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
