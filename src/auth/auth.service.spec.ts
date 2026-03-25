@@ -792,9 +792,16 @@ describe('AuthService', () => {
       createdAt: new Date(),
     };
 
+    // Helper: simulate Prisma P2025 "record not found" error (thrown by update
+    // when no row matches the compound where clause).
+    function makePrismaP2025() {
+      const err = new Error('Record to update not found.');
+      (err as any).code = 'P2025';
+      return err;
+    }
+
     it('should return tokens for a valid authorization code', async () => {
       setupForTokenIssuance();
-      prisma.authorizationCode.findUnique.mockResolvedValue(authCode);
       prisma.authorizationCode.update.mockResolvedValue({
         ...authCode,
         used: true,
@@ -818,11 +825,13 @@ describe('AuthService', () => {
       expect(result.refresh_token).toBe(FAKE_REFRESH_TOKEN_RAW);
       expect(result.token_type).toBe('Bearer');
 
-      // Code should be marked as used
-      expect(prisma.authorizationCode.update).toHaveBeenCalledWith({
-        where: { id: authCode.id },
-        data: { used: true },
-      });
+      // Code should be atomically marked as used via a compound-where update
+      expect(prisma.authorizationCode.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ code: 'valid-auth-code', used: false }),
+          data: { used: true },
+        }),
+      );
     });
 
     it('should throw BadRequestException when code is missing', async () => {
@@ -838,7 +847,8 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException when code does not exist', async () => {
       setupValidClient();
-      prisma.authorizationCode.findUnique.mockResolvedValue(null);
+      // update throws P2025 because no row matches (code doesn't exist)
+      prisma.authorizationCode.update.mockRejectedValue(makePrismaP2025());
 
       await expect(
         service.handleTokenRequest(realm, {
@@ -853,11 +863,8 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException when code is expired', async () => {
       setupValidClient();
-      prisma.authorizationCode.findUnique.mockResolvedValue({
-        ...authCode,
-        expiresAt: new Date(Date.now() - 1000),
-      });
-      prisma.authorizationCode.update.mockResolvedValue({});
+      // update throws P2025 because the expiresAt filter excludes the expired row
+      prisma.authorizationCode.update.mockRejectedValue(makePrismaP2025());
 
       await expect(
         service.handleTokenRequest(realm, {
@@ -872,10 +879,8 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException when code was already used', async () => {
       setupValidClient();
-      prisma.authorizationCode.findUnique.mockResolvedValue({
-        ...authCode,
-        used: true,
-      });
+      // update throws P2025 because used:false filter excludes the already-used row
+      prisma.authorizationCode.update.mockRejectedValue(makePrismaP2025());
 
       await expect(
         service.handleTokenRequest(realm, {
@@ -890,11 +895,11 @@ describe('AuthService', () => {
 
     it('should throw UnauthorizedException when code belongs to a different client', async () => {
       setupValidClient();
-      prisma.authorizationCode.findUnique.mockResolvedValue({
+      prisma.authorizationCode.update.mockResolvedValue({
         ...authCode,
         clientId: 'some-other-client-db-id',
+        used: true,
       });
-      prisma.authorizationCode.update.mockResolvedValue({});
 
       await expect(
         service.handleTokenRequest(realm, {
@@ -909,7 +914,7 @@ describe('AuthService', () => {
 
     it('should throw BadRequestException when redirect_uri does not match', async () => {
       setupValidClient();
-      prisma.authorizationCode.findUnique.mockResolvedValue(authCode);
+      prisma.authorizationCode.update.mockResolvedValue({ ...authCode, used: true });
 
       await expect(
         service.handleTokenRequest(realm, {
@@ -926,7 +931,6 @@ describe('AuthService', () => {
       setupValidClient();
       setupSigningKey();
       setupSessionCreate();
-      prisma.authorizationCode.findUnique.mockResolvedValue(authCode);
       prisma.authorizationCode.update.mockResolvedValue({
         ...authCode,
         used: true,
@@ -953,7 +957,8 @@ describe('AuthService', () => {
 
       it('should throw BadRequestException when code has PKCE but code_verifier is missing', async () => {
         setupValidClient();
-        prisma.authorizationCode.findUnique.mockResolvedValue(pkceAuthCode);
+        // update succeeds (code exists, not used, not expired) and returns the pkce code
+        prisma.authorizationCode.update.mockResolvedValue({ ...pkceAuthCode, used: true });
 
         await expect(
           service.handleTokenRequest(realm, {
@@ -968,7 +973,8 @@ describe('AuthService', () => {
 
       it('should throw UnauthorizedException when code_verifier does not match', async () => {
         setupValidClient();
-        prisma.authorizationCode.findUnique.mockResolvedValue(pkceAuthCode);
+        // update succeeds and returns the pkce code
+        prisma.authorizationCode.update.mockResolvedValue({ ...pkceAuthCode, used: true });
         // sha256 returns a hex string; the base64url of its buffer will not match the stored challenge
         crypto.sha256.mockReturnValue('aabbccdd');
 
@@ -991,11 +997,11 @@ describe('AuthService', () => {
         );
 
         setupForTokenIssuance();
-        prisma.authorizationCode.findUnique.mockResolvedValue({
+        prisma.authorizationCode.update.mockResolvedValue({
           ...pkceAuthCode,
           codeChallenge: expectedChallenge,
+          used: true,
         });
-        prisma.authorizationCode.update.mockResolvedValue({});
         prisma.user.findUnique.mockResolvedValue(dbUser);
         crypto.sha256.mockReturnValue(hexHash);
 

@@ -4,6 +4,14 @@ import {
   type MockPrismaService,
 } from '../prisma/prisma.mock.js';
 
+const createMockRedisService = () => ({
+  isAvailable: jest.fn().mockReturnValue(false),
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue(undefined),
+  exists: jest.fn().mockResolvedValue(false),
+  del: jest.fn().mockResolvedValue(undefined),
+});
+
 describe('RateLimitService', () => {
   let service: RateLimitService;
   let prisma: MockPrismaService;
@@ -35,7 +43,7 @@ describe('RateLimitService', () => {
 
   beforeEach(() => {
     prisma = createMockPrismaService();
-    service = new RateLimitService(prisma as any);
+    service = new RateLimitService(prisma as any, createMockRedisService() as any);
   });
 
   // ─── checkClientLimit ───────────────────────────────────────
@@ -282,7 +290,7 @@ describe('RateLimitService', () => {
       await service.checkClientLimit(clientId, realmId);
 
       // Access internal store to manipulate timestamps
-      const store = (service as any).store as Map<string, any>;
+      const store = (service as any).memoryStore as Map<string, any>;
       const key = `client:${realmId}:${clientId}`;
       const entry = store.get(key)!;
 
