@@ -103,7 +103,19 @@ export class LoginService {
     user: User,
     ip?: string,
     userAgent?: string,
+    existingSessionToken?: string,
   ): Promise<string> {
+    // Session-fixation prevention: invalidate the pre-existing session cookie
+    // before issuing a new one so an attacker cannot pre-plant a known token.
+    if (existingSessionToken) {
+      const oldTokenHash = this.crypto.sha256(existingSessionToken);
+      await this.prisma.loginSession
+        .delete({ where: { tokenHash: oldTokenHash } })
+        .catch(() => {
+          // Session may already be expired/absent — silently ignore.
+        });
+    }
+
     const maxSessions = realm.maxSessionsPerUser;
     if (maxSessions !== undefined && maxSessions > 0) {
       // Count active SSO (login) sessions for this user in this realm

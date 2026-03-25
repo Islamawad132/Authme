@@ -276,6 +276,7 @@ export class LoginController {
         // Create session first so they can set up TOTP
         const sessionToken = await this.loginService.createLoginSession(
           realm, user, req.ip, req.headers['user-agent'],
+          req.cookies?.['AUTHME_SESSION'] as string | undefined,
         );
 
         res.cookie('AUTHME_SESSION', sessionToken, {
@@ -325,6 +326,7 @@ export class LoginController {
 
     const sessionToken = await this.loginService.createLoginSession(
       realm, user, req.ip, req.headers['user-agent'],
+      req.cookies?.['AUTHME_SESSION'] as string | undefined,
     );
 
     res.cookie('AUTHME_SESSION', sessionToken, {
