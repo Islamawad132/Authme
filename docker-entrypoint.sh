@@ -1,7 +1,16 @@
 #!/bin/sh
 set -e
 
-# Check required environment variables
+# ── NODE_ENV ───────────────────────────────────────────────────────────────────
+# Default to production when the variable is absent so that the application
+# never starts in an unintentionally permissive mode.
+if [ -z "$NODE_ENV" ]; then
+  echo "WARNING: NODE_ENV is not set — defaulting to 'production'"
+  NODE_ENV=production
+  export NODE_ENV
+fi
+
+# ── Required environment variables ────────────────────────────────────────────
 if [ -z "$DATABASE_URL" ]; then
   echo ""
   echo "============================================"
@@ -19,6 +28,22 @@ if [ -z "$DATABASE_URL" ]; then
   echo ""
   echo "============================================"
   exit 1
+fi
+
+# ── Warn about sensitive variables that should be changed ─────────────────────
+if [ -z "$ADMIN_API_KEY" ]; then
+  echo ""
+  echo "============================================"
+  echo "  WARNING: ADMIN_API_KEY is not set"
+  echo "============================================"
+  echo ""
+  echo "  The admin API will be unprotected or use a"
+  echo "  default key.  Set ADMIN_API_KEY to a strong,"
+  echo "  randomly generated secret before exposing"
+  echo "  this instance to a network."
+  echo ""
+  echo "============================================"
+  echo ""
 fi
 
 echo "Running Prisma migrations..."

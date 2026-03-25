@@ -222,15 +222,32 @@ export class StepUpController {
       };
     }
 
-    // ── WebAuthn step-up (credential-based validation) ────────────────────
+    // ── WebAuthn step-up ───────────────────────────────────────────────────
     if (acr === ACR_WEBAUTHN) {
-      // The WebAuthn authentication result is validated externally by
-      // /webauthn/authenticate endpoints.  Clients signal completion by
-      // sending acr=webauthn along with the credential ID of a registered
-      // WebAuthn credential belonging to the user.
+      // TODO: Full WebAuthn ceremony verification should use the WebAuthn
+      // library (e.g. @simplewebauthn/server verifyAuthenticationResponse)
+      // with a server-generated challenge stored in the session at challenge
+      // time and consumed here.  The fields below are the minimum required
+      // by the WebAuthn specification to prove an authenticator signed the
+      // challenge; accepting only a credential ID (without an actual
+      // assertion) allows trivial bypass of this step-up level.
       const webauthnAssertionId = body.webauthn_assertion_id;
+      const { authenticatorData, clientDataJSON, signature } = body as {
+        authenticatorData?: string;
+        clientDataJSON?: string;
+        signature?: string;
+      };
+
       if (!webauthnAssertionId) {
         throw new BadRequestException('webauthn_assertion_id is required for WebAuthn step-up');
+      }
+
+      // Reject requests that carry no assertion — a bare credential ID does
+      // not prove that the authenticator performed a signing ceremony.
+      if (!authenticatorData || !signature) {
+        throw new BadRequestException(
+          'WebAuthn step-up requires a full assertion response: authenticatorData, clientDataJSON, and signature must be provided',
+        );
       }
 
       // Verify the credential exists and belongs to this user
