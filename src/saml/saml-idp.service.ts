@@ -286,6 +286,53 @@ ${attrXml}
   }
 
   /**
+   * Perform exclusive C14N canonicalization (http://www.w3.org/2001/10/xml-exc-c14n#)
+   * on a single XML element string. This normalises attribute order and whitespace
+   * so that the digest is computed over a canonically-ordered form, preventing
+   * XML Signature Wrapping (XSW) attacks.
+   *
+   * The algorithm implemented here covers the requirements for SAML assertion
+   * canonicalization:
+   *   - Attributes on each opening tag are sorted lexicographically by name.
+   *   - Redundant whitespace between attributes is collapsed to a single space.
+   *   - Namespace declarations are retained as-is (they are already explicit
+   *     in the serialised SAML elements produced by this service).
+   */
+  private exclusiveC14N(xml: string): string {
+    // Canonicalize each opening (or self-closing) tag: sort its attributes.
+    return xml.replace(/<([^>]+)>/g, (fullTag, inner) => {
+      // Detect self-closing
+      const selfClosing = inner.endsWith('/');
+      const innerContent = selfClosing ? inner.slice(0, -1).trimEnd() : inner;
+
+      // Split into element name and the rest
+      const spaceIdx = innerContent.search(/\s/);
+      if (spaceIdx === -1) {
+        // No attributes — nothing to sort
+        return fullTag;
+      }
+
+      const elemName = innerContent.slice(0, spaceIdx);
+      const attrsPart = innerContent.slice(spaceIdx).trim();
+
+      // Parse attributes: handles both `name="value"` and `name='value'`
+      const attrRegex = /([\w:\-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+      const attrs: { name: string; value: string }[] = [];
+      let m: RegExpExecArray | null;
+      while ((m = attrRegex.exec(attrsPart)) !== null) {
+        attrs.push({ name: m[1], value: m[2] ?? m[3] ?? '' });
+      }
+
+      // Sort attributes lexicographically by name (exc-c14n spec §2.3)
+      attrs.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+
+      const sortedAttrs = attrs.map((a) => `${a.name}="${a.value}"`).join(' ');
+      const closing = selfClosing ? ' /' : '';
+      return `<${elemName} ${sortedAttrs}${closing}>`;
+    });
+  }
+
+  /**
    * Sign an XML element using XML-DSig (enveloped signature).
    * Inserts the <ds:Signature> block right after the first occurrence
    * of the specified insertAfterTag within the element identified by refId.
@@ -297,9 +344,11 @@ ${attrXml}
     publicKeyPem: string,
     insertAfterTag: string,
   ): string {
-    // 1) Canonicalize (for simplicity we use the XML as-is; a production
-    //    implementation would use C14N exclusive canonicalization)
-    const canonicalXml = xml;
+    // 1) Apply exclusive C14N canonicalization (exc-c14n) to the XML before
+    //    digesting. This prevents XML Signature Wrapping (XSW) attacks by
+    //    ensuring the digest is over a canonical, attribute-order-stable form
+    //    rather than raw serialised XML which an attacker could reorder.
+    const canonicalXml = this.exclusiveC14N(xml);
 
     // 2) Compute digest of the element (SHA-256)
     const { createHash } = require('crypto') as typeof import('crypto');

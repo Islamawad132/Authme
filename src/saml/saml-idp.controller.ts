@@ -97,6 +97,24 @@ export class SamlIdpController {
       );
     }
 
+    // Validate the ACS URL supplied in the AuthnRequest against the SP's
+    // registered endpoints.  An attacker could craft a malicious AuthnRequest
+    // with an arbitrary acsUrl to redirect the SAML response (and the bearer
+    // assertion it contains) to a server they control.  We must therefore
+    // reject any URL that does not exactly match either the SP's primary
+    // acsUrl or one of its explicitly registered validRedirectUris.
+    if (parsed.acsUrl !== null) {
+      const allowedAcsUrls: string[] = [sp.acsUrl];
+      if (Array.isArray((sp as any).validRedirectUris)) {
+        allowedAcsUrls.push(...(sp as any).validRedirectUris as string[]);
+      }
+      if (!allowedAcsUrls.includes(parsed.acsUrl)) {
+        throw new BadRequestException(
+          'ACS URL in AuthnRequest does not match any registered endpoint for this service provider',
+        );
+      }
+    }
+
     // Store SAML request info in a cookie so we can resume after login
     const samlSessionData = JSON.stringify({
       requestId: parsed.id,
