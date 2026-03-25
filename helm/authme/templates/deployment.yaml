@@ -39,7 +39,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.env.PORT | default 3000 }}
+              containerPort: {{ .Values.env.PORT | default 3000 | int }}
               protocol: TCP
           # ── Environment: non-sensitive values from ConfigMap ──────────────
           envFrom:

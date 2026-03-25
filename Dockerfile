@@ -41,7 +41,7 @@ COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 # Remove dev dependencies in production stage (not build stage)
 RUN npm prune --production
 
-RUN addgroup -g 1001 -S authme && adduser -S authme -u 1001
+RUN addgroup -g 1000 -S authme && adduser -S authme -u 1000
 
 ENV NODE_ENV=production
 EXPOSE 3000

@@ -71,7 +71,7 @@ export default function RealmDetailPage() {
   });
 
   const { data: identityProviders } = useQuery({
-    queryKey: ['identityProviders', name],
+    queryKey: ['identity-providers', name],
     queryFn: () => getIdentityProviders(name!),
     enabled: !!name && !!realm,
   });
