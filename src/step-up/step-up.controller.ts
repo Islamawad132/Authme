@@ -69,7 +69,7 @@ export class StepUpController {
     const sessionToken: string | undefined = (req as any).cookies?.AUTHME_SESSION;
 
     if (!requiredAcr || !clientId || !sessionToken) {
-      throw new BadRequestException('acr, client_id, and session_token are required');
+      throw new BadRequestException('acr and client_id are required; session must be provided via the AUTHME_SESSION cookie');
     }
 
     // Validate the SSO session

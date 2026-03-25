@@ -185,14 +185,23 @@ describe('BruteForceService', () => {
 
   describe('unlockUser', () => {
     it('should set lockedUntil to null and re-enable the account', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1', realmId: 'realm-1' });
       prisma.user.update.mockResolvedValue({});
+      prisma.loginFailure.deleteMany.mockResolvedValue({ count: 0 });
 
-      await service.unlockUser('user-1');
+      await service.unlockUser('realm-1', 'user-1');
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
         data: { lockedUntil: null, enabled: true },
       });
+    });
+
+    it('should throw NotFoundException for user in wrong realm', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.unlockUser('realm-1', 'user-from-other-realm'))
+        .rejects.toThrow('User not found');
     });
   });
 

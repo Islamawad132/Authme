@@ -39,8 +39,8 @@ export class BruteForceController {
   @ApiResponse({ status: 200, description: 'User unlocked' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Not found' })
-  async unlockUser(@Param('userId') userId: string) {
-    await this.bruteForceService.unlockUser(userId);
+  async unlockUser(@CurrentRealm() realm: Realm, @Param('userId') userId: string) {
+    await this.bruteForceService.unlockUser(realm.id, userId);
     return { message: 'User unlocked' };
   }
 }
@@ -75,8 +75,8 @@ export class BruteForceAttackDetectionController {
   @ApiResponse({ status: 200, description: 'User unlocked' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Not found' })
-  async unlockUser(@Param('userId') userId: string) {
-    await this.bruteForceService.unlockUser(userId);
+  async unlockUser(@CurrentRealm() realm: Realm, @Param('userId') userId: string) {
+    await this.bruteForceService.unlockUser(realm.id, userId);
     return { message: 'User unlocked' };
   }
 }
