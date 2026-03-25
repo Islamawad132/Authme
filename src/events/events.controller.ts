@@ -12,7 +12,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import type { Response } from 'express';
 import { EventsService } from './events.service.js';
@@ -38,6 +38,8 @@ export class EventsController {
 
   @Get('events')
   @ApiOperation({ summary: 'Query login events' })
+  @ApiResponse({ status: 200, description: 'List of login events' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   getLoginEvents(
     @CurrentRealm() realm: Realm,
     @Query('type') type?: string,
@@ -63,12 +65,16 @@ export class EventsController {
   @Delete('events')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Clear login events' })
+  @ApiResponse({ status: 204, description: 'Login events cleared' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   clearLoginEvents(@CurrentRealm() realm: Realm) {
     return this.eventsService.clearLoginEvents(realm.id);
   }
 
   @Get('events/login/export')
   @ApiOperation({ summary: 'Export login events as JSON or CSV' })
+  @ApiResponse({ status: 200, description: 'Login events export file' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async exportLoginEvents(
     @CurrentRealm() realm: Realm,
     @Query() query: ExportEventsQueryDto,
@@ -95,6 +101,8 @@ export class EventsController {
 
   @Get('admin-events')
   @ApiOperation({ summary: 'Query admin events' })
+  @ApiResponse({ status: 200, description: 'List of admin events' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   getAdminEvents(
     @CurrentRealm() realm: Realm,
     @Query('operationType') operationType?: string,
@@ -117,6 +125,8 @@ export class EventsController {
 
   @Get('events/admin/export')
   @ApiOperation({ summary: 'Export admin events as JSON or CSV' })
+  @ApiResponse({ status: 200, description: 'Admin events export file' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async exportAdminEvents(
     @CurrentRealm() realm: Realm,
     @Query() query: ExportEventsQueryDto,
@@ -143,6 +153,9 @@ export class EventsController {
 
   @Post('audit-streams')
   @ApiOperation({ summary: 'Create an audit log stream destination' })
+  @ApiResponse({ status: 201, description: 'Audit stream created' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   createStream(
     @CurrentRealm() realm: Realm,
     @Body() dto: CreateAuditStreamDto,
@@ -152,18 +165,27 @@ export class EventsController {
 
   @Get('audit-streams')
   @ApiOperation({ summary: 'List audit log streams for a realm' })
+  @ApiResponse({ status: 200, description: 'List of audit streams' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   listStreams(@CurrentRealm() realm: Realm) {
     return this.auditStreamsService.findAll(realm);
   }
 
   @Get('audit-streams/:id')
   @ApiOperation({ summary: 'Get a single audit log stream' })
+  @ApiResponse({ status: 200, description: 'Audit stream details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Audit stream not found' })
   getStream(@CurrentRealm() realm: Realm, @Param('id') id: string) {
     return this.auditStreamsService.findOne(realm, id);
   }
 
   @Put('audit-streams/:id')
   @ApiOperation({ summary: 'Update an audit log stream' })
+  @ApiResponse({ status: 200, description: 'Audit stream updated' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Audit stream not found' })
   updateStream(
     @CurrentRealm() realm: Realm,
     @Param('id') id: string,
@@ -175,6 +197,9 @@ export class EventsController {
   @Delete('audit-streams/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete an audit log stream' })
+  @ApiResponse({ status: 204, description: 'Audit stream deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Audit stream not found' })
   removeStream(@CurrentRealm() realm: Realm, @Param('id') id: string) {
     return this.auditStreamsService.remove(realm, id);
   }

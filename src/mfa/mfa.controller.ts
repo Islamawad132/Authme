@@ -8,7 +8,7 @@ import {
   HttpStatus,
   NotFoundException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { MfaService } from './mfa.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -39,6 +39,9 @@ export class MfaController {
 
   @Get('status')
   @ApiOperation({ summary: 'Check if user has MFA enabled' })
+  @ApiResponse({ status: 200, description: 'MFA status' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   async getMfaStatus(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -51,6 +54,9 @@ export class MfaController {
   @Delete()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Reset/disable MFA for a user' })
+  @ApiResponse({ status: 204, description: 'MFA disabled' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   async resetMfa(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,

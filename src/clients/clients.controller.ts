@@ -10,7 +10,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { ClientsService } from './clients.service.js';
 import { CreateClientDto } from './dto/create-client.dto.js';
@@ -27,18 +27,26 @@ export class ClientsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a client in a realm' })
+  @ApiResponse({ status: 201, description: 'Client created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   create(@CurrentRealm() realm: Realm, @Body() dto: CreateClientDto) {
     return this.clientsService.create(realm, dto);
   }
 
   @Get()
   @ApiOperation({ summary: 'List clients in a realm' })
+  @ApiResponse({ status: 200, description: 'List of clients' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll(@CurrentRealm() realm: Realm) {
     return this.clientsService.findAll(realm);
   }
 
   @Get(':clientId')
   @ApiOperation({ summary: 'Get a client by ID' })
+  @ApiResponse({ status: 200, description: 'Client details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
   findOne(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,
@@ -48,6 +56,10 @@ export class ClientsController {
 
   @Put(':clientId')
   @ApiOperation({ summary: 'Update a client' })
+  @ApiResponse({ status: 200, description: 'Client updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
   update(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,
@@ -59,6 +71,9 @@ export class ClientsController {
   @Delete(':clientId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a client' })
+  @ApiResponse({ status: 204, description: 'Client deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
   remove(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,
@@ -67,7 +82,11 @@ export class ClientsController {
   }
 
   @Post(':clientId/regenerate-secret')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Regenerate client secret' })
+  @ApiResponse({ status: 200, description: 'Client secret regenerated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
   regenerateSecret(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,
@@ -77,6 +96,9 @@ export class ClientsController {
 
   @Get(':clientId/service-account-user')
   @ApiOperation({ summary: 'Get service account user for a client' })
+  @ApiResponse({ status: 200, description: 'Service account user details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Client or service account not found' })
   getServiceAccount(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,

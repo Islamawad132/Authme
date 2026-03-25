@@ -7,7 +7,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { BruteForceService } from './brute-force.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
@@ -22,6 +22,8 @@ export class BruteForceController {
 
   @Get('locked-users')
   @ApiOperation({ summary: 'List locked users in a realm' })
+  @ApiResponse({ status: 200, description: 'List of locked users' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   getLockedUsers(@CurrentRealm() realm: Realm) {
     return this.bruteForceService.getLockedUsers(realm.id);
   }
@@ -29,6 +31,9 @@ export class BruteForceController {
   @Post('users/:userId/unlock')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Unlock a locked user' })
+  @ApiResponse({ status: 204, description: 'User unlocked' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   async unlockUser(@Param('userId') userId: string) {
     await this.bruteForceService.unlockUser(userId);
   }

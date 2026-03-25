@@ -4,9 +4,11 @@ import {
   Delete,
   Param,
   Query,
+  HttpCode,
+  HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { SessionsService } from './sessions.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
@@ -21,12 +23,17 @@ export class SessionsController {
 
   @Get('sessions')
   @ApiOperation({ summary: 'List all active sessions in the realm' })
+  @ApiResponse({ status: 200, description: 'List of active sessions' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   getRealmSessions(@CurrentRealm() realm: Realm) {
     return this.sessionsService.getRealmSessions(realm);
   }
 
   @Get('users/:userId/sessions')
   @ApiOperation({ summary: 'List active sessions for a user' })
+  @ApiResponse({ status: 200, description: 'List of active sessions for the user' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   getUserSessions(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -35,7 +42,11 @@ export class SessionsController {
   }
 
   @Delete('sessions/:sessionId')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke a specific session' })
+  @ApiResponse({ status: 204, description: 'Session revoked' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Session not found' })
   revokeSession(
     @Param('sessionId') sessionId: string,
     @Query('type') type: 'oauth' | 'sso' = 'oauth',
@@ -44,7 +55,11 @@ export class SessionsController {
   }
 
   @Delete('users/:userId/sessions')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke all sessions for a user' })
+  @ApiResponse({ status: 204, description: 'All user sessions revoked' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   revokeAllUserSessions(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,

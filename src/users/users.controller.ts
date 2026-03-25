@@ -11,7 +11,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
@@ -30,24 +30,36 @@ export class UsersController {
 
   @Post()
   @ApiOperation({ summary: 'Create a user in a realm' })
+  @ApiResponse({ status: 201, description: 'User created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   create(@CurrentRealm() realm: Realm, @Body() dto: CreateUserDto) {
     return this.usersService.create(realm, dto);
   }
 
   @Get()
   @ApiOperation({ summary: 'List users in a realm' })
+  @ApiResponse({ status: 200, description: 'List of users' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll(@CurrentRealm() realm: Realm, @Query() pagination: PaginationDto) {
     return this.usersService.findAll(realm, pagination.skip, pagination.limit);
   }
 
   @Get(':userId')
   @ApiOperation({ summary: 'Get a user by ID' })
+  @ApiResponse({ status: 200, description: 'User details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   findOne(@CurrentRealm() realm: Realm, @Param('userId') userId: string) {
     return this.usersService.findById(realm, userId);
   }
 
   @Put(':userId')
   @ApiOperation({ summary: 'Update a user' })
+  @ApiResponse({ status: 200, description: 'User updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   update(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -59,6 +71,9 @@ export class UsersController {
   @Delete(':userId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a user' })
+  @ApiResponse({ status: 204, description: 'User deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   remove(@CurrentRealm() realm: Realm, @Param('userId') userId: string) {
     return this.usersService.remove(realm, userId);
   }
@@ -66,6 +81,10 @@ export class UsersController {
   @Put(':userId/reset-password')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Set a user password' })
+  @ApiResponse({ status: 204, description: 'Password updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid password' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   resetPassword(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -76,6 +95,9 @@ export class UsersController {
 
   @Post(':userId/send-verification-email')
   @ApiOperation({ summary: 'Send or resend verification email to a user' })
+  @ApiResponse({ status: 201, description: 'Verification email sent' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   async sendVerificationEmail(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -90,6 +112,9 @@ export class UsersController {
 
   @Get(':userId/offline-sessions')
   @ApiOperation({ summary: 'List offline sessions for a user' })
+  @ApiResponse({ status: 200, description: 'List of offline sessions' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   getOfflineSessions(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -100,6 +125,9 @@ export class UsersController {
   @Delete(':userId/offline-sessions/:tokenId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke an offline session' })
+  @ApiResponse({ status: 204, description: 'Offline session revoked' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User or session not found' })
   revokeOfflineSession(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,

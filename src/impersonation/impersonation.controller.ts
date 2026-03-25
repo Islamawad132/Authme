@@ -9,7 +9,7 @@ import {
   UseGuards,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { Realm } from '@prisma/client';
 import { ImpersonationService } from './impersonation.service.js';
@@ -34,6 +34,9 @@ export class ImpersonationController {
 
   @Post('users/:userId/impersonate')
   @HttpCode(HttpStatus.OK)
+  @ApiResponse({ status: 200, description: 'Impersonation tokens issued' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   @ApiOperation({
     summary: 'Start user impersonation',
     description:
@@ -59,6 +62,9 @@ export class ImpersonationController {
 
   @Post('impersonation/end')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiResponse({ status: 204, description: 'Impersonation session ended' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   @ApiOperation({
     summary: 'End an impersonation session',
     description:

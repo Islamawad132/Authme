@@ -9,7 +9,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { Realm } from '@prisma/client';
 import { AuthService } from './auth.service.js';
@@ -29,6 +29,9 @@ export class AuthController {
   @Post('token')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Token endpoint (password, client_credentials, refresh_token, authorization_code)' })
+  @ApiResponse({ status: 200, description: 'Token issued successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request or unsupported grant type' })
+  @ApiResponse({ status: 401, description: 'Invalid client credentials or user credentials' })
   @ApiConsumes('application/x-www-form-urlencoded', 'application/json')
   @ApiBody({ type: TokenRequestDto })
   @UseGuards(RateLimitGuard)

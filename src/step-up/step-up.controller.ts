@@ -9,7 +9,7 @@ import {
   BadRequestException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { Realm } from '@prisma/client';
 import { StepUpService, ACR_MFA, ACR_WEBAUTHN, ACR_PASSWORD } from './step-up.service.js';
@@ -46,6 +46,9 @@ export class StepUpController {
   @ApiQuery({ name: 'acr', required: true, description: 'Required ACR value' })
   @ApiQuery({ name: 'client_id', required: true, description: 'OAuth client_id' })
   @ApiQuery({ name: 'session_token', required: true, description: 'Current SSO session token (AUTHME_SESSION cookie value)' })
+  @ApiResponse({ status: 200, description: 'Challenge details (type, mfa_token) or satisfied status' })
+  @ApiResponse({ status: 400, description: 'Bad request — missing parameters, unsupported ACR, or MFA not enrolled' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired session token' })
   async challenge(
     @CurrentRealm() realm: Realm,
     @Query('acr') requiredAcr: string,
@@ -121,6 +124,9 @@ export class StepUpController {
    */
   @Post('verify')
   @ApiOperation({ summary: 'Complete step-up verification' })
+  @ApiResponse({ status: 201, description: 'Step-up verified; returns new ACR level and AMR' })
+  @ApiResponse({ status: 400, description: 'Bad request — missing parameters, unsupported ACR, or client not found' })
+  @ApiResponse({ status: 401, description: 'Invalid session, expired MFA token, or wrong credential' })
   async verify(
     @CurrentRealm() realm: Realm,
     @Body() body: {

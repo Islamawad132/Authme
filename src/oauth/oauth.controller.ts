@@ -6,7 +6,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { Realm } from '@prisma/client';
 import { OAuthService, type AuthorizeParams } from './oauth.service.js';
@@ -35,6 +35,8 @@ export class OAuthController {
 
   @Get('auth')
   @ApiOperation({ summary: 'Authorization endpoint (code flow)' })
+  @ApiResponse({ status: 302, description: 'Redirect to login page or redirect_uri with authorization code' })
+  @ApiResponse({ status: 400, description: 'Invalid request — missing or invalid OAuth parameters' })
   async authorize(
     @CurrentRealm() realm: Realm,
     @Query() query: Record<string, string>,
