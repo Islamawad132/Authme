@@ -358,17 +358,21 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    // #532 — Enforce that the refresh token was issued to the requesting client
-    if (storedToken.clientId) {
-      if (storedToken.clientId !== client_id) {
-        throw new UnauthorizedException('Refresh token was not issued to this client');
-      }
-    } else {
-      // Legacy token without clientId — backfill it for future checks
-      await this.prisma.refreshToken.update({
-        where: { id: storedToken.id },
-        data: { clientId: client_id },
-      });
+    // Enforce that the refresh token was issued to the requesting client.
+    // Tokens without a stored clientId are pre-migration legacy tokens —
+    // they MUST be rejected because any client could claim ownership.
+    // Users with legacy tokens simply need to re-authenticate once.
+    if (!storedToken.clientId) {
+      this.logger.warn(
+        `Refresh token ${storedToken.id} has no clientId (legacy). ` +
+        `Rejecting to prevent cross-client token reuse. User must re-authenticate.`,
+      );
+      throw new UnauthorizedException(
+        'This refresh token predates client binding. Please log in again.',
+      );
+    }
+    if (storedToken.clientId !== client_id) {
+      throw new UnauthorizedException('Refresh token was not issued to this client');
     }
 
     // Rotate: revoke old token

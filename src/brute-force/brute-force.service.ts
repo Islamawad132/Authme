@@ -27,8 +27,11 @@ export class BruteForceService {
       data: { realmId: realm.id, userId, ipAddress: ipAddress ?? null },
     });
 
-    // Count recent failures within the reset window
-    const windowStart = new Date(Date.now() - realm.failureResetTime * 1000);
+    // Count recent failures within the reset window.
+    // Ensure maxLoginFailures is at least 1 to prevent instant lockout on misconfiguration.
+    const maxFailures = Math.max(realm.maxLoginFailures, 1);
+    const resetTime = Math.max(realm.failureResetTime, 1); // min 1 second window
+    const windowStart = new Date(Date.now() - resetTime * 1000);
     const failureCount = await this.prisma.loginFailure.count({
       where: {
         realmId: realm.id,
@@ -37,14 +40,18 @@ export class BruteForceService {
       },
     });
 
-    if (failureCount >= realm.maxLoginFailures) {
+    this.logger.debug(
+      `Brute force: user=${userId} failures=${failureCount}/${maxFailures} window=${resetTime}s`,
+    );
+
+    if (failureCount >= maxFailures) {
       // Check if permanent lockout is configured
       if (realm.permanentLockoutAfter > 0) {
         // Count total lockouts (approximate by counting failure bursts)
         const totalFailures = await this.prisma.loginFailure.count({
           where: { realmId: realm.id, userId },
         });
-        const lockoutCount = Math.floor(totalFailures / realm.maxLoginFailures);
+        const lockoutCount = Math.floor(totalFailures / maxFailures);
 
         if (lockoutCount >= realm.permanentLockoutAfter) {
           // Permanent lock — set far future date but do NOT disable the account.

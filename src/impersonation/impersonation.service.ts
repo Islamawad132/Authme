@@ -53,18 +53,20 @@ export class ImpersonationService {
       throw new BadRequestException('Cannot impersonate a disabled user');
     }
 
-    // Validate admin user exists
-    const adminUser = await this.prisma.user.findUnique({
-      where: { id: adminUserId },
-    });
-
-    if (!adminUser) {
-      throw new NotFoundException(`Admin user '${adminUserId}' not found`);
-    }
-
-    // Prevent self-impersonation
-    if (adminUserId === targetUserId) {
-      throw new BadRequestException('Cannot impersonate yourself');
+    // Validate admin user exists.
+    // When authenticated via static API key, adminUserId is 'api-key' (not a real user).
+    // API key auth is already verified by AdminApiKeyGuard, so skip the DB lookup.
+    if (adminUserId !== 'api-key') {
+      const adminUser = await this.prisma.user.findUnique({
+        where: { id: adminUserId },
+      });
+      if (!adminUser) {
+        throw new NotFoundException(`Admin user '${adminUserId}' not found`);
+      }
+      // Prevent self-impersonation
+      if (adminUserId === targetUserId) {
+        throw new BadRequestException('Cannot impersonate yourself');
+      }
     }
 
     const maxDuration = realm.impersonationMaxDuration ?? 1800;

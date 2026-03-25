@@ -50,13 +50,25 @@ export class RateLimitGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
 
-    // Extract realm from request params (standard pattern in this project)
+    // Extract realm ID from the request.  RealmGuard populates request.realm
+    // for realm-scoped controllers; admin controllers may use request.params.
+    const realmObj = (request as unknown as Record<string, unknown>)['realm'];
     const realmId: string | undefined =
-      (request as Request & { realm?: { id: string } })['realm']?.id ??
-      (request.params as Record<string, string>)['realmId'];
+      (realmObj && typeof realmObj === 'object' && 'id' in realmObj)
+        ? (realmObj as { id: string }).id
+        : (request.params as Record<string, string>)['realmName']
+          ? undefined  // realmName is a name, not an ID — look it up below
+          : (request.params as Record<string, string>)['realmId'];
 
-    if (!realmId) {
-      // Cannot determine realm — skip rate limiting
+    if (!realmId && !realmObj) {
+      // Cannot determine realm — skip per-realm rate limiting.
+      // The global ThrottlerGuard still applies.
+      return true;
+    }
+
+    // If we only have the realm object, extract its id
+    const effectiveRealmId = realmId ?? (realmObj as { id: string })?.id;
+    if (!effectiveRealmId) {
       return true;
     }
 
@@ -66,18 +78,18 @@ export class RateLimitGuard implements CanActivate {
       case 'client': {
         const clientId = this.extractClientId(request);
         if (!clientId) return true;
-        result = await this.rateLimitService.checkClientLimit(clientId, realmId);
+        result = await this.rateLimitService.checkClientLimit(clientId, effectiveRealmId);
         break;
       }
       case 'user': {
         const userId = this.extractUserId(request);
         if (!userId) return true;
-        result = await this.rateLimitService.checkUserLimit(userId, realmId);
+        result = await this.rateLimitService.checkUserLimit(userId, effectiveRealmId);
         break;
       }
       case 'ip': {
         const ip = this.extractIp(request);
-        result = await this.rateLimitService.checkIpLimit(ip, realmId);
+        result = await this.rateLimitService.checkIpLimit(ip, effectiveRealmId);
         break;
       }
       default:
@@ -91,7 +103,7 @@ export class RateLimitGuard implements CanActivate {
     }
 
     if (!result.allowed) {
-      this.metricsService.rateLimitHitsTotal.inc({ type, realm: realmId });
+      this.metricsService.rateLimitHitsTotal.inc({ type, realm: effectiveRealmId });
 
       throw new HttpException(
         {

@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -57,6 +58,20 @@ export class WebhooksController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Webhook not found' })
   update(
+    @CurrentRealm() realm: Realm,
+    @Param('id') id: string,
+    @Body() dto: UpdateWebhookDto,
+  ) {
+    return this.webhooksService.update(realm, id, dto);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Partially update a webhook' })
+  @ApiResponse({ status: 200, description: 'Webhook updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Webhook not found' })
+  partialUpdate(
     @CurrentRealm() realm: Realm,
     @Param('id') id: string,
     @Body() dto: UpdateWebhookDto,

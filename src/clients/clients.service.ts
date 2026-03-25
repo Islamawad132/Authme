@@ -166,13 +166,15 @@ export class ClientsService {
     return client;
   }
 
-  async update(realm: Realm, clientId: string, dto: UpdateClientDto) {
+  async update(realm: Realm, clientIdOrUuid: string, dto: UpdateClientDto) {
     this.rejectWildcardOrigins(dto.webOrigins);
-    await this.findByClientId(realm, clientId);
+    // Resolve the identifier (may be clientId string OR UUID)
+    const existing = await this.findByClientId(realm, clientIdOrUuid);
+    const resolvedClientId = existing.clientId;
 
     const updated = await this.prisma.client.update({
       where: {
-        realmId_clientId: { realmId: realm.id, clientId },
+        realmId_clientId: { realmId: realm.id, clientId: resolvedClientId },
       },
       data: {
         name: dto.name,
@@ -189,7 +191,7 @@ export class ClientsService {
       select: CLIENT_SELECT,
     });
 
-    await this.cache.invalidateClientCache(`${realm.id}:${clientId}`);
+    await this.cache.invalidateClientCache(`${realm.id}:${resolvedClientId}`);
 
     // webOrigins may have changed — bust the CORS cache so new origins take effect
     // and revoked ones are no longer accepted.
@@ -199,8 +201,9 @@ export class ClientsService {
     return updated;
   }
 
-  async remove(realm: Realm, clientId: string) {
-    const client = await this.findByClientId(realm, clientId);
+  async remove(realm: Realm, clientIdOrUuid: string) {
+    const client = await this.findByClientId(realm, clientIdOrUuid);
+    const resolvedClientId = client.clientId;
 
     // Delete service account user if it exists
     if (client.serviceAccountUserId) {
@@ -211,11 +214,11 @@ export class ClientsService {
 
     await this.prisma.client.delete({
       where: {
-        realmId_clientId: { realmId: realm.id, clientId },
+        realmId_clientId: { realmId: realm.id, clientId: resolvedClientId },
       },
     });
 
-    await this.cache.invalidateClientCache(`${realm.id}:${clientId}`);
+    await this.cache.invalidateClientCache(`${realm.id}:${resolvedClientId}`);
 
     // Deleted client's origins should no longer be accepted — bust the CORS cache.
     await this.cache.invalidateCorsOrigins();
