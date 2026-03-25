@@ -79,6 +79,37 @@ async function bootstrap() {
 
   app.useLogger(app.get(Logger));
 
+  // ── CORS — must be enabled before any other middleware so that OPTIONS
+  // preflight requests are handled immediately and never fall through to
+  // route-matching (which would produce a 404).
+  // The origin callback echoes the request Origin back on success so that
+  // browsers receive the concrete `Access-Control-Allow-Origin` value they
+  // need (passing `true` to the callback only works for simple string origins,
+  // not for the async/callback form used here).
+  const corsOriginService = app.get(CorsOriginService);
+  app.enableCors({
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: string | false) => void,
+    ) => {
+      // Allow requests with no Origin header (server-to-server, curl, same-origin)
+      if (!origin) {
+        callback(null, '*');
+        return;
+      }
+
+      corsOriginService.isOriginAllowed(origin).then(
+        (allowed) => { callback(null, allowed ? origin : false); },
+        () => { callback(null, false); },
+      );
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-api-key'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+  });
+
   // ── Reverse-proxy trust configuration ──────────────────────────────────────
   // Configure Express's built-in "trust proxy" setting to match the
   // TRUSTED_PROXIES environment variable.  Express uses this to populate
@@ -128,34 +159,6 @@ async function bootstrap() {
       crossOriginResourcePolicy: false,
     }),
   );
-  // Dynamic CORS: validate Origin against the cached set of client webOrigins.
-  // Origins are loaded from the database once and cached in Redis (TTL 300 s) plus
-  // an in-process Set.  This avoids a DB round-trip on every cross-origin request.
-  // The cache is invalidated automatically whenever a client is created, updated,
-  // or deleted (see ClientsService).
-  const corsOriginService = app.get(CorsOriginService);
-  app.enableCors({
-    origin: async (
-      origin: string | undefined,
-      callback: (err: Error | null, allow?: boolean) => void,
-    ) => {
-      // Allow requests with no Origin header (server-to-server, curl, same-origin)
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-
-      try {
-        const allowed = await corsOriginService.isOriginAllowed(origin);
-        callback(null, allowed);
-      } catch {
-        callback(null, false);
-      }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-api-key'],
-  });
   app.use(cookieParser());
 
   // Handlebars template engine — templates live in themes/ and are resolved by ThemeRenderService

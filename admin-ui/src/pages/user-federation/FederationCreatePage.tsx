@@ -50,8 +50,9 @@ export default function FederationCreatePage() {
           <h2 className="text-lg font-semibold text-gray-900">General</h2>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Name *</label>
+            <label htmlFor="field-federation-name" className="mb-1.5 block text-sm font-medium text-gray-700">Name *</label>
             <input
+              id="field-federation-name"
               type="text"
               required
               value={form.name}
@@ -66,8 +67,9 @@ export default function FederationCreatePage() {
           <h2 className="text-lg font-semibold text-gray-900">Connection</h2>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Connection URL *</label>
+            <label htmlFor="field-federation-connectionUrl" className="mb-1.5 block text-sm font-medium text-gray-700">Connection URL *</label>
             <input
+              id="field-federation-connectionUrl"
               type="text"
               required
               value={form.connectionUrl}
@@ -79,8 +81,9 @@ export default function FederationCreatePage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Bind DN *</label>
+              <label htmlFor="field-federation-bindDn" className="mb-1.5 block text-sm font-medium text-gray-700">Bind DN *</label>
               <input
+                id="field-federation-bindDn"
                 type="text"
                 required
                 value={form.bindDn}
@@ -90,8 +93,9 @@ export default function FederationCreatePage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Bind Credential *</label>
+              <label htmlFor="field-federation-bindCredential" className="mb-1.5 block text-sm font-medium text-gray-700">Bind Credential *</label>
               <PasswordInput
+                id="field-federation-bindCredential"
                 required
                 value={form.bindCredential}
                 onChange={(e) => set('bindCredential', e.target.value)}
@@ -101,8 +105,9 @@ export default function FederationCreatePage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Users DN *</label>
+            <label htmlFor="field-federation-usersDn" className="mb-1.5 block text-sm font-medium text-gray-700">Users DN *</label>
             <input
+              id="field-federation-usersDn"
               type="text"
               required
               value={form.usersDn}

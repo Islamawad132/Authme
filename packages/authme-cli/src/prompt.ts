@@ -43,6 +43,15 @@ export async function askPassword(question: string): Promise<string> {
       }
     };
     stdin.on('data', onData);
+
+    const onEnd = () => {
+      if (stdin.setRawMode) stdin.setRawMode(false);
+      stdin.pause();
+      stdin.removeListener('data', onData);
+      stdin.removeListener('end', onEnd);
+      reject(new Error('stdin closed unexpectedly (EOF)'));
+    };
+    stdin.on('end', onEnd);
   });
 }
 

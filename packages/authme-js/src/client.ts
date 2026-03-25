@@ -573,144 +573,144 @@ export class AuthmeClient {
       return this.rotationRefresh();
     }
 
-    return new Promise(async (resolve, reject) => {
-      try {
-        const oidcConfig = await this.getOidcConfig();
-        const verifier = generateCodeVerifier();
-        const challenge = await generateCodeChallenge(verifier);
-        const state = generateState();
-        const nonce = generateState();
+    return this._silentRefreshAsync();
+  }
 
-        // Store PKCE state for callback
-        this.storage.set('silent_pkce_verifier', verifier);
-        this.storage.set('silent_auth_state', state);
+  private async _silentRefreshAsync(): Promise<TokenResponse> {
+    const oidcConfig = await this.getOidcConfig();
+    const verifier = generateCodeVerifier();
+    const challenge = await generateCodeChallenge(verifier);
+    const state = generateState();
+    const nonce = generateState();
 
-        // Resolve the redirect URI for the silent-refresh iframe.  A dedicated
-        // silentRedirectUri (pointing at a page that calls handleSilentCallback)
-        // is strongly recommended.  Falling back to the main redirectUri works
-        // only if that page also posts the authme:silent_callback message.
-        let silentRedirectUri: string;
-        if (this.config.silentRedirectUri) {
-          silentRedirectUri = this.config.silentRedirectUri;
-        } else {
-          console.warn(
-            '[authme] silentRedirectUri is not set. ' +
-              'Falling back to redirectUri for the silent-refresh iframe. ' +
-              'Set silentRedirectUri to a dedicated page that calls handleSilentCallback().',
-          );
-          silentRedirectUri = this.config.redirectUri;
+    // Store PKCE state for callback
+    this.storage.set('silent_pkce_verifier', verifier);
+    this.storage.set('silent_auth_state', state);
+
+    // Resolve the redirect URI for the silent-refresh iframe.  A dedicated
+    // silentRedirectUri (pointing at a page that calls handleSilentCallback)
+    // is strongly recommended.  Falling back to the main redirectUri works
+    // only if that page also posts the authme:silent_callback message.
+    let silentRedirectUri: string;
+    if (this.config.silentRedirectUri) {
+      silentRedirectUri = this.config.silentRedirectUri;
+    } else {
+      console.warn(
+        '[authme] silentRedirectUri is not set. ' +
+          'Falling back to redirectUri for the silent-refresh iframe. ' +
+          'Set silentRedirectUri to a dedicated page that calls handleSilentCallback().',
+      );
+      silentRedirectUri = this.config.redirectUri;
+    }
+
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: this.config.clientId,
+      redirect_uri: silentRedirectUri,
+      scope: this.config.scopes.join(' '),
+      state,
+      nonce,
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+      prompt: 'none',
+    });
+
+    const authUrl = `${oidcConfig.authorization_endpoint}?${params.toString()}`;
+
+    // Remove old iframe if present
+    if (this.silentRefreshIframe) {
+      document.body.removeChild(this.silentRefreshIframe);
+      this.silentRefreshIframe = null;
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    this.silentRefreshIframe = iframe;
+
+    return new Promise<TokenResponse>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error('Silent refresh timed out'));
+      }, 10000);
+
+      const onMessage = async (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        if (!event.data?.type || event.data.type !== 'authme:silent_callback') return;
+
+        cleanup();
+
+        const { code, state: returnedState, error } = event.data;
+
+        if (error) {
+          reject(new Error(error));
+          return;
         }
 
-        const params = new URLSearchParams({
-          response_type: 'code',
-          client_id: this.config.clientId,
-          redirect_uri: silentRedirectUri,
-          scope: this.config.scopes.join(' '),
-          state,
-          nonce,
-          code_challenge: challenge,
-          code_challenge_method: 'S256',
-          prompt: 'none',
-        });
+        const storedState = this.storage.get('silent_auth_state');
+        if (!storedState || returnedState !== storedState) {
+          reject(new Error('Silent refresh state mismatch'));
+          return;
+        }
 
-        const authUrl = `${oidcConfig.authorization_endpoint}?${params.toString()}`;
+        const storedVerifier = this.storage.get('silent_pkce_verifier');
+        if (!storedVerifier || !code) {
+          reject(new Error('Missing silent refresh PKCE data'));
+          return;
+        }
 
-        // Remove old iframe if present
+        this.storage.remove('silent_pkce_verifier');
+        this.storage.remove('silent_auth_state');
+
+        try {
+          const body = new URLSearchParams({
+            grant_type: 'authorization_code',
+            code,
+            redirect_uri: silentRedirectUri,
+            client_id: this.config.clientId,
+            code_verifier: storedVerifier,
+          });
+
+          const response = await fetch(oidcConfig.token_endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+          });
+
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({ error: 'silent_refresh_failed' }));
+            reject(new Error(err.error_description ?? err.error));
+            return;
+          }
+
+          const tokens: TokenResponse = await response.json();
+          this.storeTokens(tokens);
+          this.scheduleRefresh();
+          this.events.emit('tokenRefresh', tokens);
+          this.events.emit('tokenRefreshed', tokens);
+          resolve(tokens);
+        } catch (err) {
+          reject(err);
+        }
+      };
+
+      const cleanup = () => {
+        clearTimeout(timeout);
+        window.removeEventListener('message', onMessage);
         if (this.silentRefreshIframe) {
-          document.body.removeChild(this.silentRefreshIframe);
+          try {
+            document.body.removeChild(this.silentRefreshIframe);
+          } catch {
+            // Ignore
+          }
           this.silentRefreshIframe = null;
         }
+      };
 
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        this.silentRefreshIframe = iframe;
-
-        const timeout = setTimeout(() => {
-          cleanup();
-          reject(new Error('Silent refresh timed out'));
-        }, 10000);
-
-        const onMessage = async (event: MessageEvent) => {
-          if (event.origin !== window.location.origin) return;
-          if (!event.data?.type || event.data.type !== 'authme:silent_callback') return;
-
-          cleanup();
-
-          const { code, state: returnedState, error } = event.data;
-
-          if (error) {
-            reject(new Error(error));
-            return;
-          }
-
-          const storedState = this.storage.get('silent_auth_state');
-          if (!storedState || returnedState !== storedState) {
-            reject(new Error('Silent refresh state mismatch'));
-            return;
-          }
-
-          const storedVerifier = this.storage.get('silent_pkce_verifier');
-          if (!storedVerifier || !code) {
-            reject(new Error('Missing silent refresh PKCE data'));
-            return;
-          }
-
-          this.storage.remove('silent_pkce_verifier');
-          this.storage.remove('silent_auth_state');
-
-          try {
-            const body = new URLSearchParams({
-              grant_type: 'authorization_code',
-              code,
-              redirect_uri: silentRedirectUri,
-              client_id: this.config.clientId,
-              code_verifier: storedVerifier,
-            });
-
-            const response = await fetch(oidcConfig.token_endpoint, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: body.toString(),
-            });
-
-            if (!response.ok) {
-              const err = await response.json().catch(() => ({ error: 'silent_refresh_failed' }));
-              reject(new Error(err.error_description ?? err.error));
-              return;
-            }
-
-            const tokens: TokenResponse = await response.json();
-            this.storeTokens(tokens);
-            this.scheduleRefresh();
-            this.events.emit('tokenRefresh', tokens);
-            this.events.emit('tokenRefreshed', tokens);
-            resolve(tokens);
-          } catch (err) {
-            reject(err);
-          }
-        };
-
-        const cleanup = () => {
-          clearTimeout(timeout);
-          window.removeEventListener('message', onMessage);
-          if (this.silentRefreshIframe) {
-            try {
-              document.body.removeChild(this.silentRefreshIframe);
-            } catch {
-              // Ignore
-            }
-            this.silentRefreshIframe = null;
-          }
-        };
-
-        window.addEventListener('message', onMessage);
-        document.body.appendChild(iframe);
-        iframe.src = authUrl;
-      } catch (err) {
-        reject(err);
-      }
+      window.addEventListener('message', onMessage);
+      document.body.appendChild(iframe);
+      iframe.src = authUrl;
     });
   }
 

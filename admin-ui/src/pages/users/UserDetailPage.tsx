@@ -268,8 +268,9 @@ export default function UserDetailPage() {
         <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Username</label>
+          <label htmlFor="field-user-username" className="mb-1.5 block text-sm font-medium text-gray-700">Username</label>
           <input
+            id="field-user-username"
             type="text"
             value={user.username}
             disabled
@@ -279,8 +280,9 @@ export default function UserDetailPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Email</label>
+            <label htmlFor="field-user-email" className="mb-1.5 block text-sm font-medium text-gray-700">Email</label>
             <input
+              id="field-user-email"
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -303,8 +305,9 @@ export default function UserDetailPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">First Name</label>
+            <label htmlFor="field-user-firstName" className="mb-1.5 block text-sm font-medium text-gray-700">First Name</label>
             <input
+              id="field-user-firstName"
               type="text"
               value={form.firstName}
               onChange={(e) => setForm({ ...form, firstName: e.target.value })}
@@ -312,8 +315,9 @@ export default function UserDetailPage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Last Name</label>
+            <label htmlFor="field-user-lastName" className="mb-1.5 block text-sm font-medium text-gray-700">Last Name</label>
             <input
+              id="field-user-lastName"
               type="text"
               value={form.lastName}
               onChange={(e) => setForm({ ...form, lastName: e.target.value })}
@@ -363,8 +367,9 @@ export default function UserDetailPage() {
         <h2 className="text-lg font-semibold text-gray-900">Set Password</h2>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">New Password</label>
+          <label htmlFor="field-user-newPassword" className="mb-1.5 block text-sm font-medium text-gray-700">New Password</label>
           <PasswordInput
+            id="field-user-newPassword"
             required
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -471,10 +476,11 @@ export default function UserDetailPage() {
         {availableRoles.length > 0 && (
           <div className="flex items-end gap-3 border-t border-gray-200 pt-4">
             <div className="flex-1">
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label htmlFor="field-user-addRole" className="mb-1.5 block text-sm font-medium text-gray-700">
                 Add Role
               </label>
               <select
+                id="field-user-addRole"
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
@@ -505,8 +511,9 @@ export default function UserDetailPage() {
 
         {/* Client selector */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Client</label>
+          <label htmlFor="field-user-client" className="mb-1.5 block text-sm font-medium text-gray-700">Client</label>
           <select
+            id="field-user-client"
             value={selectedClientId}
             onChange={(e) => {
               setSelectedClientId(e.target.value);
@@ -562,10 +569,11 @@ export default function UserDetailPage() {
               return availableClientRoles.length > 0 ? (
                 <div className="flex items-end gap-3 border-t border-gray-200 pt-4">
                   <div className="flex-1">
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    <label htmlFor="field-user-addClientRole" className="mb-1.5 block text-sm font-medium text-gray-700">
                       Add Client Role
                     </label>
                     <select
+                      id="field-user-addClientRole"
                       value={selectedClientRole}
                       onChange={(e) => setSelectedClientRole(e.target.value)}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
@@ -629,10 +637,11 @@ export default function UserDetailPage() {
         {availableGroups.length > 0 && (
           <div className="flex items-end gap-3 border-t border-gray-200 pt-4">
             <div className="flex-1">
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label htmlFor="field-user-addToGroup" className="mb-1.5 block text-sm font-medium text-gray-700">
                 Add to Group
               </label>
               <select
+                id="field-user-addToGroup"
                 value={selectedGroup}
                 onChange={(e) => setSelectedGroup(e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"

@@ -273,7 +273,15 @@ public final class AuthMeClient: NSObject {
         let (data, response) = try await urlSession.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            storage.clear()
+            // Only clear stored tokens when the server definitively rejects the
+            // refresh token (4xx — e.g. invalid_grant, revoked token).  On 5xx
+            // or network errors the tokens may still be valid; clearing them
+            // would silently log the user out due to a transient server problem.
+            if let httpResponse = response as? HTTPURLResponse,
+               httpResponse.statusCode >= 400,
+               httpResponse.statusCode < 500 {
+                storage.clear()
+            }
             let message = parseError(from: data) ?? "Token refresh failed"
             throw AuthMeError.serverError(message)
         }

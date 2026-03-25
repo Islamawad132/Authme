@@ -210,8 +210,9 @@ export default function ClientDetailPage() {
         <h2 className="text-lg font-semibold text-gray-900">Settings</h2>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Client ID</label>
+          <label htmlFor="field-client-clientId" className="mb-1.5 block text-sm font-medium text-gray-700">Client ID</label>
           <input
+            id="field-client-clientId"
             type="text"
             value={client.clientId}
             disabled
@@ -220,8 +221,9 @@ export default function ClientDetailPage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Client Type</label>
+          <label htmlFor="field-client-clientType" className="mb-1.5 block text-sm font-medium text-gray-700">Client Type</label>
           <input
+            id="field-client-clientType"
             type="text"
             value={client.clientType}
             disabled
@@ -231,8 +233,9 @@ export default function ClientDetailPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Name</label>
+            <label htmlFor="field-client-name" className="mb-1.5 block text-sm font-medium text-gray-700">Name</label>
             <input
+              id="field-client-name"
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -240,8 +243,9 @@ export default function ClientDetailPage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Description</label>
+            <label htmlFor="field-client-description" className="mb-1.5 block text-sm font-medium text-gray-700">Description</label>
             <input
+              id="field-client-description"
               type="text"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -251,10 +255,11 @@ export default function ClientDetailPage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="field-client-redirectUris" className="mb-1.5 block text-sm font-medium text-gray-700">
             Redirect URIs (one per line)
           </label>
           <textarea
+            id="field-client-redirectUris"
             value={form.redirectUris}
             onChange={(e) => setForm({ ...form, redirectUris: e.target.value })}
             rows={3}
@@ -263,10 +268,11 @@ export default function ClientDetailPage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="field-client-webOrigins" className="mb-1.5 block text-sm font-medium text-gray-700">
             Web Origins (one per line)
           </label>
           <textarea
+            id="field-client-webOrigins"
             value={form.webOrigins}
             onChange={(e) => setForm({ ...form, webOrigins: e.target.value })}
             rows={2}
@@ -275,10 +281,11 @@ export default function ClientDetailPage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="field-client-grantTypes" className="mb-1.5 block text-sm font-medium text-gray-700">
             Grant Types (comma-separated)
           </label>
           <input
+            id="field-client-grantTypes"
             type="text"
             value={form.grantTypes}
             onChange={(e) => setForm({ ...form, grantTypes: e.target.value })}
@@ -316,10 +323,11 @@ export default function ClientDetailPage() {
         <div className="border-t border-gray-200 pt-4">
           <h3 className="mb-3 text-sm font-semibold text-gray-900">Backchannel Logout</h3>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label htmlFor="field-client-backchannelLogoutUri" className="mb-1.5 block text-sm font-medium text-gray-700">
               Backchannel Logout URI
             </label>
             <input
+              id="field-client-backchannelLogoutUri"
               type="url"
               value={form.backchannelLogoutUri}
               onChange={(e) => setForm({ ...form, backchannelLogoutUri: e.target.value })}
@@ -440,8 +448,9 @@ export default function ClientDetailPage() {
         {availableForDefault.length > 0 && (
           <div className="flex items-end gap-3 border-t border-gray-200 pt-4">
             <div className="flex-1">
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Add Default Scope</label>
+              <label htmlFor="field-client-addDefaultScope" className="mb-1.5 block text-sm font-medium text-gray-700">Add Default Scope</label>
               <select
+                id="field-client-addDefaultScope"
                 value={selectedDefaultScope}
                 onChange={(e) => setSelectedDefaultScope(e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
@@ -495,8 +504,9 @@ export default function ClientDetailPage() {
         {availableForOptional.length > 0 && (
           <div className="flex items-end gap-3 border-t border-gray-200 pt-4">
             <div className="flex-1">
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Add Optional Scope</label>
+              <label htmlFor="field-client-addOptionalScope" className="mb-1.5 block text-sm font-medium text-gray-700">Add Optional Scope</label>
               <select
+                id="field-client-addOptionalScope"
                 value={selectedOptionalScope}
                 onChange={(e) => setSelectedOptionalScope(e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"

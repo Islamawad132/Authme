@@ -1,13 +1,19 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
 import * as argon2 from 'argon2';
 import { generateKeyPair, exportJWK } from 'jose';
 import { randomUUID, randomBytes } from 'crypto';
 
-const adapter = new PrismaPg({
-  connectionString: process.env['DATABASE_URL'],
-});
-const prisma = new PrismaClient({ adapter });
+// Use the PrismaPg adapter only for PostgreSQL connections.
+// For SQLite (DATABASE_URL starts with "file:") no adapter is needed.
+const databaseUrl = process.env['DATABASE_URL'] ?? '';
+let prisma: PrismaClient;
+if (databaseUrl.startsWith('file:')) {
+  prisma = new PrismaClient();
+} else {
+  const { PrismaPg } = await import('@prisma/adapter-pg');
+  const adapter = new PrismaPg({ connectionString: databaseUrl });
+  prisma = new PrismaClient({ adapter });
+}
 
 async function exportKeyToPem(
   key: CryptoKey,
@@ -107,7 +113,6 @@ async function main() {
       grantTypes: [
         'authorization_code',
         'client_credentials',
-        'password',
         'refresh_token',
       ],
     },
@@ -159,15 +164,21 @@ async function main() {
 
   console.log(`  Roles assigned: admin, user`);
   console.log('\nSeed completed!');
-  console.log('\nQuick test:');
+  console.log('\nQuick test (authorization_code flow):');
+  console.log('  1. Direct the user to the authorization endpoint:');
+  console.log(
+    `     http://localhost:3000/realms/test/protocol/openid-connect/auth?response_type=code&client_id=test-client&redirect_uri=http://localhost:3000/callback&scope=openid`,
+  );
+  console.log('');
+  console.log('  2. After login, exchange the returned code for tokens:');
   console.log(
     `  curl -X POST http://localhost:3000/realms/test/protocol/openid-connect/token \\`,
   );
   console.log(
-    `    -H "Content-Type: application/json" \\`,
+    `    -H "Content-Type: application/x-www-form-urlencoded" \\`,
   );
   console.log(
-    `    -d '{"grant_type":"password","client_id":"test-client","client_secret":"${rawSecret}","username":"testuser","password":"password123"}'`,
+    `    -d 'grant_type=authorization_code&client_id=test-client&client_secret=${rawSecret}&code=<CODE>&redirect_uri=http://localhost:3000/callback'`,
   );
 }
 
