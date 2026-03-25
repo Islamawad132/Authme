@@ -83,16 +83,21 @@ export class ClientScopesService {
 
   async addMapper(realm: Realm, scopeId: string, data: {
     name: string;
-    mapperType: string;
+    mapperType?: string;
+    protocolMapper?: string;
     protocol?: string;
     config?: Record<string, unknown>;
   }) {
+    const resolvedMapperType = data.mapperType ?? data.protocolMapper;
+    if (!resolvedMapperType) {
+      throw new Error('mapperType (or protocolMapper) is required');
+    }
     await this.findById(realm, scopeId);
     return this.prisma.protocolMapper.create({
       data: {
         clientScopeId: scopeId,
         name: data.name,
-        mapperType: data.mapperType,
+        mapperType: resolvedMapperType,
         protocol: data.protocol ?? 'openid-connect',
         config: (data.config ?? {}) as unknown as Prisma.InputJsonValue,
       },

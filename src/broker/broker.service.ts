@@ -47,6 +47,13 @@ export class BrokerService {
     alias: string,
     params: { client_id: string; redirect_uri: string; scope?: string; state?: string; nonce?: string },
   ): Promise<string> {
+    if (!params.client_id) {
+      throw new BadRequestException('client_id is required');
+    }
+    if (!params.redirect_uri) {
+      throw new BadRequestException('redirect_uri is required');
+    }
+
     const idp = await this.idpService.findByAlias(realm, alias);
     if (!idp.enabled) {
       throw new BadRequestException(`Identity provider '${alias}' is disabled`);

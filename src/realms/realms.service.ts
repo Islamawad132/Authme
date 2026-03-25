@@ -66,16 +66,46 @@ export class RealmsService {
         failureResetTime: dto.failureResetTime,
         permanentLockoutAfter: dto.permanentLockoutAfter,
         registrationAllowed: dto.registrationAllowed,
+        requireEmailVerification: dto.requireEmailVerification,
         mfaRequired: dto.mfaRequired,
         offlineTokenLifespan: dto.offlineTokenLifespan,
         eventsEnabled: dto.eventsEnabled,
         eventsExpiration: dto.eventsExpiration,
         adminEventsEnabled: dto.adminEventsEnabled,
+        // Rate limiting
+        rateLimitEnabled: dto.rateLimitEnabled,
+        clientRateLimitPerMinute: dto.clientRateLimitPerMinute,
+        clientRateLimitPerHour: dto.clientRateLimitPerHour,
+        userRateLimitPerMinute: dto.userRateLimitPerMinute,
+        userRateLimitPerHour: dto.userRateLimitPerHour,
+        ipRateLimitPerMinute: dto.ipRateLimitPerMinute,
+        ipRateLimitPerHour: dto.ipRateLimitPerHour,
+        // Session management
+        maxSessionsPerUser: dto.maxSessionsPerUser,
+        // Theming
         themeName: dto.themeName,
         theme: dto.theme !== undefined ? dto.theme as unknown as Prisma.InputJsonValue : undefined,
         loginTheme: dto.loginTheme,
         accountTheme: dto.accountTheme,
         emailTheme: dto.emailTheme,
+        // Impersonation
+        impersonationEnabled: dto.impersonationEnabled,
+        impersonationMaxDuration: dto.impersonationMaxDuration,
+        // WebAuthn / passkeys
+        webAuthnEnabled: dto.webAuthnEnabled,
+        webAuthnRpName: dto.webAuthnRpName,
+        webAuthnRpId: dto.webAuthnRpId,
+        // Adaptive authentication
+        adaptiveAuthEnabled: dto.adaptiveAuthEnabled,
+        riskThresholdStepUp: dto.riskThresholdStepUp,
+        riskThresholdBlock: dto.riskThresholdBlock,
+        // Localisation
+        defaultLocale: dto.defaultLocale,
+        supportedLocales: dto.supportedLocales,
+        // Legal / registration controls
+        termsOfServiceUrl: dto.termsOfServiceUrl,
+        registrationApprovalRequired: dto.registrationApprovalRequired,
+        allowedEmailDomains: dto.allowedEmailDomains,
         signingKeys: {
           create: {
             kid: keyPair.kid,

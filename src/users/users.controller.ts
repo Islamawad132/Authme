@@ -90,7 +90,7 @@ export class UsersController {
     @CurrentRealm() realm: Realm,
     @Query() query: ListUsersQueryDto,
   ) {
-    return this.usersService.findAll(realm, query.skip ?? 0, query.limit ?? 50, {
+    return this.usersService.findAll(realm, query.skip ?? 0, query.limit ?? 20, {
       search: query.search,
       username: query.username,
       email: query.email,

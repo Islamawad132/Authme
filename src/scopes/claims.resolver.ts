@@ -32,8 +32,10 @@ export function resolveUserClaims(
     email_verified: user.emailVerified,
   };
 
-  const filtered: Record<string, unknown> = {};
+  // `sub` is mandatory in every OIDC response — always include it.
+  const filtered: Record<string, unknown> = { sub: user.id };
   for (const [key, value] of Object.entries(allClaims)) {
+    if (key === 'sub') continue; // already set above
     if (allowedClaims.has(key) && value !== undefined) {
       filtered[key] = value;
     }

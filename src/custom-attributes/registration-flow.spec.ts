@@ -56,13 +56,12 @@ describe('resolveUserClaims with custom attribute OIDC claims', () => {
     expect(claims['email']).toBe('john@example.com');
   });
 
-  it('should include sub regardless of allowed claims', () => {
-    // sub is always set at the service level, not via resolveUserClaims
-    // verify that it does not appear in filtered when not in allowedClaims
+  it('should always include sub per OIDC Core §5.3', () => {
+    // sub is mandatory in every userinfo response regardless of requested scopes
     const allowed = new Set<string>();
     const claims = resolveUserClaims(baseUser, allowed);
 
-    expect(claims['sub']).toBeUndefined();
+    expect(claims['sub']).toBe('user-1');
     expect(claims['preferred_username']).toBeUndefined();
   });
 });

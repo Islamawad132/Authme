@@ -16,4 +16,9 @@ export class CreateGroupDto {
   @IsOptional()
   @IsUUID()
   parentId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  path?: string;
 }
