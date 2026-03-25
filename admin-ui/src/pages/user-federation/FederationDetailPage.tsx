@@ -235,8 +235,9 @@ export default function FederationDetailPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Name *</label>
+              <label htmlFor="field-federation-name" className="mb-1.5 block text-sm font-medium text-gray-700">Name *</label>
               <input
+                id="field-federation-name"
                 type="text"
                 required
                 value={form.name}
@@ -245,8 +246,9 @@ export default function FederationDetailPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Priority</label>
+              <label htmlFor="field-federation-priority" className="mb-1.5 block text-sm font-medium text-gray-700">Priority</label>
               <input
+                id="field-federation-priority"
                 type="number"
                 value={form.priority}
                 onChange={(e) => set('priority', parseInt(e.target.value, 10) || 0)}
@@ -274,8 +276,9 @@ export default function FederationDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900">Connection</h2>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Connection URL *</label>
+            <label htmlFor="field-federation-connectionUrl" className="mb-1.5 block text-sm font-medium text-gray-700">Connection URL *</label>
             <input
+              id="field-federation-connectionUrl"
               type="text"
               required
               value={form.connectionUrl}
@@ -287,8 +290,9 @@ export default function FederationDetailPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Bind DN *</label>
+              <label htmlFor="field-federation-bindDn" className="mb-1.5 block text-sm font-medium text-gray-700">Bind DN *</label>
               <input
+                id="field-federation-bindDn"
                 type="text"
                 required
                 value={form.bindDn}
@@ -298,8 +302,9 @@ export default function FederationDetailPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Bind Credential *</label>
+              <label htmlFor="field-federation-bindCredential" className="mb-1.5 block text-sm font-medium text-gray-700">Bind Credential *</label>
               <PasswordInput
+                id="field-federation-bindCredential"
                 required
                 value={form.bindCredential}
                 onChange={(e) => set('bindCredential', e.target.value)}
@@ -322,8 +327,9 @@ export default function FederationDetailPage() {
               </label>
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Connection Timeout (ms)</label>
+              <label htmlFor="field-federation-connectionTimeout" className="mb-1.5 block text-sm font-medium text-gray-700">Connection Timeout (ms)</label>
               <input
+                id="field-federation-connectionTimeout"
                 type="number"
                 value={form.connectionTimeout}
                 onChange={(e) => set('connectionTimeout', parseInt(e.target.value, 10) || 0)}
@@ -338,8 +344,9 @@ export default function FederationDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900">User Search</h2>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Users DN *</label>
+            <label htmlFor="field-federation-usersDn" className="mb-1.5 block text-sm font-medium text-gray-700">Users DN *</label>
             <input
+              id="field-federation-usersDn"
               type="text"
               required
               value={form.usersDn}
@@ -351,8 +358,9 @@ export default function FederationDetailPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">User Object Class</label>
+              <label htmlFor="field-federation-userObjectClass" className="mb-1.5 block text-sm font-medium text-gray-700">User Object Class</label>
               <input
+                id="field-federation-userObjectClass"
                 type="text"
                 value={form.userObjectClass}
                 onChange={(e) => set('userObjectClass', e.target.value)}
@@ -360,8 +368,9 @@ export default function FederationDetailPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Username LDAP Attribute</label>
+              <label htmlFor="field-federation-usernameLdapAttr" className="mb-1.5 block text-sm font-medium text-gray-700">Username LDAP Attribute</label>
               <input
+                id="field-federation-usernameLdapAttr"
                 type="text"
                 value={form.usernameLdapAttr}
                 onChange={(e) => set('usernameLdapAttr', e.target.value)}
@@ -372,8 +381,9 @@ export default function FederationDetailPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">RDN LDAP Attribute</label>
+              <label htmlFor="field-federation-rdnLdapAttr" className="mb-1.5 block text-sm font-medium text-gray-700">RDN LDAP Attribute</label>
               <input
+                id="field-federation-rdnLdapAttr"
                 type="text"
                 value={form.rdnLdapAttr}
                 onChange={(e) => set('rdnLdapAttr', e.target.value)}
@@ -381,8 +391,9 @@ export default function FederationDetailPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">UUID LDAP Attribute</label>
+              <label htmlFor="field-federation-uuidLdapAttr" className="mb-1.5 block text-sm font-medium text-gray-700">UUID LDAP Attribute</label>
               <input
+                id="field-federation-uuidLdapAttr"
                 type="text"
                 value={form.uuidLdapAttr}
                 onChange={(e) => set('uuidLdapAttr', e.target.value)}
@@ -392,8 +403,9 @@ export default function FederationDetailPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Search Filter</label>
+            <label htmlFor="field-federation-searchFilter" className="mb-1.5 block text-sm font-medium text-gray-700">Search Filter</label>
             <input
+              id="field-federation-searchFilter"
               type="text"
               value={form.searchFilter}
               onChange={(e) => set('searchFilter', e.target.value)}
@@ -409,8 +421,9 @@ export default function FederationDetailPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Sync Mode</label>
+              <label htmlFor="field-federation-syncMode" className="mb-1.5 block text-sm font-medium text-gray-700">Sync Mode</label>
               <select
+                id="field-federation-syncMode"
                 value={form.syncMode}
                 onChange={(e) => set('syncMode', e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
@@ -421,8 +434,9 @@ export default function FederationDetailPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Sync Period (seconds)</label>
+              <label htmlFor="field-federation-syncPeriod" className="mb-1.5 block text-sm font-medium text-gray-700">Sync Period (seconds)</label>
               <input
+                id="field-federation-syncPeriod"
                 type="number"
                 value={form.syncPeriod}
                 onChange={(e) => set('syncPeriod', parseInt(e.target.value, 10) || 0)}
@@ -433,8 +447,9 @@ export default function FederationDetailPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Edit Mode</label>
+              <label htmlFor="field-federation-editMode" className="mb-1.5 block text-sm font-medium text-gray-700">Edit Mode</label>
               <select
+                id="field-federation-editMode"
                 value={form.editMode}
                 onChange={(e) => set('editMode', e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"

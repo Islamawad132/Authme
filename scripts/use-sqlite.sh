@@ -8,7 +8,7 @@
 #   1. Backs up the current prisma/schema.prisma → prisma/schema.prisma.bak
 #      (unless it is already a backup restore cycle).
 #   2. Copies prisma/schema.sqlite.prisma → prisma/schema.prisma
-#   3. Updates prisma.config.ts to reference the SQLite schema file path.
+#   3. Updates prisma/migrations/migration_lock.toml provider to "sqlite".
 #   4. Prints next steps.
 #
 # Usage:

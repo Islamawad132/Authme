@@ -162,8 +162,9 @@ export async function getServerUser(
   if (!session) return null;
 
   const { payload } = session;
+  if (!payload.sub) return null;
   return {
-    sub: payload.sub!,
+    sub: payload.sub,
     preferred_username: payload.preferred_username,
     name: payload.name,
     given_name: payload.given_name,

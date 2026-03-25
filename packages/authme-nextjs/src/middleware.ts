@@ -91,9 +91,13 @@ function isTokenExpiredLocally(token: string): boolean {
     // Validate the payload segment contains only valid base64url characters.
     if (!/^[A-Za-z0-9_-]+$/.test(payloadB64)) return true;
 
-    const json = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
+    const paddedPayload = payloadB64.padEnd(
+      payloadB64.length + (4 - (payloadB64.length % 4)) % 4,
+      '=',
+    );
+    const json = atob(paddedPayload.replace(/-/g, '+').replace(/_/g, '/'));
     const payload = JSON.parse(json) as { exp?: number };
-    if (!payload.exp) return false;
+    if (payload.exp === undefined) return true;
     return Date.now() / 1000 > payload.exp;
   } catch {
     return true;

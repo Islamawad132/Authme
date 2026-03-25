@@ -106,7 +106,15 @@ export function registerRealmCommands(program: Command): void {
     .option('--overwrite', 'Overwrite if realm already exists')
     .option('--json', 'Output as JSON')
     .action(async (file: string, opts) => {
-      const raw = readFileSync(file, 'utf-8');
+      let raw: string;
+      try {
+        raw = readFileSync(file, 'utf-8');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`Error: could not read file "${file}": ${msg}`);
+        process.exitCode = 1;
+        return;
+      }
       let body: unknown;
       try {
         body = JSON.parse(raw);

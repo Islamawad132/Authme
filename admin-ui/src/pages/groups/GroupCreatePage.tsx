@@ -44,10 +44,11 @@ export default function GroupCreatePage() {
 
       <form onSubmit={handleSubmit} className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="field-group-name" className="mb-1.5 block text-sm font-medium text-gray-700">
             Group Name *
           </label>
           <input
+            id="field-group-name"
             type="text"
             required
             value={form.name}
@@ -57,10 +58,11 @@ export default function GroupCreatePage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="field-group-description" className="mb-1.5 block text-sm font-medium text-gray-700">
             Description
           </label>
           <textarea
+            id="field-group-description"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             rows={3}
@@ -69,10 +71,11 @@ export default function GroupCreatePage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label htmlFor="field-group-parentId" className="mb-1.5 block text-sm font-medium text-gray-700">
             Parent Group
           </label>
           <select
+            id="field-group-parentId"
             value={form.parentId}
             onChange={(e) => setForm({ ...form, parentId: e.target.value })}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"

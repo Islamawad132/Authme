@@ -44,8 +44,9 @@ export default function SamlSpCreatePage() {
           <h2 className="text-lg font-semibold text-gray-900">General</h2>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Name *</label>
+            <label htmlFor="field-saml-name" className="mb-1.5 block text-sm font-medium text-gray-700">Name *</label>
             <input
+              id="field-saml-name"
               type="text"
               required
               value={form.name}
@@ -55,8 +56,9 @@ export default function SamlSpCreatePage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Entity ID *</label>
+            <label htmlFor="field-saml-entityId" className="mb-1.5 block text-sm font-medium text-gray-700">Entity ID *</label>
             <input
+              id="field-saml-entityId"
               type="text"
               required
               value={form.entityId}
@@ -67,8 +69,9 @@ export default function SamlSpCreatePage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">ACS URL *</label>
+            <label htmlFor="field-saml-acsUrl" className="mb-1.5 block text-sm font-medium text-gray-700">ACS URL *</label>
             <input
+              id="field-saml-acsUrl"
               type="url"
               required
               value={form.acsUrl}

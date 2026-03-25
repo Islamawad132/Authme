@@ -113,8 +113,9 @@ export default function SamlSpDetailPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Name *</label>
+              <label htmlFor="field-saml-name" className="mb-1.5 block text-sm font-medium text-gray-700">Name *</label>
               <input
+                id="field-saml-name"
                 type="text"
                 required
                 value={form.name}
@@ -137,8 +138,9 @@ export default function SamlSpDetailPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Entity ID *</label>
+            <label htmlFor="field-saml-entityId" className="mb-1.5 block text-sm font-medium text-gray-700">Entity ID *</label>
             <input
+              id="field-saml-entityId"
               type="text"
               required
               value={form.entityId}
@@ -153,8 +155,9 @@ export default function SamlSpDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900">Endpoints</h2>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">ACS URL *</label>
+            <label htmlFor="field-saml-acsUrl" className="mb-1.5 block text-sm font-medium text-gray-700">ACS URL *</label>
             <input
+              id="field-saml-acsUrl"
               type="url"
               required
               value={form.acsUrl}
@@ -165,8 +168,9 @@ export default function SamlSpDetailPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">SLO URL</label>
+            <label htmlFor="field-saml-sloUrl" className="mb-1.5 block text-sm font-medium text-gray-700">SLO URL</label>
             <input
+              id="field-saml-sloUrl"
               type="url"
               value={form.sloUrl}
               onChange={(e) => set('sloUrl', e.target.value)}
@@ -181,8 +185,9 @@ export default function SamlSpDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900">Security</h2>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Certificate</label>
+            <label htmlFor="field-saml-certificate" className="mb-1.5 block text-sm font-medium text-gray-700">Certificate</label>
             <textarea
+              id="field-saml-certificate"
               rows={4}
               value={form.certificate}
               onChange={(e) => set('certificate', e.target.value)}
@@ -213,8 +218,9 @@ export default function SamlSpDetailPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Name ID Format</label>
+            <label htmlFor="field-saml-nameIdFormat" className="mb-1.5 block text-sm font-medium text-gray-700">Name ID Format</label>
             <select
+              id="field-saml-nameIdFormat"
               value={form.nameIdFormat}
               onChange={(e) => set('nameIdFormat', e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"

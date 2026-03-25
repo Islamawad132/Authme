@@ -294,29 +294,6 @@ ${attrXml}
     return sig.getSignedXml();
   }
 
-  private extractXmlAttribute(
-    xml: string,
-    element: string,
-    attribute: string,
-  ): string | null {
-    // Match element tag (possibly with namespace prefix)
-    const tagRegex = new RegExp(
-      `<(?:[\\w-]+:)?${element}[^>]*\\s${attribute}\\s*=\\s*"([^"]*)"`,
-      's',
-    );
-    const match = xml.match(tagRegex);
-    return match?.[1] ?? null;
-  }
-
-  private extractXmlElement(xml: string, element: string): string | null {
-    const regex = new RegExp(
-      `<(?:[\\w-]+:)?${element}[^>]*>([^<]*)</(?:[\\w-]+:)?${element}>`,
-      's',
-    );
-    const match = xml.match(regex);
-    return match?.[1]?.trim() ?? null;
-  }
-
   private escapeXml(str: string): string {
     return str
       .replace(/&/g, '&amp;')

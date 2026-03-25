@@ -228,18 +228,67 @@ export class PluginLoaderService {
 
   /**
    * Look up the expected hash for a plugin file from the manifest.
-   * The manifest is a JSON file at `plugins/.manifest.json` mapping
-   * file paths to their SHA-256 hashes.
+   *
+   * Two manifest locations are checked in order:
+   *  1. `plugins/.manifest.json`  — for plugins loaded from the local plugins/
+   *     directory (source === 'directory').
+   *  2. `node_modules/.authme-plugin-manifest.json` — for npm-installed plugins
+   *     (source === 'npm').  The npm manifest uses the npm package name as its
+   *     key (e.g. "authme-plugin-my-plugin") in addition to the full file path.
+   *
+   * Both manifests map file paths (absolute or relative) OR plugin names to
+   * their expected SHA-256 hashes.
    */
   private getManifestHash(filePath: string): string | null {
-    try {
-      const manifestPath = resolve(process.cwd(), 'plugins', '.manifest.json');
-      if (!existsSync(manifestPath)) return null;
-      const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as Record<string, string>;
-      // Try both absolute and relative path keys
-      return manifest[filePath] ?? manifest[resolve(filePath)] ?? null;
-    } catch {
-      return null;
+    const absoluteFilePath = resolve(filePath);
+
+    // Helper: look up a hash in a manifest file using several possible keys.
+    const lookupInManifest = (
+      manifestPath: string,
+      extraKeys: string[] = [],
+    ): string | null => {
+      try {
+        if (!existsSync(manifestPath)) return null;
+        const manifest = JSON.parse(
+          readFileSync(manifestPath, 'utf-8'),
+        ) as Record<string, string>;
+        // Try the provided path as-is, its resolved absolute form, then any
+        // extra keys (e.g. package name).
+        return (
+          manifest[filePath] ??
+          manifest[absoluteFilePath] ??
+          extraKeys.reduce<string | null>(
+            (found, key) => found ?? manifest[key] ?? null,
+            null,
+          ) ??
+          null
+        );
+      } catch {
+        return null;
+      }
+    };
+
+    // 1. Local plugins/ manifest
+    const localManifest = resolve(process.cwd(), 'plugins', '.manifest.json');
+    const localHash = lookupInManifest(localManifest);
+    if (localHash !== null) return localHash;
+
+    // 2. npm manifest — also try the package name derived from the path so
+    //    that entries like { "authme-plugin-foo": "<hash>" } are matched even
+    //    when the manifest was generated without full paths.
+    const npmManifest = resolve(
+      process.cwd(),
+      'node_modules',
+      '.authme-plugin-manifest.json',
+    );
+    // Extract package name: last segment of node_modules/<name>/...
+    const nmDir = resolve(process.cwd(), 'node_modules');
+    let packageName: string | undefined;
+    if (absoluteFilePath.startsWith(nmDir + '/')) {
+      packageName = absoluteFilePath
+        .slice(nmDir.length + 1)
+        .split('/')[0];
     }
+    return lookupInManifest(npmManifest, packageName ? [packageName] : []);
   }
 }

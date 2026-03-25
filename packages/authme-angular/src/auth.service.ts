@@ -167,6 +167,7 @@ export class AuthService implements OnDestroy {
       if (typeof window !== 'undefined') {
         const params = new URL(window.location.href).searchParams;
         if (params.has('code') && params.has('state')) {
+          await this.client.init();
           const success = await this.client.handleCallback();
           this._isAuthenticated$.next(success);
           if (success) this._user$.next(this.client.getUserInfo());

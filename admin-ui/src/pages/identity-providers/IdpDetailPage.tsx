@@ -131,8 +131,9 @@ export default function IdpDetailPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Alias</label>
+              <label htmlFor="field-idp-alias" className="mb-1.5 block text-sm font-medium text-gray-700">Alias</label>
               <input
+                id="field-idp-alias"
                 type="text"
                 value={idp.alias}
                 disabled
@@ -140,8 +141,9 @@ export default function IdpDetailPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Display Name</label>
+              <label htmlFor="field-idp-displayName" className="mb-1.5 block text-sm font-medium text-gray-700">Display Name</label>
               <input
+                id="field-idp-displayName"
                 type="text"
                 value={form.displayName}
                 onChange={(e) => set('displayName', e.target.value)}
@@ -152,8 +154,9 @@ export default function IdpDetailPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Provider Type</label>
+              <label htmlFor="field-idp-providerType" className="mb-1.5 block text-sm font-medium text-gray-700">Provider Type</label>
               <select
+                id="field-idp-providerType"
                 value={form.providerType}
                 onChange={(e) => set('providerType', e.target.value)}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
@@ -184,8 +187,9 @@ export default function IdpDetailPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Client ID</label>
+              <label htmlFor="field-idp-clientId" className="mb-1.5 block text-sm font-medium text-gray-700">Client ID</label>
               <input
+                id="field-idp-clientId"
                 type="text"
                 required
                 value={form.clientId}
@@ -194,8 +198,9 @@ export default function IdpDetailPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Client Secret</label>
+              <label htmlFor="field-idp-clientSecret" className="mb-1.5 block text-sm font-medium text-gray-700">Client Secret</label>
               <PasswordInput
+                id="field-idp-clientSecret"
                 required
                 value={form.clientSecret}
                 onChange={(e) => set('clientSecret', e.target.value)}
@@ -205,8 +210,9 @@ export default function IdpDetailPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Authorization URL</label>
+            <label htmlFor="field-idp-authorizationUrl" className="mb-1.5 block text-sm font-medium text-gray-700">Authorization URL</label>
             <input
+              id="field-idp-authorizationUrl"
               type="url"
               required
               value={form.authorizationUrl}
@@ -216,8 +222,9 @@ export default function IdpDetailPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Token URL</label>
+            <label htmlFor="field-idp-tokenUrl" className="mb-1.5 block text-sm font-medium text-gray-700">Token URL</label>
             <input
+              id="field-idp-tokenUrl"
               type="url"
               required
               value={form.tokenUrl}
@@ -228,8 +235,9 @@ export default function IdpDetailPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Userinfo URL</label>
+              <label htmlFor="field-idp-userinfoUrl" className="mb-1.5 block text-sm font-medium text-gray-700">Userinfo URL</label>
               <input
+                id="field-idp-userinfoUrl"
                 type="url"
                 value={form.userinfoUrl}
                 onChange={(e) => set('userinfoUrl', e.target.value)}
@@ -237,8 +245,9 @@ export default function IdpDetailPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">JWKS URL</label>
+              <label htmlFor="field-idp-jwksUrl" className="mb-1.5 block text-sm font-medium text-gray-700">JWKS URL</label>
               <input
+                id="field-idp-jwksUrl"
                 type="url"
                 value={form.jwksUrl}
                 onChange={(e) => set('jwksUrl', e.target.value)}
@@ -249,8 +258,9 @@ export default function IdpDetailPage() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Issuer</label>
+              <label htmlFor="field-idp-issuer" className="mb-1.5 block text-sm font-medium text-gray-700">Issuer</label>
               <input
+                id="field-idp-issuer"
                 type="text"
                 value={form.issuer}
                 onChange={(e) => set('issuer', e.target.value)}
@@ -258,8 +268,9 @@ export default function IdpDetailPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Default Scopes</label>
+              <label htmlFor="field-idp-defaultScopes" className="mb-1.5 block text-sm font-medium text-gray-700">Default Scopes</label>
               <input
+                id="field-idp-defaultScopes"
                 type="text"
                 value={form.defaultScopes}
                 onChange={(e) => set('defaultScopes', e.target.value)}

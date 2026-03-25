@@ -134,14 +134,30 @@ export function registerUserCommands(program: Command): void {
       // Parse file
       let users: BulkUserInput[];
       if (file.endsWith('.json')) {
-        const raw = readFileSync(file, 'utf-8');
+        let raw: string;
+        try {
+          raw = readFileSync(file, 'utf-8');
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`Error: could not read file "${file}": ${msg}`);
+          process.exitCode = 1;
+          return;
+        }
         const parsed: unknown = JSON.parse(raw);
         if (!Array.isArray(parsed)) {
           throw new Error('JSON file must contain an array of user objects.');
         }
         users = parsed as BulkUserInput[];
       } else if (file.endsWith('.csv')) {
-        const raw = readFileSync(file, 'utf-8');
+        let raw: string;
+        try {
+          raw = readFileSync(file, 'utf-8');
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`Error: could not read file "${file}": ${msg}`);
+          process.exitCode = 1;
+          return;
+        }
         users = parseCsv(raw) as unknown as BulkUserInput[];
       } else {
         throw new Error('Unsupported file format. Use .json or .csv');

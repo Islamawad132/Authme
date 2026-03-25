@@ -10,7 +10,7 @@ export interface AuthmeConfig {
   redirectUri: string;
   /** OAuth2 scopes to request (default: ["openid", "profile", "email"]) */
   scopes?: string[];
-  /** Storage type for tokens (default: "sessionStorage") */
+  /** Storage type for tokens (default: "memory") */
   storage?: 'sessionStorage' | 'localStorage' | 'memory';
   /** Automatically refresh tokens before expiry (default: true) */
   autoRefresh?: boolean;

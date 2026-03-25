@@ -42,6 +42,12 @@ export class DeprecationInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap(() => {
+        // Skip header injection when the response has already been committed
+        // (e.g. streaming / CSV export endpoints that write directly to res).
+        // Calling setHeader() after headers are sent causes ERR_HTTP_HEADERS_SENT.
+        if (response.headersSent) {
+          return;
+        }
         response.setHeader('Deprecation', DeprecationInterceptor.DEPRECATION_DATE);
         response.setHeader('Sunset', DeprecationInterceptor.SUNSET_DATE);
         response.setHeader(
