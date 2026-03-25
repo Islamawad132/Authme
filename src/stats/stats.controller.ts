@@ -1,5 +1,5 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { StatsService } from './stats.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
@@ -14,6 +14,8 @@ export class StatsController {
 
   @Get('stats')
   @ApiOperation({ summary: 'Get dashboard statistics for a realm' })
+  @ApiResponse({ status: 200, description: 'Realm dashboard statistics' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   getStats(@CurrentRealm() realm: Realm) {
     return this.statsService.getRealmStats(realm);
   }

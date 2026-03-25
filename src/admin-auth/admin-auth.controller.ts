@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body, Req, Res, UnauthorizedException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { Public } from '../common/decorators/public.decorator.js';
 import { AdminAuthService } from './admin-auth.service.js';
@@ -14,6 +14,9 @@ export class AdminAuthController {
   @Post('login')
   @Public()
   @ApiOperation({ summary: 'Admin login' })
+  @ApiResponse({ status: 201, description: 'Login successful, returns token' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(
     @Body() body: { username: string; password: string },
     @Req() req: Request,
@@ -36,6 +39,8 @@ export class AdminAuthController {
 
   @Post('logout')
   @ApiOperation({ summary: 'Admin logout – revoke current token' })
+  @ApiResponse({ status: 201, description: 'Logged out successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async logout(@Req() req: Request) {
     const authHeader = req.headers['authorization'];
     if (authHeader?.startsWith('Bearer ')) {
@@ -46,6 +51,8 @@ export class AdminAuthController {
 
   @Get('me')
   @ApiOperation({ summary: 'Get current admin user info' })
+  @ApiResponse({ status: 200, description: 'Current admin user info' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getMe(@Req() req: Request) {
     const adminUser = (req as Request & { adminUser?: { userId: string; roles: string[] } })['adminUser'];
     if (!adminUser) {

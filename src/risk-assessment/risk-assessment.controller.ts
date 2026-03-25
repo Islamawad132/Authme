@@ -7,7 +7,7 @@ import {
   ParseIntPipe,
   DefaultValuePipe,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 @ApiTags('Risk Assessments')
@@ -20,6 +20,9 @@ export class RiskAssessmentController {
 
   @Get()
   @ApiOperation({ summary: 'List recent risk assessments for a realm' })
+  @ApiResponse({ status: 200, description: 'Paginated list of risk assessments' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   @ApiQuery({ name: 'userId', required: false })
   @ApiQuery({ name: 'riskLevel', required: false, enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] })
   @ApiQuery({ name: 'action', required: false, enum: ['ALLOW', 'STEP_UP', 'BLOCK'] })
@@ -57,6 +60,9 @@ export class RiskAssessmentController {
 
   @Get('dashboard')
   @ApiOperation({ summary: 'Risk score distribution and anomaly trends' })
+  @ApiResponse({ status: 200, description: 'Risk dashboard data for the last 30 days' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   async getDashboard(@Param('realm') realmName: string) {
     const realm = await this.requireRealm(realmName);
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // last 30 days
@@ -116,6 +122,9 @@ export class RiskAssessmentController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a single risk assessment with signal breakdown' })
+  @ApiResponse({ status: 200, description: 'Risk assessment details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   async getAssessment(
     @Param('realm') realmName: string,
     @Param('id') id: string,

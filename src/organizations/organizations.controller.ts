@@ -10,7 +10,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { OrganizationsService } from './organizations.service.js';
 import { CreateOrganizationDto } from './dto/create-organization.dto.js';
@@ -35,24 +35,35 @@ export class OrganizationsController {
 
   @Post()
   @ApiOperation({ summary: 'Create an organization in a realm' })
+  @ApiResponse({ status: 201, description: 'Organization created' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   create(@CurrentRealm() realm: Realm, @Body() dto: CreateOrganizationDto) {
     return this.organizationsService.create(realm, dto);
   }
 
   @Get()
   @ApiOperation({ summary: 'List all organizations in a realm' })
+  @ApiResponse({ status: 200, description: 'List of organizations' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll(@CurrentRealm() realm: Realm) {
     return this.organizationsService.findAll(realm);
   }
 
   @Get(':slug')
   @ApiOperation({ summary: 'Get an organization by slug' })
+  @ApiResponse({ status: 200, description: 'Organization details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   findOne(@CurrentRealm() realm: Realm, @Param('slug') slug: string) {
     return this.organizationsService.findOne(realm, slug);
   }
 
   @Put(':slug')
   @ApiOperation({ summary: 'Update an organization' })
+  @ApiResponse({ status: 200, description: 'Updated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   update(
     @CurrentRealm() realm: Realm,
     @Param('slug') slug: string,
@@ -64,6 +75,9 @@ export class OrganizationsController {
   @Delete(':slug')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete an organization' })
+  @ApiResponse({ status: 204, description: 'Deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   remove(@CurrentRealm() realm: Realm, @Param('slug') slug: string) {
     return this.organizationsService.remove(realm, slug);
   }
@@ -72,12 +86,19 @@ export class OrganizationsController {
 
   @Get(':slug/members')
   @ApiOperation({ summary: 'List members of an organization' })
+  @ApiResponse({ status: 200, description: 'List of organization members' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   listMembers(@CurrentRealm() realm: Realm, @Param('slug') slug: string) {
     return this.organizationsService.listMembers(realm, slug);
   }
 
   @Post(':slug/members')
   @ApiOperation({ summary: 'Add a user to an organization' })
+  @ApiResponse({ status: 201, description: 'Member added' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   addMember(
     @CurrentRealm() realm: Realm,
     @Param('slug') slug: string,
@@ -88,6 +109,9 @@ export class OrganizationsController {
 
   @Put(':slug/members/:userId')
   @ApiOperation({ summary: "Update a member's role" })
+  @ApiResponse({ status: 200, description: 'Updated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   updateMemberRole(
     @CurrentRealm() realm: Realm,
     @Param('slug') slug: string,
@@ -100,6 +124,9 @@ export class OrganizationsController {
   @Delete(':slug/members/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a user from an organization' })
+  @ApiResponse({ status: 204, description: 'Deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   removeMember(
     @CurrentRealm() realm: Realm,
     @Param('slug') slug: string,
@@ -112,12 +139,19 @@ export class OrganizationsController {
 
   @Get(':slug/invitations')
   @ApiOperation({ summary: 'List invitations for an organization' })
+  @ApiResponse({ status: 200, description: 'List of invitations' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   listInvitations(@CurrentRealm() realm: Realm, @Param('slug') slug: string) {
     return this.organizationsService.listInvitations(realm, slug);
   }
 
   @Post(':slug/invitations')
   @ApiOperation({ summary: 'Create an invitation to an organization' })
+  @ApiResponse({ status: 201, description: 'Invitation created' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   createInvitation(
     @CurrentRealm() realm: Realm,
     @Param('slug') slug: string,
@@ -128,6 +162,9 @@ export class OrganizationsController {
 
   @Post(':slug/invitations/:token/accept')
   @ApiOperation({ summary: 'Accept an invitation (supply userId in body)' })
+  @ApiResponse({ status: 201, description: 'Invitation accepted' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   acceptInvitation(
     @CurrentRealm() realm: Realm,
     @Param('slug') slug: string,
@@ -143,6 +180,10 @@ export class OrganizationsController {
   @ApiOperation({
     summary: 'Get the DNS TXT record to publish for domain verification',
   })
+  @ApiResponse({ status: 201, description: 'DNS TXT record token returned' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   initiateDomainVerification(
     @CurrentRealm() realm: Realm,
     @Param('slug') slug: string,
@@ -153,6 +194,10 @@ export class OrganizationsController {
 
   @Post(':slug/verify-domain')
   @ApiOperation({ summary: 'Verify domain ownership via DNS TXT lookup' })
+  @ApiResponse({ status: 200, description: 'Domain verified' })
+  @ApiResponse({ status: 400, description: 'DNS record not found or mismatch' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   verifyDomain(
     @CurrentRealm() realm: Realm,
     @Param('slug') slug: string,
@@ -165,12 +210,19 @@ export class OrganizationsController {
 
   @Get(':slug/sso-connections')
   @ApiOperation({ summary: 'List SSO connections for an organization' })
+  @ApiResponse({ status: 200, description: 'List of SSO connections' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   listSsoConnections(@CurrentRealm() realm: Realm, @Param('slug') slug: string) {
     return this.organizationsService.listSsoConnections(realm, slug);
   }
 
   @Post(':slug/sso-connections')
   @ApiOperation({ summary: 'Create an SSO connection for an organization' })
+  @ApiResponse({ status: 201, description: 'SSO connection created' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   createSsoConnection(
     @CurrentRealm() realm: Realm,
     @Param('slug') slug: string,
@@ -181,6 +233,9 @@ export class OrganizationsController {
 
   @Get(':slug/sso-connections/:connectionId')
   @ApiOperation({ summary: 'Get a specific SSO connection' })
+  @ApiResponse({ status: 200, description: 'SSO connection details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   getSsoConnection(
     @CurrentRealm() realm: Realm,
     @Param('slug') slug: string,
@@ -191,6 +246,9 @@ export class OrganizationsController {
 
   @Put(':slug/sso-connections/:connectionId')
   @ApiOperation({ summary: 'Update an SSO connection' })
+  @ApiResponse({ status: 200, description: 'Updated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   updateSsoConnection(
     @CurrentRealm() realm: Realm,
     @Param('slug') slug: string,
@@ -208,6 +266,9 @@ export class OrganizationsController {
   @Delete(':slug/sso-connections/:connectionId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete an SSO connection' })
+  @ApiResponse({ status: 204, description: 'Deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   deleteSsoConnection(
     @CurrentRealm() realm: Realm,
     @Param('slug') slug: string,

@@ -8,7 +8,7 @@ import {
   Param,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
@@ -25,6 +25,9 @@ export class IdentityProvidersController {
 
   @Post()
   @ApiOperation({ summary: 'Create an identity provider' })
+  @ApiResponse({ status: 201, description: 'Created' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   create(
     @CurrentRealm() realm: Realm,
     @Body() dto: CreateIdentityProviderDto,
@@ -34,12 +37,17 @@ export class IdentityProvidersController {
 
   @Get()
   @ApiOperation({ summary: 'List identity providers' })
+  @ApiResponse({ status: 200, description: 'List of identity providers' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll(@CurrentRealm() realm: Realm) {
     return this.idpService.findAll(realm);
   }
 
   @Get(':alias')
   @ApiOperation({ summary: 'Get identity provider by alias' })
+  @ApiResponse({ status: 200, description: 'Identity provider details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   findByAlias(
     @CurrentRealm() realm: Realm,
     @Param('alias') alias: string,
@@ -49,6 +57,9 @@ export class IdentityProvidersController {
 
   @Put(':alias')
   @ApiOperation({ summary: 'Update identity provider' })
+  @ApiResponse({ status: 200, description: 'Updated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   update(
     @CurrentRealm() realm: Realm,
     @Param('alias') alias: string,
@@ -59,6 +70,9 @@ export class IdentityProvidersController {
 
   @Delete(':alias')
   @ApiOperation({ summary: 'Delete identity provider' })
+  @ApiResponse({ status: 204, description: 'Deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   remove(
     @CurrentRealm() realm: Realm,
     @Param('alias') alias: string,

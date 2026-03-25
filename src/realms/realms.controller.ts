@@ -8,9 +8,11 @@ import {
   Param,
   Query,
   BadRequestException,
+  HttpCode,
+  HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import { RealmsService } from './realms.service.js';
 import { RealmExportService } from './realm-export.service.js';
 import { RealmImportService } from './realm-import.service.js';
@@ -37,30 +39,44 @@ export class RealmsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new realm' })
+  @ApiResponse({ status: 201, description: 'Realm created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   create(@Body() dto: CreateRealmDto) {
     return this.realmsService.create(dto);
   }
 
   @Get()
   @ApiOperation({ summary: 'List all realms' })
+  @ApiResponse({ status: 200, description: 'List of realms' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll() {
     return this.realmsService.findAll();
   }
 
   @Get('themes')
   @ApiOperation({ summary: 'List available themes' })
+  @ApiResponse({ status: 200, description: 'List of available themes' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   getThemes() {
     return this.themeService.getAvailableThemes();
   }
 
   @Get(':realmName')
   @ApiOperation({ summary: 'Get a realm by name' })
+  @ApiResponse({ status: 200, description: 'Realm details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Realm not found' })
   findOne(@Param('realmName') realmName: string) {
     return this.realmsService.findByName(realmName);
   }
 
   @Put(':realmName')
   @ApiOperation({ summary: 'Update a realm' })
+  @ApiResponse({ status: 200, description: 'Realm updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Realm not found' })
   update(
     @Param('realmName') realmName: string,
     @Body() dto: UpdateRealmDto,
@@ -69,13 +85,20 @@ export class RealmsController {
   }
 
   @Delete(':realmName')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a realm' })
+  @ApiResponse({ status: 204, description: 'Realm deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Realm not found' })
   remove(@Param('realmName') realmName: string) {
     return this.realmsService.remove(realmName);
   }
 
   @Get(':realmName/export')
   @ApiOperation({ summary: 'Export a realm to JSON' })
+  @ApiResponse({ status: 200, description: 'Realm export data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Realm not found' })
   exportRealm(
     @Param('realmName') realmName: string,
     @Query('includeUsers') includeUsers?: string,
@@ -89,6 +112,9 @@ export class RealmsController {
 
   @Post('import')
   @ApiOperation({ summary: 'Import a realm from JSON' })
+  @ApiResponse({ status: 201, description: 'Realm imported successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid import data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   importRealm(
     @Body() body: Record<string, unknown>,
     @Query('overwrite') overwrite?: string,
@@ -99,7 +125,12 @@ export class RealmsController {
   }
 
   @Post(':realmName/email/test')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Send a test email' })
+  @ApiResponse({ status: 200, description: 'Test email sent successfully' })
+  @ApiResponse({ status: 400, description: 'Missing recipient or SMTP not configured' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Realm not found' })
   async sendTestEmail(
     @Param('realmName') realmName: string,
     @Body('to') to: string,

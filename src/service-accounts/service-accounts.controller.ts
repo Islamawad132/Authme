@@ -10,7 +10,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { ServiceAccountsService } from './service-accounts.service.js';
 import { CreateServiceAccountDto } from './dto/create-service-account.dto.js';
@@ -30,24 +30,36 @@ export class ServiceAccountsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a service account in a realm' })
+  @ApiResponse({ status: 201, description: 'Service account created' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   create(@CurrentRealm() realm: Realm, @Body() dto: CreateServiceAccountDto) {
     return this.serviceAccountsService.create(realm, dto);
   }
 
   @Get()
   @ApiOperation({ summary: 'List service accounts in a realm' })
+  @ApiResponse({ status: 200, description: 'List of service accounts' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll(@CurrentRealm() realm: Realm) {
     return this.serviceAccountsService.findAll(realm);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a service account by ID' })
+  @ApiResponse({ status: 200, description: 'Service account details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Service account not found' })
   findOne(@CurrentRealm() realm: Realm, @Param('id') id: string) {
     return this.serviceAccountsService.findById(realm, id);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update a service account' })
+  @ApiResponse({ status: 200, description: 'Service account updated' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Service account not found' })
   update(
     @CurrentRealm() realm: Realm,
     @Param('id') id: string,
@@ -59,6 +71,9 @@ export class ServiceAccountsController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a service account' })
+  @ApiResponse({ status: 204, description: 'Service account deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Service account not found' })
   remove(@CurrentRealm() realm: Realm, @Param('id') id: string) {
     return this.serviceAccountsService.remove(realm, id);
   }
@@ -67,6 +82,10 @@ export class ServiceAccountsController {
 
   @Post(':id/api-keys')
   @ApiOperation({ summary: 'Create an API key for a service account' })
+  @ApiResponse({ status: 201, description: 'API key created' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Service account not found' })
   createApiKey(
     @CurrentRealm() realm: Realm,
     @Param('id') id: string,
@@ -77,12 +96,19 @@ export class ServiceAccountsController {
 
   @Get(':id/api-keys')
   @ApiOperation({ summary: 'List API keys for a service account' })
+  @ApiResponse({ status: 200, description: 'List of API keys' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Service account not found' })
   listApiKeys(@CurrentRealm() realm: Realm, @Param('id') id: string) {
     return this.serviceAccountsService.listApiKeys(realm, id);
   }
 
   @Post(':id/api-keys/:keyId/revoke')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Revoke an API key' })
+  @ApiResponse({ status: 200, description: 'API key revoked' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Service account or API key not found' })
   revokeApiKey(
     @CurrentRealm() realm: Realm,
     @Param('id') id: string,
@@ -92,7 +118,11 @@ export class ServiceAccountsController {
   }
 
   @Post(':id/api-keys/:keyId/rotate')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rotate an API key (creates new key, keeps old active for grace period)' })
+  @ApiResponse({ status: 200, description: 'API key rotated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Service account or API key not found' })
   rotateApiKey(
     @CurrentRealm() realm: Realm,
     @Param('id') id: string,
@@ -103,6 +133,9 @@ export class ServiceAccountsController {
 
   @Get(':id/metrics')
   @ApiOperation({ summary: 'Get usage metrics for a service account' })
+  @ApiResponse({ status: 200, description: 'Service account usage metrics' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Service account not found' })
   getUsageMetrics(@CurrentRealm() realm: Realm, @Param('id') id: string) {
     return this.serviceAccountsService.getUsageMetrics(realm, id);
   }

@@ -10,7 +10,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { ClientScopesService } from './client-scopes.service.js';
 import { CreateClientScopeDto } from './dto/create-client-scope.dto.js';
@@ -30,24 +30,35 @@ export class ClientScopesController {
 
   @Get('client-scopes')
   @ApiOperation({ summary: 'List client scopes in a realm' })
+  @ApiResponse({ status: 200, description: 'List of client scopes' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll(@CurrentRealm() realm: Realm) {
     return this.service.findAll(realm);
   }
 
   @Get('client-scopes/:scopeId')
   @ApiOperation({ summary: 'Get a client scope' })
+  @ApiResponse({ status: 200, description: 'Client scope' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   findOne(@CurrentRealm() realm: Realm, @Param('scopeId') scopeId: string) {
     return this.service.findById(realm, scopeId);
   }
 
   @Post('client-scopes')
   @ApiOperation({ summary: 'Create a client scope' })
+  @ApiResponse({ status: 201, description: 'Created' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   create(@CurrentRealm() realm: Realm, @Body() dto: CreateClientScopeDto) {
     return this.service.create(realm, dto);
   }
 
   @Put('client-scopes/:scopeId')
   @ApiOperation({ summary: 'Update a client scope' })
+  @ApiResponse({ status: 200, description: 'Updated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   update(
     @CurrentRealm() realm: Realm,
     @Param('scopeId') scopeId: string,
@@ -59,6 +70,9 @@ export class ClientScopesController {
   @Delete('client-scopes/:scopeId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a client scope' })
+  @ApiResponse({ status: 204, description: 'Deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   remove(@CurrentRealm() realm: Realm, @Param('scopeId') scopeId: string) {
     return this.service.remove(realm, scopeId);
   }
@@ -67,6 +81,10 @@ export class ClientScopesController {
 
   @Post('client-scopes/:scopeId/protocol-mappers')
   @ApiOperation({ summary: 'Add a protocol mapper to a scope' })
+  @ApiResponse({ status: 201, description: 'Protocol mapper added' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   addMapper(
     @CurrentRealm() realm: Realm,
     @Param('scopeId') scopeId: string,
@@ -77,6 +95,9 @@ export class ClientScopesController {
 
   @Put('client-scopes/:scopeId/protocol-mappers/:mapperId')
   @ApiOperation({ summary: 'Update a protocol mapper' })
+  @ApiResponse({ status: 200, description: 'Updated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   updateMapper(
     @CurrentRealm() realm: Realm,
     @Param('scopeId') scopeId: string,
@@ -89,6 +110,9 @@ export class ClientScopesController {
   @Delete('client-scopes/:scopeId/protocol-mappers/:mapperId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a protocol mapper' })
+  @ApiResponse({ status: 204, description: 'Deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   removeMapper(
     @CurrentRealm() realm: Realm,
     @Param('scopeId') scopeId: string,
@@ -101,6 +125,9 @@ export class ClientScopesController {
 
   @Get('clients/:clientId/default-client-scopes')
   @ApiOperation({ summary: 'Get default scopes assigned to a client' })
+  @ApiResponse({ status: 200, description: 'List of default client scopes' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   getDefaultScopes(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,
@@ -110,6 +137,10 @@ export class ClientScopesController {
 
   @Post('clients/:clientId/default-client-scopes')
   @ApiOperation({ summary: 'Assign a default scope to a client' })
+  @ApiResponse({ status: 201, description: 'Default scope assigned' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   assignDefaultScope(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,
@@ -121,6 +152,9 @@ export class ClientScopesController {
   @Delete('clients/:clientId/default-client-scopes/:scopeId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a default scope from a client' })
+  @ApiResponse({ status: 204, description: 'Deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   removeDefaultScope(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,
@@ -131,6 +165,9 @@ export class ClientScopesController {
 
   @Get('clients/:clientId/optional-client-scopes')
   @ApiOperation({ summary: 'Get optional scopes assigned to a client' })
+  @ApiResponse({ status: 200, description: 'List of optional client scopes' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   getOptionalScopes(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,
@@ -140,6 +177,10 @@ export class ClientScopesController {
 
   @Post('clients/:clientId/optional-client-scopes')
   @ApiOperation({ summary: 'Assign an optional scope to a client' })
+  @ApiResponse({ status: 201, description: 'Optional scope assigned' })
+  @ApiResponse({ status: 400, description: 'Invalid input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   assignOptionalScope(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,
@@ -151,6 +192,9 @@ export class ClientScopesController {
   @Delete('clients/:clientId/optional-client-scopes/:scopeId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove an optional scope from a client' })
+  @ApiResponse({ status: 204, description: 'Deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   removeOptionalScope(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,

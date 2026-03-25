@@ -12,7 +12,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { Realm } from '@prisma/client';
 import { TokensService } from './tokens.service.js';
@@ -36,6 +36,9 @@ export class TokensController {
   @Post('token/introspect')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Token introspection (RFC 7662)' })
+  @ApiResponse({ status: 200, description: 'Token introspection result (active true/false)' })
+  @ApiResponse({ status: 400, description: 'Bad request — missing token parameter' })
+  @ApiResponse({ status: 401, description: 'invalid_client — client authentication failed' })
   async introspect(
     @CurrentRealm() realm: Realm,
     @Body() body: { token: string; client_id?: string; client_secret?: string },
@@ -48,6 +51,9 @@ export class TokensController {
   @Post('revoke')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Token revocation (RFC 7009)' })
+  @ApiResponse({ status: 200, description: 'Token successfully revoked (or was already invalid)' })
+  @ApiResponse({ status: 400, description: 'Bad request — missing token parameter' })
+  @ApiResponse({ status: 401, description: 'invalid_client — client authentication failed' })
   async revoke(
     @CurrentRealm() realm: Realm,
     @Body() body: { token: string; token_type_hint?: string; client_id?: string; client_secret?: string },
@@ -129,6 +135,8 @@ export class TokensController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'End session / logout (POST)' })
+  @ApiResponse({ status: 204, description: 'Session ended successfully' })
+  @ApiResponse({ status: 400, description: 'invalid_grant — refresh token not found or already revoked' })
   logout(
     @CurrentRealm() realm: Realm,
     @Body() body: { refresh_token?: string },
@@ -139,6 +147,9 @@ export class TokensController {
 
   @Get('logout')
   @ApiOperation({ summary: 'RP-Initiated Logout (GET, OIDC spec)' })
+  @ApiResponse({ status: 204, description: 'Session ended; no post_logout_redirect_uri provided' })
+  @ApiResponse({ status: 302, description: 'Redirect to post_logout_redirect_uri after session teardown' })
+  @ApiResponse({ status: 400, description: 'post_logout_redirect_uri does not match any registered URI' })
   async logoutGet(
     @CurrentRealm() realm: Realm,
     @Query('id_token_hint') idTokenHint: string | undefined,
@@ -173,6 +184,8 @@ export class TokensController {
 
   @Get('userinfo')
   @ApiOperation({ summary: 'Get user info from access token' })
+  @ApiResponse({ status: 200, description: 'User claims from the access token' })
+  @ApiResponse({ status: 401, description: 'invalid_token — missing or invalid Bearer token' })
   userinfo(@CurrentRealm() realm: Realm, @Req() req: Request) {
     const authHeader = req.headers['authorization'];
     if (!authHeader?.startsWith('Bearer ')) {

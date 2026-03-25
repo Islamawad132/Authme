@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import {
   HealthCheck,
   HealthCheckService,
@@ -23,6 +23,7 @@ export class HealthController {
   @Get()
   @HealthCheck()
   @ApiOperation({ summary: 'Liveness check' })
+  @ApiResponse({ status: 200, description: 'Service is alive' })
   liveness() {
     return this.health.check([]);
   }
@@ -30,6 +31,8 @@ export class HealthController {
   @Get('ready')
   @HealthCheck()
   @ApiOperation({ summary: 'Readiness check (database + memory + redis)' })
+  @ApiResponse({ status: 200, description: 'All dependencies healthy' })
+  @ApiResponse({ status: 503, description: 'One or more dependencies unhealthy' })
   readiness() {
     return this.health.check([
       () => this.db.isHealthy('database'),

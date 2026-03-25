@@ -10,7 +10,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { ApiExcludeController } from '@nestjs/swagger';
+import { ApiExcludeController, ApiResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { Realm } from '@prisma/client';
 import { RealmGuard } from '../common/guards/realm.guard.js';
@@ -36,6 +36,8 @@ export class SamlIdpController {
   // ─── SSO ENDPOINT (HTTP-Redirect binding) ──────────────
 
   @Get()
+  @ApiResponse({ status: 302, description: 'Redirect to login page, or auto-POST SAMLResponse when already authenticated' })
+  @ApiResponse({ status: 400, description: 'Missing SAMLRequest, unknown SP, or invalid ACS URL' })
   async ssoRedirect(
     @CurrentRealm() realm: Realm,
     @Query('SAMLRequest') samlRequest: string,
@@ -49,6 +51,8 @@ export class SamlIdpController {
   // ─── SSO ENDPOINT (HTTP-POST binding) ──────────────────
 
   @Post()
+  @ApiResponse({ status: 302, description: 'Redirect to login page, or auto-POST SAMLResponse when already authenticated' })
+  @ApiResponse({ status: 400, description: 'Missing SAMLRequest, unknown SP, or invalid ACS URL' })
   async ssoPost(
     @CurrentRealm() realm: Realm,
     @Body('SAMLRequest') samlRequest: string,
@@ -62,6 +66,8 @@ export class SamlIdpController {
   // ─── IDP METADATA ─────────────────────────────────────
 
   @Get('descriptor')
+  @ApiResponse({ status: 200, description: 'IdP SAML metadata XML (EntityDescriptor)' })
+  @ApiResponse({ status: 400, description: 'Realm not found' })
   async metadata(
     @CurrentRealm() realm: Realm,
     @Res() res: Response,

@@ -6,9 +6,11 @@ import {
   Delete,
   Body,
   Param,
+  HttpCode,
+  HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { GroupsService } from './groups.service.js';
 import { CreateGroupDto } from './dto/create-group.dto.js';
@@ -27,24 +29,36 @@ export class GroupsController {
 
   @Post('groups')
   @ApiOperation({ summary: 'Create a group' })
+  @ApiResponse({ status: 201, description: 'Group created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   create(@CurrentRealm() realm: Realm, @Body() dto: CreateGroupDto) {
     return this.groupsService.create(realm, dto);
   }
 
   @Get('groups')
   @ApiOperation({ summary: 'List all groups' })
+  @ApiResponse({ status: 200, description: 'List of groups' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll(@CurrentRealm() realm: Realm) {
     return this.groupsService.findAll(realm);
   }
 
   @Get('groups/:groupId')
   @ApiOperation({ summary: 'Get group by ID' })
+  @ApiResponse({ status: 200, description: 'Group details' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Group not found' })
   findById(@CurrentRealm() realm: Realm, @Param('groupId') groupId: string) {
     return this.groupsService.findById(realm, groupId);
   }
 
   @Put('groups/:groupId')
   @ApiOperation({ summary: 'Update a group' })
+  @ApiResponse({ status: 200, description: 'Group updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Group not found' })
   update(
     @CurrentRealm() realm: Realm,
     @Param('groupId') groupId: string,
@@ -54,7 +68,11 @@ export class GroupsController {
   }
 
   @Delete('groups/:groupId')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a group' })
+  @ApiResponse({ status: 204, description: 'Group deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Group not found' })
   delete(@CurrentRealm() realm: Realm, @Param('groupId') groupId: string) {
     return this.groupsService.delete(realm, groupId);
   }
@@ -63,12 +81,18 @@ export class GroupsController {
 
   @Get('groups/:groupId/members')
   @ApiOperation({ summary: 'List group members' })
+  @ApiResponse({ status: 200, description: 'List of group members' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Group not found' })
   getMembers(@CurrentRealm() realm: Realm, @Param('groupId') groupId: string) {
     return this.groupsService.getMembers(realm, groupId);
   }
 
   @Put('users/:userId/groups/:groupId')
   @ApiOperation({ summary: 'Add user to group' })
+  @ApiResponse({ status: 200, description: 'User added to group' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User or group not found' })
   addUserToGroup(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -78,7 +102,11 @@ export class GroupsController {
   }
 
   @Delete('users/:userId/groups/:groupId')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove user from group' })
+  @ApiResponse({ status: 204, description: 'User removed from group' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User or group not found' })
   removeUserFromGroup(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -89,6 +117,9 @@ export class GroupsController {
 
   @Get('users/:userId/groups')
   @ApiOperation({ summary: "List user's groups" })
+  @ApiResponse({ status: 200, description: "List of user's groups" })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   getUserGroups(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -100,6 +131,9 @@ export class GroupsController {
 
   @Get('groups/:groupId/role-mappings')
   @ApiOperation({ summary: 'Get group role mappings' })
+  @ApiResponse({ status: 200, description: 'Group role mappings' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Group not found' })
   getGroupRoles(
     @CurrentRealm() realm: Realm,
     @Param('groupId') groupId: string,
@@ -109,6 +143,10 @@ export class GroupsController {
 
   @Post('groups/:groupId/role-mappings')
   @ApiOperation({ summary: 'Assign roles to group' })
+  @ApiResponse({ status: 201, description: 'Roles assigned to group' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Group or role not found' })
   assignRoles(
     @CurrentRealm() realm: Realm,
     @Param('groupId') groupId: string,
@@ -118,7 +156,11 @@ export class GroupsController {
   }
 
   @Delete('groups/:groupId/role-mappings')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove roles from group' })
+  @ApiResponse({ status: 204, description: 'Roles removed from group' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Group or role not found' })
   removeRoles(
     @CurrentRealm() realm: Realm,
     @Param('groupId') groupId: string,

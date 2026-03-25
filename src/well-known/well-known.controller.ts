@@ -1,5 +1,5 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
@@ -22,6 +22,8 @@ export class WellKnownController {
 
   @Get('.well-known/openid-configuration')
   @ApiOperation({ summary: 'OpenID Connect discovery document' })
+  @ApiResponse({ status: 200, description: 'OpenID Connect discovery document' })
+  @ApiResponse({ status: 404, description: 'Realm not found' })
   discovery(@CurrentRealm() realm: Realm) {
     const baseUrl = process.env['BASE_URL'] ?? 'http://localhost:3000';
     const realmUrl = `${baseUrl}/realms/${realm.name}`;
@@ -90,6 +92,8 @@ export class WellKnownController {
 
   @Get('protocol/openid-connect/certs')
   @ApiOperation({ summary: 'JSON Web Key Set (JWKS)' })
+  @ApiResponse({ status: 200, description: 'JSON Web Key Set' })
+  @ApiResponse({ status: 404, description: 'Realm not found' })
   async certs(@CurrentRealm() realm: Realm) {
     const cached = await this.cache.getCachedJWKS<{ keys: unknown[] }>(realm.id);
     if (cached) return cached;

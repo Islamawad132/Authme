@@ -10,7 +10,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { Realm } from '@prisma/client';
 import { DeviceService } from './device.service.js';
@@ -38,6 +38,8 @@ export class DeviceController {
   @Post('protocol/openid-connect/auth/device')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Initiate device authorization request' })
+  @ApiResponse({ status: 200, description: 'Device authorization response with device_code and user_code' })
+  @ApiResponse({ status: 400, description: 'invalid_client — unknown or disabled client' })
   async initiateDevice(
     @CurrentRealm() realm: Realm,
     @Body() body: { client_id: string; scope?: string },
@@ -47,6 +49,8 @@ export class DeviceController {
 
   @Get('device')
   @ApiOperation({ summary: 'Device verification page' })
+  @ApiResponse({ status: 200, description: 'HTML page for user to enter/confirm device code' })
+  @ApiResponse({ status: 400, description: 'Realm not found' })
   async devicePage(
     @CurrentRealm() realm: Realm,
     @Query('user_code') userCode: string,
@@ -61,6 +65,9 @@ export class DeviceController {
 
   @Post('device')
   @ApiOperation({ summary: 'Approve or deny device authorization' })
+  @ApiResponse({ status: 200, description: 'Device approved or denied; returns confirmation HTML page' })
+  @ApiResponse({ status: 400, description: 'Bad request — missing user_code, credentials, or invalid code' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials or account locked' })
   async handleDevice(
     @CurrentRealm() realm: Realm,
     @Body() body: { user_code: string; action: 'approve' | 'deny'; username?: string; password?: string },

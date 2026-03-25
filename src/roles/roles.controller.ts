@@ -9,7 +9,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { RolesService } from './roles.service.js';
 import { CreateRoleDto } from './dto/create-role.dto.js';
@@ -28,6 +28,9 @@ export class RolesController {
 
   @Post('roles')
   @ApiOperation({ summary: 'Create a realm role' })
+  @ApiResponse({ status: 201, description: 'Realm role created' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   createRealmRole(
     @CurrentRealm() realm: Realm,
     @Body() dto: CreateRoleDto,
@@ -37,6 +40,8 @@ export class RolesController {
 
   @Get('roles')
   @ApiOperation({ summary: 'List realm roles' })
+  @ApiResponse({ status: 200, description: 'List of realm roles' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   findRealmRoles(@CurrentRealm() realm: Realm) {
     return this.rolesService.findRealmRoles(realm);
   }
@@ -44,6 +49,9 @@ export class RolesController {
   @Delete('roles/:roleName')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a realm role' })
+  @ApiResponse({ status: 204, description: 'Realm role deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Role not found' })
   deleteRealmRole(
     @CurrentRealm() realm: Realm,
     @Param('roleName') roleName: string,
@@ -55,6 +63,10 @@ export class RolesController {
 
   @Post('clients/:clientId/roles')
   @ApiOperation({ summary: 'Create a client role' })
+  @ApiResponse({ status: 201, description: 'Client role created' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
   createClientRole(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,
@@ -70,6 +82,9 @@ export class RolesController {
 
   @Get('clients/:clientId/roles')
   @ApiOperation({ summary: 'List client roles' })
+  @ApiResponse({ status: 200, description: 'List of client roles' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
   findClientRoles(
     @CurrentRealm() realm: Realm,
     @Param('clientId') clientId: string,
@@ -81,6 +96,10 @@ export class RolesController {
 
   @Post('users/:userId/role-mappings/realm')
   @ApiOperation({ summary: 'Assign realm roles to a user' })
+  @ApiResponse({ status: 201, description: 'Realm roles assigned' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User or role not found' })
   assignRealmRoles(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -91,6 +110,9 @@ export class RolesController {
 
   @Get('users/:userId/role-mappings/realm')
   @ApiOperation({ summary: "List a user's realm roles" })
+  @ApiResponse({ status: 200, description: "List of user's realm roles" })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   getUserRealmRoles(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -101,6 +123,9 @@ export class RolesController {
   @Delete('users/:userId/role-mappings/realm')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove realm roles from a user' })
+  @ApiResponse({ status: 204, description: 'Realm roles removed' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User or role not found' })
   removeUserRealmRoles(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -117,6 +142,10 @@ export class RolesController {
 
   @Post('users/:userId/role-mappings/clients/:clientId')
   @ApiOperation({ summary: 'Assign client roles to a user' })
+  @ApiResponse({ status: 201, description: 'Client roles assigned' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User, client, or role not found' })
   assignClientRoles(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -133,6 +162,9 @@ export class RolesController {
 
   @Get('users/:userId/role-mappings/clients/:clientId')
   @ApiOperation({ summary: "List a user's client roles" })
+  @ApiResponse({ status: 200, description: "List of user's client roles" })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User or client not found' })
   getUserClientRoles(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
@@ -144,6 +176,9 @@ export class RolesController {
   @Delete('users/:userId/role-mappings/clients/:clientId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove client roles from a user' })
+  @ApiResponse({ status: 204, description: 'Client roles removed' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User, client, or role not found' })
   removeUserClientRoles(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,

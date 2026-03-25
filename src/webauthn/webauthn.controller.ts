@@ -12,7 +12,7 @@ import {
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiExcludeController } from '@nestjs/swagger';
+import { ApiExcludeController, ApiResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { Realm } from '@prisma/client';
 import { RealmGuard } from '../common/guards/realm.guard.js';
@@ -56,6 +56,8 @@ export class WebAuthnController {
 
   @Post('webauthn/register/options')
   @HttpCode(HttpStatus.OK)
+  @ApiResponse({ status: 200, description: 'WebAuthn registration options (challenge, rp, user)' })
+  @ApiResponse({ status: 400, description: 'User must be signed in to register a passkey' })
   async startRegistration(
     @CurrentRealm() realm: Realm,
     @Body() body: StartRegistrationDto,
@@ -71,6 +73,8 @@ export class WebAuthnController {
 
   @Post('webauthn/register/verify')
   @HttpCode(HttpStatus.OK)
+  @ApiResponse({ status: 200, description: 'Credential registered; returns credential metadata' })
+  @ApiResponse({ status: 400, description: 'User must be signed in, or attestation verification failed' })
   async completeRegistration(
     @CurrentRealm() realm: Realm,
     @Body() body: VerifyRegistrationDto,
@@ -101,6 +105,8 @@ export class WebAuthnController {
 
   @Post('webauthn/authenticate/options')
   @HttpCode(HttpStatus.OK)
+  @ApiResponse({ status: 200, description: 'WebAuthn authentication options (challenge, allowCredentials)' })
+  @ApiResponse({ status: 400, description: 'Bad request — realm not found' })
   async startAuthentication(
     @CurrentRealm() realm: Realm,
     @Body() body: StartAuthenticationDto,
@@ -118,6 +124,9 @@ export class WebAuthnController {
 
   @Post('webauthn/authenticate/verify')
   @HttpCode(HttpStatus.OK)
+  @ApiResponse({ status: 200, description: 'Authentication verified; returns redirectUrl' })
+  @ApiResponse({ status: 400, description: 'Assertion verification failed or invalid credential' })
+  @ApiResponse({ status: 401, description: 'Credential not found or does not belong to any user' })
   async completeAuthentication(
     @CurrentRealm() realm: Realm,
     @Body() body: VerifyAuthenticationDto,
@@ -189,6 +198,8 @@ export class WebAuthnController {
   // ─── Account — Credential Management ──────────────────────────
 
   @Get('account/webauthn/credentials')
+  @ApiResponse({ status: 200, description: 'List of registered passkeys for the current user' })
+  @ApiResponse({ status: 302, description: 'Redirect to login when no active session exists' })
   async listCredentials(
     @CurrentRealm() realm: Realm,
     @Req() req: Request,
@@ -215,6 +226,9 @@ export class WebAuthnController {
 
   @Delete('account/webauthn/credentials/:credentialId')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiResponse({ status: 204, description: 'Credential removed successfully' })
+  @ApiResponse({ status: 400, description: 'User must be signed in to remove a passkey' })
+  @ApiResponse({ status: 404, description: 'Credential not found' })
   async removeCredential(
     @CurrentRealm() realm: Realm,
     @Param('credentialId') credentialId: string,
