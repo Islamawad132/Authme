@@ -88,8 +88,9 @@ export class GroupsController {
     return this.groupsService.getMembers(realm, groupId);
   }
 
+  @Post('users/:userId/groups/:groupId')
   @Put('users/:userId/groups/:groupId')
-  @ApiOperation({ summary: 'Add user to group' })
+  @ApiOperation({ summary: 'Add user to group (POST or PUT)' })
   @ApiResponse({ status: 200, description: 'User added to group' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'User or group not found' })

@@ -482,8 +482,11 @@ private final class DefaultPresentationContextProvider: NSObject,
         let scene = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .first { $0.activationState == .foregroundActive }
-        return scene?.windows.first(where: \.isKeyWindow)
-            ?? UIWindow()
+        if #available(iOS 15, *) {
+            return scene?.keyWindow ?? UIWindow()
+        } else {
+            return scene?.windows.first(where: \.isKeyWindow) ?? UIWindow()
+        }
         #else
         return ASPresentationAnchor()
         #endif

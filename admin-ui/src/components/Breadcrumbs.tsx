@@ -1,4 +1,6 @@
 import { Link, useLocation, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { getAuthFlowById } from '../api/authFlows';
 
 interface Crumb {
   label: string;
@@ -10,9 +12,31 @@ function useBreadcrumbs(): Crumb[] {
   const params = useParams<Record<string, string>>();
   const pathname = location.pathname;
 
+  // Async-resolved flow name for auth-flow detail pages.
+  const [flowName, setFlowName] = useState<string | null>(null);
+
   // Strip /console prefix for matching
   const path = pathname.replace(/^\/console/, '') || '/';
   const segments = path.split('/').filter(Boolean);
+
+  // Detect if we are on an auth-flow detail page and fetch the flow name.
+  // URL pattern: /console/realms/:name/auth-flows/:flowId[/...]
+  useEffect(() => {
+    const authFlowsIdx = segments.indexOf('auth-flows');
+    if (authFlowsIdx !== -1 && segments.length > authFlowsIdx + 1) {
+      const realmName = params.name;
+      const flowId = params.flowId ?? segments[authFlowsIdx + 1];
+      if (realmName && flowId) {
+        let cancelled = false;
+        getAuthFlowById(realmName, flowId)
+          .then((flow) => { if (!cancelled) setFlowName(flow.name); })
+          .catch(() => { /* leave flowName null; raw ID shown as fallback */ });
+        return () => { cancelled = true; };
+      }
+    }
+    setFlowName(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const crumbs: Crumb[] = [{ label: 'Home', to: '/console' }];
 
@@ -85,6 +109,11 @@ function useBreadcrumbs(): Crumb[] {
       // User federation id
       else if (segments[i - 1] === 'user-federation') {
         label = params.id ?? seg;
+      }
+      // Auth-flow detail: show resolved flow name instead of raw UUID.
+      // Falls back to the raw segment while the fetch is in-flight.
+      else if (segments[i - 1] === 'auth-flows') {
+        label = flowName ?? seg;
       }
     }
 

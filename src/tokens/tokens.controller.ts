@@ -22,10 +22,12 @@ import { Public } from '../common/decorators/public.decorator.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
 import { resolveClientIp } from '../common/utils/proxy-ip.util.js';
+import { RateLimitGuard, RateLimitByIp } from '../rate-limit/rate-limit.guard.js';
 
 @ApiTags('Tokens')
 @Controller('realms/:realmName/protocol/openid-connect')
-@UseGuards(RealmGuard)
+@UseGuards(RealmGuard, RateLimitGuard)
+@RateLimitByIp()
 @Public()
 export class TokensController {
   constructor(

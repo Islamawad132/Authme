@@ -49,7 +49,9 @@ export class TokensService {
         return { active: false };
       }
 
-      // Check session validity (logout deletes sessions)
+      // Check session validity (logout deletes sessions).
+      // client_credentials tokens have no session — skip the check when sid
+      // is absent so that service-account tokens do not introspect as inactive.
       const sid = payload['sid'] as string | undefined;
       if (sid) {
         const session = await this.prisma.session.findUnique({ where: { id: sid } });

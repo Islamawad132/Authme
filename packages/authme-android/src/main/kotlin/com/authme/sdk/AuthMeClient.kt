@@ -12,6 +12,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import java.net.HttpURLConnection
 import java.net.URL
@@ -53,9 +55,11 @@ class AuthMeClient(
     private val storage     = TokenStorage(context, config.realm, config.clientId)
     private val json        = Json { ignoreUnknownKeys = true }
     private val scope       = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var oidcConfig  : OIDCConfiguration? = null
+    @Volatile private var oidcConfig  : OIDCConfiguration? = null
     /** Epoch-milliseconds of the last successful discovery fetch (used for TTL eviction). */
-    private var oidcConfigFetchedAt: Long? = null
+    @Volatile private var oidcConfigFetchedAt: Long? = null
+    /** Guards concurrent access to the discovery cache. */
+    private val discoveryMutex = Mutex()
     /** Discovery documents are re-fetched after this interval (1 hour). */
     private val discoveryTtlMs: Long = 3_600_000L
     private var refreshJob  : Job? = null
@@ -269,11 +273,28 @@ class AuthMeClient(
             "client_id"     to config.clientId,
         ).formEncode()
 
-        val responseBody = httpPost(
-            url         = oidc.tokenEndpoint,
-            body        = body,
-            contentType = "application/x-www-form-urlencoded",
-        )
+        val responseBody = try {
+            httpPost(
+                url         = oidc.tokenEndpoint,
+                body        = body,
+                contentType = "application/x-www-form-urlencoded",
+            )
+        } catch (e: AuthMeException.ServerError) {
+            // On a 4xx the server definitively rejects the refresh token
+            // (e.g. invalid_grant, revoked session).  Clear stored tokens so
+            // isAuthenticated returns false and the caller can redirect to login.
+            // On 5xx / network errors the tokens may still be valid, so we only
+            // clear on errors that originate from a 4xx response.
+            val message = e.message ?: ""
+            if (message.startsWith("HTTP 4") ||
+                message.contains("invalid_grant") ||
+                message.contains("Token is not active")
+            ) {
+                cancelAutoRefresh()
+                storage.clear()
+            }
+            throw e
+        }
 
         val tokens = json.decodeFromString<TokenResponse>(responseBody)
         storage.store(tokens)
@@ -318,10 +339,7 @@ class AuthMeClient(
     // -----------------------------------------------------------------------
 
     private suspend fun fetchDiscovery(): OIDCConfiguration {
-        // Issue #457: the old code cached the discovery document forever with a
-        // simple null-check.  IdPs can rotate signing keys or change endpoint
-        // URLs; serving a stale document causes verification failures.
-        // Fix: evict the cache after discoveryTtlMs (1 hour), mirroring the iOS SDK.
+        // Fast path: check without the lock first (both fields are @Volatile).
         val cachedAt = oidcConfigFetchedAt
         val cached   = oidcConfig
         if (cached != null && cachedAt != null &&
@@ -330,16 +348,29 @@ class AuthMeClient(
             return cached
         }
 
-        // Cache absent or expired — clear before fetching so a failed request
-        // does not leave stale data in place.
-        oidcConfig = null
-        oidcConfigFetchedAt = null
+        // Slow path: acquire the mutex so only one coroutine fetches at a time.
+        return discoveryMutex.withLock {
+            // Re-check inside the lock in case another coroutine already fetched
+            // while we were waiting (double-checked locking pattern).
+            val lockedAt = oidcConfigFetchedAt
+            val locked   = oidcConfig
+            if (locked != null && lockedAt != null &&
+                System.currentTimeMillis() - lockedAt < discoveryTtlMs
+            ) {
+                return@withLock locked
+            }
 
-        val body   = httpGet(config.discoveryUrl)
-        val result = json.decodeFromString<OIDCConfiguration>(body)
-        oidcConfig = result
-        oidcConfigFetchedAt = System.currentTimeMillis()
-        return result
+            // Cache absent or expired — clear before fetching so a failed request
+            // does not leave stale data in place.
+            oidcConfig = null
+            oidcConfigFetchedAt = null
+
+            val body   = httpGet(config.discoveryUrl)
+            val result = json.decodeFromString<OIDCConfiguration>(body)
+            oidcConfig = result
+            oidcConfigFetchedAt = System.currentTimeMillis()
+            result
+        }
     }
 
     // -----------------------------------------------------------------------
