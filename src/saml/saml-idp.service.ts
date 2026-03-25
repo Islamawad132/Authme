@@ -344,17 +344,28 @@ ${attrXml}
     publicKeyPem: string,
     insertAfterTag: string,
   ): string {
-    // 1) Apply exclusive C14N canonicalization (exc-c14n) to the XML before
-    //    digesting. This prevents XML Signature Wrapping (XSW) attacks by
-    //    ensuring the digest is over a canonical, attribute-order-stable form
-    //    rather than raw serialised XML which an attacker could reorder.
-    const canonicalXml = this.exclusiveC14N(xml);
-
-    // 2) Compute digest of the element (SHA-256)
     const { createHash } = require('crypto') as typeof import('crypto');
-    const digest = createHash('sha256').update(canonicalXml, 'utf-8').digest('base64');
 
-    // 3) Build SignedInfo
+    // 1) Extract the referenced element (identified by ID) from the document so
+    //    the SHA-256 digest covers only that element, not the entire document.
+    //    Per the XML-DSig spec the digest MUST be computed over the dereferenced
+    //    content of the URI, which for an ID reference is the single element.
+    const refElementRegex = new RegExp(
+      `<(?:[\\w-]+:)?(?:Assertion|Response)[^>]*\\sID="${refId}"[^>]*>[\\s\\S]*?</(?:[\\w-]+:)?(?:Assertion|Response)>`,
+    );
+    const refElementMatch = xml.match(refElementRegex);
+    const refElement = refElementMatch ? refElementMatch[0] : xml;
+
+    // 2) Apply exclusive C14N canonicalization (exc-c14n) to the referenced
+    //    element before digesting. This prevents XML Signature Wrapping (XSW)
+    //    attacks by ensuring the digest is over a canonical, attribute-order-
+    //    stable form rather than raw serialised XML an attacker could reorder.
+    const canonicalRefElement = this.exclusiveC14N(refElement);
+
+    // 3) Compute digest of only the referenced element (SHA-256).
+    const digest = createHash('sha256').update(canonicalRefElement, 'utf-8').digest('base64');
+
+    // 4) Build SignedInfo
     const signedInfo = `<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
   <ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />
   <ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256" />
@@ -368,19 +379,26 @@ ${attrXml}
   </ds:Reference>
 </ds:SignedInfo>`;
 
-    // 4) Sign the SignedInfo block
+    // 5) Canonicalize SignedInfo before signing — the XML-DSig spec (§6.5.1)
+    //    requires that the signer apply the CanonicalizationMethod algorithm
+    //    listed in SignedInfo to the SignedInfo element itself before computing
+    //    the cryptographic signature.  Signing the raw string would produce a
+    //    different value than what a verifier (who canonicalises first) expects.
+    const canonicalSignedInfo = this.exclusiveC14N(signedInfo);
+
+    // 6) Sign the canonicalized SignedInfo block
     const signer = createSign('RSA-SHA256');
-    signer.update(signedInfo);
+    signer.update(canonicalSignedInfo);
     const key = createPrivateKey(privateKeyPem);
     const signatureValue = signer.sign(key, 'base64');
 
-    // 5) Extract certificate body
+    // 7) Extract certificate body
     const certBody = publicKeyPem
       .replace(/-----BEGIN [A-Z ]+-----/g, '')
       .replace(/-----END [A-Z ]+-----/g, '')
       .replace(/\s+/g, '');
 
-    // 6) Build the full <ds:Signature> block
+    // 8) Build the full <ds:Signature> block
     const signatureBlock = `<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
   ${signedInfo}
   <ds:SignatureValue>${signatureValue}</ds:SignatureValue>
@@ -391,7 +409,7 @@ ${attrXml}
   </ds:KeyInfo>
 </ds:Signature>`;
 
-    // 7) Insert signature after the specified tag
+    // 9) Insert signature after the specified tag
     const closingTag = `</${insertAfterTag}>`;
     const insertPos = xml.indexOf(closingTag);
     if (insertPos === -1) {

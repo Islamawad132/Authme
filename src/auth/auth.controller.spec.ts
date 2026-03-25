@@ -16,6 +16,8 @@ describe('AuthController', () => {
   const req = {
     ip: '127.0.0.1',
     headers: { 'user-agent': 'test-agent' },
+    socket: { remoteAddress: '127.0.0.1' },
+    connection: { remoteAddress: '127.0.0.1' },
   };
 
   const res = {

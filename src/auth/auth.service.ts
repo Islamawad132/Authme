@@ -187,6 +187,14 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired MFA token, or too many failed attempts');
     }
 
+    // Ensure the challenge was issued for this realm (prevents cross-realm token reuse)
+    if (challenge.realmId !== realm.id) {
+      this.logger.warn(
+        `MFA cross-realm token use attempt: challenge realm ${challenge.realmId} used against realm ${realm.id}`,
+      );
+      throw new UnauthorizedException('Invalid or expired MFA token, or too many failed attempts');
+    }
+
     const verified = await this.mfaService.verifyTotp(challenge.userId, otp);
     if (!verified) {
       // Try as recovery code
