@@ -5,7 +5,7 @@ import { LoginModule } from '../login/login.module.js';
 import { StepUpModule } from '../step-up/step-up.module.js';
 
 @Module({
-  imports: [forwardRef(() => LoginModule), StepUpModule],
+  imports: [forwardRef(() => LoginModule), forwardRef(() => StepUpModule)],
   controllers: [OAuthController],
   providers: [OAuthService],
   exports: [OAuthService],

@@ -17,6 +17,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { MfaService } from '../mfa/mfa.service.js';
 import { LoginService } from '../login/login.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
+import { WebAuthnService } from '../webauthn/webauthn.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
@@ -32,6 +33,7 @@ export class StepUpController {
     private readonly mfaService: MfaService,
     private readonly loginService: LoginService,
     private readonly crypto: CryptoService,
+    private readonly webAuthnService: WebAuthnService,
   ) {}
 
   /**
@@ -96,11 +98,21 @@ export class StepUpController {
     }
 
     if (requiredAcr === ACR_WEBAUTHN) {
+      const hasCredentials = await this.webAuthnService.hasCredentials(user.id, realm.id);
+      if (!hasCredentials) {
+        throw new BadRequestException('No WebAuthn credentials registered for this account. Please register a passkey first.');
+      }
+
+      // Generate a proper server-side challenge and allowCredentials list.
+      // The challenge is stored in PendingAction (5-minute TTL) and consumed
+      // during POST /verify so it cannot be replayed.
+      const options = await this.webAuthnService.generateAuthenticationOptions(realm, user.id);
+
       return {
         status: 'challenge_required',
         challenge_type: 'webauthn',
         acr: requiredAcr,
-        webauthn_authenticate_url: `/realms/${realm.name}/webauthn/authenticate/options`,
+        webauthn_options: options,
       };
     }
 
@@ -136,7 +148,16 @@ export class StepUpController {
       mfa_token?: string;
       otp?: string;
       password?: string;
-      webauthn_assertion_id?: string;
+      // WebAuthn assertion fields (AuthenticationResponseJSON shape)
+      id?: string;
+      rawId?: string;
+      response?: {
+        authenticatorData?: string;
+        clientDataJSON?: string;
+        signature?: string;
+        userHandle?: string;
+      };
+      type?: string;
     },
     @Req() req: Request,
   ) {
@@ -230,38 +251,62 @@ export class StepUpController {
 
     // ── WebAuthn step-up ───────────────────────────────────────────────────
     if (acr === ACR_WEBAUTHN) {
-      // TODO: Full WebAuthn ceremony verification should use the WebAuthn
-      // library (e.g. @simplewebauthn/server verifyAuthenticationResponse)
-      // with a server-generated challenge stored in the session at challenge
-      // time and consumed here.  The fields below are the minimum required
-      // by the WebAuthn specification to prove an authenticator signed the
-      // challenge; accepting only a credential ID (without an actual
-      // assertion) allows trivial bypass of this step-up level.
-      const webauthnAssertionId = body.webauthn_assertion_id;
-      const { authenticatorData, clientDataJSON, signature } = body as {
-        authenticatorData?: string;
-        clientDataJSON?: string;
-        signature?: string;
+      // Expect a complete AuthenticationResponseJSON produced by the browser's
+      // navigator.credentials.get() call.  The required top-level fields are:
+      //   id, rawId, response.authenticatorData, response.clientDataJSON,
+      //   response.signature, and type === 'public-key'.
+      const { id, rawId, response: assertionResponse, type } = body as {
+        id?: string;
+        rawId?: string;
+        response?: {
+          authenticatorData?: string;
+          clientDataJSON?: string;
+          signature?: string;
+          userHandle?: string;
+        };
+        type?: string;
       };
 
-      if (!webauthnAssertionId) {
-        throw new BadRequestException('webauthn_assertion_id is required for WebAuthn step-up');
+      if (!id || !rawId || !assertionResponse || type !== 'public-key') {
+        throw new BadRequestException(
+          'WebAuthn step-up requires a full AuthenticationResponseJSON: id, rawId, response, and type must be provided',
+        );
       }
 
-      // Reject requests that carry no assertion — a bare credential ID does
-      // not prove that the authenticator performed a signing ceremony.
-      if (!authenticatorData || !signature) {
+      const { authenticatorData, clientDataJSON, signature } = assertionResponse;
+      if (!authenticatorData || !clientDataJSON || !signature) {
         throw new BadRequestException(
           'WebAuthn step-up requires a full assertion response: authenticatorData, clientDataJSON, and signature must be provided',
         );
       }
 
-      // Verify the credential exists and belongs to this user
-      const credential = await this.prisma.webAuthnCredential.findFirst({
-        where: { id: webauthnAssertionId, userId: user.id },
-      });
-      if (!credential) {
-        throw new UnauthorizedException('Invalid WebAuthn credential');
+      // Delegate to WebAuthnService which calls verifyAuthenticationResponse()
+      // from @simplewebauthn/server.  It retrieves and consumes the stored
+      // challenge from PendingAction, verifies the RP ID hash in
+      // authenticatorData, and validates the signature against the stored
+      // public key — preventing replay attacks and credential stuffing.
+      let verifiedUser: { id: string };
+      try {
+        const result = await this.webAuthnService.verifyAuthentication(realm, {
+          id,
+          rawId,
+          response: {
+            authenticatorData,
+            clientDataJSON,
+            signature,
+            userHandle: assertionResponse.userHandle,
+          },
+          type: 'public-key',
+          clientExtensionResults: {},
+        });
+        verifiedUser = result.user;
+      } catch (err: any) {
+        throw new UnauthorizedException('WebAuthn verification failed: ' + err.message);
+      }
+
+      // Confirm the verified passkey actually belongs to the session's user.
+      if (verifiedUser.id !== user.id) {
+        throw new UnauthorizedException('WebAuthn credential does not belong to the session user');
       }
 
       await this.stepUpService.recordStepUp(loginSession.id, ACR_WEBAUTHN, cacheDuration);
