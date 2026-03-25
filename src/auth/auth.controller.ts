@@ -8,6 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -57,11 +58,24 @@ export class AuthController {
       );
     }
 
-    return this.authService.handleTokenRequest(
-      realm,
-      body,
-      resolveClientIp(req),
-      req.headers['user-agent'],
-    );
+    try {
+      return await this.authService.handleTokenRequest(
+        realm,
+        body,
+        resolveClientIp(req),
+        req.headers['user-agent'],
+      );
+    } catch (err) {
+      // RFC 8628 §3.5 requires device-code polling errors to be returned as
+      // { error: '<code>' } at HTTP 400, not as NestJS's default error shape.
+      if (err instanceof BadRequestException) {
+        const msg = err.message;
+        if (msg === 'authorization_pending' || msg === 'slow_down') {
+          res.status(400).json({ error: msg });
+          return;
+        }
+      }
+      throw err;
+    }
   }
 }

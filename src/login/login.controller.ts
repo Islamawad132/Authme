@@ -392,6 +392,8 @@ export class LoginController {
   }
 
   @Post('totp')
+  @UseGuards(RateLimitGuard)
+  @RateLimitByIp()
   async handleTotp(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
@@ -483,6 +485,8 @@ export class LoginController {
   }
 
   @Post('change-password')
+  @UseGuards(RateLimitGuard)
+  @RateLimitByIp()
   async handleChangePassword(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
@@ -1038,6 +1042,8 @@ export class LoginController {
   }
 
   @Post('reset-password')
+  @UseGuards(RateLimitGuard)
+  @RateLimitByIp()
   async handleResetPassword(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,

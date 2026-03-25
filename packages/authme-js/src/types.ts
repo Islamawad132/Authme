@@ -26,6 +26,12 @@ export interface AuthmeConfig {
    */
   refreshStrategy?: 'silent' | 'rotation' | 'eager';
   /**
+   * Redirect URI used specifically for the silent-refresh iframe flow.
+   * Should point to a page that calls `handleSilentCallback()`.
+   * If not set, `redirectUri` is used as a fallback (with a console warning).
+   */
+  silentRedirectUri?: string;
+  /**
    * Called when the user successfully logs in.
    * Receives the token response.
    */

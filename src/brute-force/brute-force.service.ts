@@ -80,9 +80,16 @@ export class BruteForceService {
   }
 
   async unlockUser(userId: string): Promise<void> {
+    // Clear the lock on the user record.
     await this.prisma.user.update({
       where: { id: userId },
       data: { lockedUntil: null, enabled: true },
+    });
+    // Also delete all stored failure records for this user.  Without this,
+    // recordFailure() would count the old failures on the very next login
+    // attempt and immediately re-lock the account.
+    await this.prisma.loginFailure.deleteMany({
+      where: { userId },
     });
   }
 

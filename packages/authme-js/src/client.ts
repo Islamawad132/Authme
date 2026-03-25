@@ -68,6 +68,7 @@ export class AuthmeClient {
     autoRefresh: boolean;
     refreshBuffer: number;
     refreshStrategy: 'silent' | 'rotation' | 'eager';
+    silentRedirectUri?: string;
     postLogoutRedirectUri?: string;
     onLogin?: (tokens: TokenResponse) => void;
     onLogout?: () => void;
@@ -106,6 +107,7 @@ export class AuthmeClient {
       autoRefresh: config.autoRefresh ?? true,
       refreshBuffer: config.refreshBuffer ?? DEFAULT_REFRESH_BUFFER,
       refreshStrategy: config.refreshStrategy ?? 'rotation',
+      silentRedirectUri: config.silentRedirectUri,
       postLogoutRedirectUri: config.postLogoutRedirectUri,
       onLogin: config.onLogin,
       onLogout: config.onLogout,
@@ -583,10 +585,26 @@ export class AuthmeClient {
         this.storage.set('silent_pkce_verifier', verifier);
         this.storage.set('silent_auth_state', state);
 
+        // Resolve the redirect URI for the silent-refresh iframe.  A dedicated
+        // silentRedirectUri (pointing at a page that calls handleSilentCallback)
+        // is strongly recommended.  Falling back to the main redirectUri works
+        // only if that page also posts the authme:silent_callback message.
+        let silentRedirectUri: string;
+        if (this.config.silentRedirectUri) {
+          silentRedirectUri = this.config.silentRedirectUri;
+        } else {
+          console.warn(
+            '[authme] silentRedirectUri is not set. ' +
+              'Falling back to redirectUri for the silent-refresh iframe. ' +
+              'Set silentRedirectUri to a dedicated page that calls handleSilentCallback().',
+          );
+          silentRedirectUri = this.config.redirectUri;
+        }
+
         const params = new URLSearchParams({
           response_type: 'code',
           client_id: this.config.clientId,
-          redirect_uri: this.config.redirectUri,
+          redirect_uri: silentRedirectUri,
           scope: this.config.scopes.join(' '),
           state,
           nonce,
@@ -646,7 +664,7 @@ export class AuthmeClient {
             const body = new URLSearchParams({
               grant_type: 'authorization_code',
               code,
-              redirect_uri: this.config.redirectUri,
+              redirect_uri: silentRedirectUri,
               client_id: this.config.clientId,
               code_verifier: storedVerifier,
             });

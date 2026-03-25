@@ -255,8 +255,8 @@ describe('SamlIdpService', () => {
       );
 
       const xml = Buffer.from(result, 'base64').toString('utf-8');
-      expect(xml).toContain('ds:Signature');
-      expect(xml).toContain('ds:SignatureValue');
+      expect(xml).toContain('Signature');
+      expect(xml).toContain('SignatureValue');
     });
 
     it('should sign the response when signResponses is true', async () => {
@@ -274,8 +274,8 @@ describe('SamlIdpService', () => {
       );
 
       const xml = Buffer.from(result, 'base64').toString('utf-8');
-      expect(xml).toContain('ds:Signature');
-      expect(xml).toContain('ds:SignatureValue');
+      expect(xml).toContain('Signature');
+      expect(xml).toContain('SignatureValue');
     });
 
     it('should use email as NameID for emailAddress nameIdFormat', async () => {

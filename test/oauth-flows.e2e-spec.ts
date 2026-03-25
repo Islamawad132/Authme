@@ -182,7 +182,8 @@ describe('OAuth2 / OIDC Token Flows (e2e)', () => {
       // Introspect
       const introspectRes = await request(app.getHttpServer())
         .post(INTROSPECT_URL)
-        .send({ token: accessToken })
+        .type('form')
+        .send({ token: accessToken, client_id: 'test-client', client_secret: 'test-client-secret' })
         .expect(200);
 
       expect(introspectRes.body).toHaveProperty('active', true);
@@ -214,13 +215,15 @@ describe('OAuth2 / OIDC Token Flows (e2e)', () => {
       // Revoke the token
       await request(app.getHttpServer())
         .post(REVOKE_URL)
-        .send({ token: accessToken })
+        .type('form')
+        .send({ token: accessToken, client_id: 'test-client', client_secret: 'test-client-secret' })
         .expect(200);
 
       // Introspect — should now be inactive
       const introspectRes = await request(app.getHttpServer())
         .post(INTROSPECT_URL)
-        .send({ token: accessToken })
+        .type('form')
+        .send({ token: accessToken, client_id: 'test-client', client_secret: 'test-client-secret' })
         .expect(200);
 
       expect(introspectRes.body).toHaveProperty('active', false);

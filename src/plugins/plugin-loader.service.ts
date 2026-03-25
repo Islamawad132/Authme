@@ -144,9 +144,16 @@ export class PluginLoaderService {
           }
 
           if (!manifestHash && fileHash) {
+            if (process.env.NODE_ENV === 'production') {
+              this.logger.error(
+                `Plugin '${candidate}' rejected — no manifest hash found. ` +
+                `In production, all plugins must have integrity verification. ` +
+                `Generate a manifest with: authme plugins hash`,
+              );
+              return null;
+            }
             this.logger.warn(
-              `Plugin '${candidate}' has no manifest hash — loading without integrity verification. ` +
-              `Run 'authme plugins hash' to generate the manifest.`,
+              `Plugin '${candidate}' has no manifest hash — loading without integrity verification.`,
             );
           }
 
