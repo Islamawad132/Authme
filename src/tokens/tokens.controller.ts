@@ -19,32 +19,111 @@ import { TokensService } from './tokens.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { CryptoService } from '../crypto/crypto.service.js';
 
 @ApiTags('Tokens')
 @Controller('realms/:realmName/protocol/openid-connect')
 @UseGuards(RealmGuard)
 @Public()
 export class TokensController {
-  constructor(private readonly tokensService: TokensService) {}
+  constructor(
+    private readonly tokensService: TokensService,
+    private readonly prisma: PrismaService,
+    private readonly crypto: CryptoService,
+  ) {}
 
   @Post('token/introspect')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Token introspection (RFC 7662)' })
-  introspect(
+  async introspect(
     @CurrentRealm() realm: Realm,
-    @Body() body: { token: string },
+    @Body() body: { token: string; client_id?: string; client_secret?: string },
+    @Req() req: Request,
   ) {
+    await this.authenticateClient(realm, body.client_id, body.client_secret, req);
     return this.tokensService.introspect(realm, body.token);
   }
 
   @Post('revoke')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Token revocation (RFC 7009)' })
-  revoke(
+  async revoke(
     @CurrentRealm() realm: Realm,
-    @Body() body: { token: string; token_type_hint?: string },
+    @Body() body: { token: string; token_type_hint?: string; client_id?: string; client_secret?: string },
+    @Req() req: Request,
   ) {
+    await this.authenticateClient(realm, body.client_id, body.client_secret, req);
     return this.tokensService.revoke(realm, body.token, body.token_type_hint);
+  }
+
+  /**
+   * Authenticate the calling client via client_id/client_secret in the body
+   * or via HTTP Basic Authentication (RFC 6749 §2.3.1).
+   * Public clients are allowed with only client_id (no secret required).
+   */
+  private async authenticateClient(
+    realm: Realm,
+    clientId?: string,
+    clientSecret?: string,
+    req?: Request,
+  ): Promise<void> {
+    let cId = clientId;
+    let cSecret = clientSecret;
+
+    // Fall back to HTTP Basic Authentication
+    if (!cId && req) {
+      const authHeader = req.headers['authorization'];
+      if (authHeader?.startsWith('Basic ')) {
+        const decoded = Buffer.from(authHeader.slice(6), 'base64').toString();
+        const colonIdx = decoded.indexOf(':');
+        if (colonIdx > 0) {
+          cId = decodeURIComponent(decoded.slice(0, colonIdx));
+          cSecret = decodeURIComponent(decoded.slice(colonIdx + 1));
+        }
+      }
+    }
+
+    if (!cId) {
+      throw new UnauthorizedException({
+        error: 'invalid_client',
+        error_description: 'Client authentication is required. Provide client_id/client_secret or use HTTP Basic.',
+      });
+    }
+
+    const client = await this.prisma.client.findUnique({
+      where: { realmId_clientId: { realmId: realm.id, clientId: cId } },
+    });
+
+    if (!client || !client.enabled) {
+      throw new UnauthorizedException({
+        error: 'invalid_client',
+        error_description: 'Invalid client_id or client is disabled.',
+      });
+    }
+
+    // Confidential clients must provide a valid secret
+    if (client.clientType === 'CONFIDENTIAL') {
+      if (!cSecret) {
+        throw new UnauthorizedException({
+          error: 'invalid_client',
+          error_description: 'client_secret is required for confidential clients.',
+        });
+      }
+      if (!client.clientSecret) {
+        throw new UnauthorizedException({
+          error: 'invalid_client',
+          error_description: 'Client has no secret configured.',
+        });
+      }
+      const valid = await this.crypto.verifyPassword(client.clientSecret, cSecret);
+      if (!valid) {
+        throw new UnauthorizedException({
+          error: 'invalid_client',
+          error_description: 'Invalid client credentials.',
+        });
+      }
+    }
   }
 
   @Post('logout')
