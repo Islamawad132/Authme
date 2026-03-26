@@ -28,15 +28,19 @@ export class BrokerController {
   async login(
     @CurrentRealm() realm: Realm,
     @Param('alias') alias: string,
-    @Query() query: Record<string, string>,
+    @Query('client_id') clientId: string,
+    @Query('redirect_uri') redirectUri: string,
+    @Query('scope') scope: string,
+    @Query('state') state: string,
+    @Query('nonce') nonce: string,
     @Res() res: Response,
   ) {
     const redirectUrl = await this.brokerService.initiateLogin(realm, alias, {
-      client_id: query['client_id'],
-      redirect_uri: query['redirect_uri'],
-      scope: query['scope'],
-      state: query['state'],
-      nonce: query['nonce'],
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      scope,
+      state,
+      nonce,
     });
 
     res.redirect(302, redirectUrl);
