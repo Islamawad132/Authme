@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 import { Reflector } from '@nestjs/core';
-import { timingSafeEqual } from 'crypto';
+import { timingSafeEqual, createHash } from 'crypto';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { AdminAuthService } from '../../admin-auth/admin-auth.service.js';
 
@@ -58,7 +58,14 @@ export class AdminApiKeyGuard implements CanActivate {
         apiKey.length === expectedKey.length &&
         timingSafeEqual(Buffer.from(apiKey), Buffer.from(expectedKey))
       ) {
-        adminReq.adminUser = { userId: 'api-key', roles: ['super-admin'] };
+        // Use a truncated hash of the key for auditability instead of the
+        // literal string 'api-key', so impersonation sessions and admin
+        // events can be traced back to a specific key.
+        const keyFingerprint = createHash('sha256')
+          .update(apiKey)
+          .digest('hex')
+          .slice(0, 12);
+        adminReq.adminUser = { userId: `api-key:${keyFingerprint}`, roles: ['super-admin'] };
         return true;
       }
     }
