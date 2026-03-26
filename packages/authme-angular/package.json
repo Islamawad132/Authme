@@ -1,5 +1,5 @@
 {
-  "name": "@authme/angular",
+  "name": "authme-angular",
   "version": "1.0.0",
   "description": "Angular SDK for AuthMe Identity and Access Management Server",
   "type": "commonjs",

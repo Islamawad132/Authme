@@ -94,8 +94,8 @@ export class LoginController {
   }
 
   /** Throw `ForbiddenException` when the double-submit CSRF token is invalid. */
-  private validateCsrf(realm: Realm, body: Record<string, string>, req: Request): void {
-    const bodyToken = body['_csrf'];
+  private validateCsrf(realm: Realm, body: Record<string, unknown>, req: Request): void {
+    const bodyToken = body['_csrf'] as string | undefined;
     const cookieToken = req.cookies?.[this.csrfService.cookieName(realm.name)];
     if (!this.csrfService.validate(bodyToken, cookieToken)) {
       throw new ForbiddenException('Invalid or missing CSRF token');
@@ -156,7 +156,7 @@ export class LoginController {
           realmName: realm.name,
           ipAddress: resolveClientIp(req),
           userAgent: req.headers['user-agent'] ?? null,
-          deviceFingerprint: body['device_fingerprint'] ?? null,
+          deviceFingerprint: (body['device_fingerprint'] as string) ?? null,
           timestamp: new Date(),
         };
 
@@ -177,7 +177,7 @@ export class LoginController {
             realmId: realm.id,
             type: LoginEventType.LOGIN_ERROR,
             userId: user.id,
-            clientId: body['client_id'],
+            clientId: body['client_id'] as string | undefined,
             ipAddress: resolveClientIp(req),
             error: `Login blocked by risk assessment (score=${assessment.riskScore})`,
           });
@@ -185,7 +185,7 @@ export class LoginController {
           const params = new URLSearchParams();
           params.set('error', 'Login blocked due to suspicious activity. Check your email for details.');
           for (const key of ['client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method']) {
-            if (body[key]) params.set(key, body[key]);
+            if (body[key]) params.set(key, body[key] as string);
           }
           return res.redirect(`/realms/${realm.name}/login?${params.toString()}`);
         }
@@ -196,7 +196,7 @@ export class LoginController {
           if (mfaAvailable) {
             const oauthParamsForChallenge: Record<string, string> = {};
             for (const key of ['response_type', 'client_id', 'redirect_uri', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method']) {
-              if (body[key]) oauthParamsForChallenge[key] = body[key];
+              if (body[key]) oauthParamsForChallenge[key] = body[key] as string;
             }
             const challengeToken = await this.mfaService.createMfaChallenge(
               user.id,
@@ -232,7 +232,7 @@ export class LoginController {
         const params = new URLSearchParams();
         params.set('error', 'Please verify your email address before signing in. Check your inbox for the verification link.');
         for (const key of ['client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method']) {
-          if (body[key]) params.set(key, body[key]);
+          if (body[key]) params.set(key, body[key] as string);
         }
         return res.redirect(`/realms/${realm.name}/login?${params.toString()}`);
       }
@@ -240,7 +240,7 @@ export class LoginController {
       // Build OAuth params for later use
       const oauthParams: Record<string, string> = {};
       for (const key of ['response_type', 'client_id', 'redirect_uri', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method']) {
-        if (body[key]) oauthParams[key] = body[key];
+        if (body[key]) oauthParams[key] = body[key] as string;
       }
 
       // Check password expiry
@@ -307,7 +307,7 @@ export class LoginController {
       this.eventsService.recordLoginEvent({
         realmId: realm.id,
         type: LoginEventType.LOGIN_ERROR,
-        clientId: body['client_id'],
+        clientId: body['client_id'] as string | undefined,
         ipAddress: resolveClientIp(req),
         error: errMessage,
       });
@@ -315,7 +315,7 @@ export class LoginController {
       const params = new URLSearchParams();
       params.set('error', errMessage);
       for (const key of ['client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'nonce', 'code_challenge', 'code_challenge_method']) {
-        if (body[key]) params.set(key, body[key]);
+        if (body[key]) params.set(key, body[key] as string);
       }
       res.redirect(`/realms/${realm.name}/login?${params.toString()}`);
     }
@@ -324,7 +324,7 @@ export class LoginController {
   private async completeLogin(
     realm: Realm,
     user: User,
-    body: Record<string, string>,
+    body: Record<string, unknown>,
     oauthParams: Record<string, string>,
     req: Request,
     res: Response,
@@ -429,8 +429,8 @@ export class LoginController {
       return res.redirect(`/realms/${realm.name}/login?error=${encodeURIComponent('MFA session expired. Please login again.')}`);
     }
 
-    const code = body['code'];
-    const recoveryCode = body['recoveryCode'];
+    const code = body['code'] as string | undefined;
+    const recoveryCode = body['recoveryCode'] as string | undefined;
 
     let verified = false;
     if (code) {
@@ -501,10 +501,10 @@ export class LoginController {
     @Res() res: Response,
   ) {
     this.validateCsrf(realm, body, req);
-    const token = body['token'];
-    const currentPassword = body['currentPassword'];
-    const newPassword = body['newPassword'];
-    const confirmPassword = body['confirmPassword'];
+    const token = body['token'] as string | undefined;
+    const currentPassword = body['currentPassword'] as string | undefined;
+    const newPassword = body['newPassword'] as string | undefined;
+    const confirmPassword = body['confirmPassword'] as string | undefined;
 
     const redirectBase = `/realms/${realm.name}/change-password?token=${token ?? ''}`;
 
@@ -1058,9 +1058,9 @@ export class LoginController {
     @Res() res: Response,
   ) {
     this.validateCsrf(realm, body, req);
-    const token = body['token'];
-    const password = body['password'];
-    const confirmPassword = body['confirmPassword'];
+    const token = body['token'] as string | undefined;
+    const password = body['password'] as string | undefined;
+    const confirmPassword = body['confirmPassword'] as string | undefined;
 
     if (!token || !password) {
       return res.redirect(
