@@ -11,6 +11,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiResponse } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import type { Realm } from '@prisma/client';
 import { AuthService } from './auth.service.js';
@@ -18,7 +19,7 @@ import { TokenRequestDto } from './dto/token-request.dto.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
-import { RateLimitGuard, RateLimitByClient } from '../rate-limit/rate-limit.guard.js';
+import { RateLimitGuard, RateLimitByIp } from '../rate-limit/rate-limit.guard.js';
 import { resolveClientIp } from '../common/utils/proxy-ip.util.js';
 
 @ApiTags('Authentication')
@@ -36,8 +37,9 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid client credentials or user credentials' })
   @ApiConsumes('application/x-www-form-urlencoded', 'application/json')
   @ApiBody({ type: TokenRequestDto })
+  @SkipThrottle()
   @UseGuards(RateLimitGuard)
-  @RateLimitByClient()
+  @RateLimitByIp()
   async token(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,

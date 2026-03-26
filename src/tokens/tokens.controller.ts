@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import type { Realm } from '@prisma/client';
 import { TokensService } from './tokens.service.js';
@@ -26,6 +27,7 @@ import { RateLimitGuard, RateLimitByIp } from '../rate-limit/rate-limit.guard.js
 
 @ApiTags('Tokens')
 @Controller('realms/:realmName/protocol/openid-connect')
+@SkipThrottle()
 @UseGuards(RealmGuard, RateLimitGuard)
 @RateLimitByIp()
 @Public()

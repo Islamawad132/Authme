@@ -1,5 +1,6 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Realm } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JwkService } from '../crypto/jwk.service.js';
@@ -12,6 +13,7 @@ import { RateLimitGuard, RateLimitByIp } from '../rate-limit/rate-limit.guard.js
 
 @ApiTags('OIDC Discovery')
 @Controller('realms/:realmName')
+@SkipThrottle()
 @UseGuards(RealmGuard, RateLimitGuard)
 @RateLimitByIp()
 @Public()

@@ -52,23 +52,15 @@ export class RateLimitGuard implements CanActivate {
 
     // Extract realm ID from the request.  RealmGuard populates request.realm
     // for realm-scoped controllers; admin controllers may use request.params.
-    const realmObj = (request as unknown as Record<string, unknown>)['realm'];
-    const realmId: string | undefined =
-      (realmObj && typeof realmObj === 'object' && 'id' in realmObj)
-        ? (realmObj as { id: string }).id
-        : (request.params as Record<string, string>)['realmName']
-          ? undefined  // realmName is a name, not an ID — look it up below
-          : (request.params as Record<string, string>)['realmId'];
+    const realmObj = (request as unknown as Record<string, unknown>)['realm'] as
+      | { id: string }
+      | undefined;
+    const effectiveRealmId: string | undefined =
+      realmObj?.id ??
+      (request.params as Record<string, string>)['realmId'];
 
-    if (!realmId && !realmObj) {
-      // Cannot determine realm — skip per-realm rate limiting.
-      // The global ThrottlerGuard still applies.
-      return true;
-    }
-
-    // If we only have the realm object, extract its id
-    const effectiveRealmId = realmId ?? (realmObj as { id: string })?.id;
     if (!effectiveRealmId) {
+      // Cannot determine realm — skip per-realm rate limiting.
       return true;
     }
 
