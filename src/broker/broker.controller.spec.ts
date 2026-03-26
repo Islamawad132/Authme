@@ -32,7 +32,16 @@ describe('BrokerController', () => {
         nonce: 'xyz',
       };
 
-      await controller.login(realm, 'google', query, res as any);
+      await controller.login(
+        realm,
+        'google',
+        query.client_id,
+        query.redirect_uri,
+        query.scope,
+        query.state,
+        query.nonce,
+        res as any,
+      );
 
       expect(brokerService.initiateLogin).toHaveBeenCalledWith(realm, 'google', {
         client_id: 'my-app',
