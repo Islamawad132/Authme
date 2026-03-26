@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -13,6 +15,7 @@ import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger
 import type { Realm } from '@prisma/client';
 import { RolesService } from './roles.service.js';
 import { CreateRoleDto } from './dto/create-role.dto.js';
+import { UpdateRoleDto } from './dto/update-role.dto.js';
 import { AssignRolesDto } from './dto/assign-role.dto.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
@@ -56,6 +59,34 @@ export class RolesController {
     @Param('roleName') roleName: string,
   ) {
     return this.rolesService.findByName(realm, roleName);
+  }
+
+  @Put('roles/:roleName')
+  @ApiOperation({ summary: 'Update a realm role (full replace)' })
+  @ApiResponse({ status: 200, description: 'Realm role updated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Role not found' })
+  @ApiResponse({ status: 409, description: 'Role name conflict' })
+  updateRealmRole(
+    @CurrentRealm() realm: Realm,
+    @Param('roleName') roleName: string,
+    @Body() dto: UpdateRoleDto,
+  ) {
+    return this.rolesService.updateRealmRole(realm, roleName, dto);
+  }
+
+  @Patch('roles/:roleName')
+  @ApiOperation({ summary: 'Partially update a realm role' })
+  @ApiResponse({ status: 200, description: 'Realm role updated' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Role not found' })
+  @ApiResponse({ status: 409, description: 'Role name conflict' })
+  patchRealmRole(
+    @CurrentRealm() realm: Realm,
+    @Param('roleName') roleName: string,
+    @Body() dto: UpdateRoleDto,
+  ) {
+    return this.rolesService.updateRealmRole(realm, roleName, dto);
   }
 
   @Delete('roles/:roleName')

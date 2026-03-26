@@ -42,6 +42,36 @@ export class RolesService {
     return role;
   }
 
+  async updateRealmRole(
+    realm: Realm,
+    roleName: string,
+    data: { name?: string; description?: string },
+  ) {
+    const role = await this.prisma.role.findFirst({
+      where: { realmId: realm.id, clientId: null, name: roleName },
+    });
+    if (!role) {
+      throw new NotFoundException(`Role '${roleName}' not found`);
+    }
+
+    if (data.name && data.name !== roleName) {
+      const existing = await this.prisma.role.findFirst({
+        where: { realmId: realm.id, clientId: null, name: data.name },
+      });
+      if (existing) {
+        throw new ConflictException(`Role '${data.name}' already exists`);
+      }
+    }
+
+    return this.prisma.role.update({
+      where: { id: role.id },
+      data: {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.description !== undefined && { description: data.description }),
+      },
+    });
+  }
+
   async deleteRealmRole(realm: Realm, roleName: string) {
     const role = await this.prisma.role.findFirst({
       where: { realmId: realm.id, clientId: null, name: roleName },
