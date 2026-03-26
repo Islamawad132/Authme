@@ -37,7 +37,7 @@ export function createLoggerConfig(): Params {
         }),
       },
       autoLogging: {
-        ignore: (req: any) => req.url?.startsWith('/health') || req.url?.startsWith('/metrics'),
+        ignore: (req: any) => req.url?.startsWith('/health') || req.url?.startsWith('/admin/metrics'),
       },
     },
   };

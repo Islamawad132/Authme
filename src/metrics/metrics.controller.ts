@@ -4,7 +4,7 @@ import { MetricsService } from './metrics.service.js';
 import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard.js';
 
 @ApiTags('Metrics')
-@Controller('metrics')
+@Controller('admin/metrics')
 @UseGuards(AdminApiKeyGuard)
 @ApiSecurity('admin-api-key')
 export class MetricsController {
