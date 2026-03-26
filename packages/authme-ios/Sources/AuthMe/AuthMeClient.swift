@@ -519,8 +519,17 @@ private final class DefaultPresentationContextProvider: NSObject,
             "connected UIWindowScene. Ensure the app has an active window before " +
             "calling login(), or supply a custom presentationContextProvider."
         )
-        #else
-        return ASPresentationAnchor()
+        #elseif os(macOS)
+        if let window = NSApplication.shared.keyWindow
+            ?? NSApplication.shared.windows.first(where: { $0.isVisible })
+        {
+            return window
+        }
+        preconditionFailure(
+            "[AuthMe] DefaultPresentationContextProvider: no NSWindow found. " +
+            "Ensure the app has a visible window before calling login(), " +
+            "or supply a custom presentationContextProvider."
+        )
         #endif
     }
 }

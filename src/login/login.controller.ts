@@ -38,6 +38,13 @@ import { CustomAttributesService } from '../custom-attributes/custom-attributes.
 import { RiskAssessmentService } from '../risk-assessment/risk-assessment.service.js';
 import { CsrfService } from '../common/csrf/csrf.service.js';
 import { resolveClientIp } from '../common/utils/proxy-ip.util.js';
+import {
+  LoginDto,
+  TotpDto,
+  ChangePasswordDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from './dto/login.dto.js';
 
 const SCOPE_DESCRIPTIONS: Record<string, string> = {
   openid: 'Verify your identity',
@@ -128,7 +135,7 @@ export class LoginController {
   @RateLimitByIp()
   async handleLogin(
     @CurrentRealm() realm: Realm,
-    @Body() body: Record<string, string>,
+    @Body() body: LoginDto,
     @Req() req: Request,
     @Res() res: Response,
   ) {
@@ -396,7 +403,7 @@ export class LoginController {
   @RateLimitByIp()
   async handleTotp(
     @CurrentRealm() realm: Realm,
-    @Body() body: Record<string, string>,
+    @Body() body: TotpDto,
     @Req() req: Request,
     @Res() res: Response,
   ) {
@@ -489,7 +496,7 @@ export class LoginController {
   @RateLimitByIp()
   async handleChangePassword(
     @CurrentRealm() realm: Realm,
-    @Body() body: Record<string, string>,
+    @Body() body: ChangePasswordDto,
     @Req() req: Request,
     @Res() res: Response,
   ) {
@@ -960,7 +967,7 @@ export class LoginController {
   @RateLimitByIp()
   async handleForgotPassword(
     @CurrentRealm() realm: Realm,
-    @Body() body: Record<string, string>,
+    @Body() body: ForgotPasswordDto,
     @Req() req: Request,
     @Res() res: Response,
   ) {
@@ -1046,7 +1053,7 @@ export class LoginController {
   @RateLimitByIp()
   async handleResetPassword(
     @CurrentRealm() realm: Realm,
-    @Body() body: Record<string, string>,
+    @Body() body: ResetPasswordDto,
     @Req() req: Request,
     @Res() res: Response,
   ) {

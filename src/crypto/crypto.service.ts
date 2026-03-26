@@ -62,10 +62,20 @@ export class CryptoService implements OnModuleInit {
     }
 
     if (!salt || salt === DEFAULT_WEBHOOK_ENCRYPTION_SALT) {
-      this.logger.warn(
-        'SECURITY WARNING: WEBHOOK_ENCRYPTION_SALT is not set or is still the default placeholder value. ' +
-        'Set WEBHOOK_ENCRYPTION_SALT to a unique random value (e.g. `openssl rand -hex 16`) before running in production.',
-      );
+      const saltMsg =
+        'WEBHOOK_ENCRYPTION_SALT is not set or is still the default placeholder value. ' +
+        'Set WEBHOOK_ENCRYPTION_SALT to a unique random value (e.g. `openssl rand -hex 16`).';
+      if (isProduction) {
+        this.logger.error(`SECURITY: ${saltMsg}`);
+        console.error(
+          '\n\nFATAL: WEBHOOK_ENCRYPTION_SALT is not configured.\n' +
+          'Set WEBHOOK_ENCRYPTION_SALT=<random> in your environment before starting the server.\n' +
+          'Generate one with:  openssl rand -hex 16\n\n',
+        );
+        process.exit(1);
+      } else {
+        this.logger.warn(`SECURITY WARNING: ${saltMsg}`);
+      }
     }
   }
 
