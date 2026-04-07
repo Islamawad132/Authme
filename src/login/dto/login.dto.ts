@@ -66,7 +66,7 @@ export class LoginDto {
   @IsString()
   device_fingerprint?: string;
 
-  // Remember-me checkbox — present as "on" when checked, absent otherwise.
+  // Remember-me checkbox — present as "true" when checked, absent otherwise.
   @IsOptional()
   @IsString()
   rememberMe?: string;
@@ -116,26 +116,35 @@ export class OAuthContextDto {
   code_challenge_method?: string;
 }
 
+// Field names match the totp.hbs form: name="code" and name="recoveryCode".
+// Either code or recoveryCode must be present; both are optional here because
+// the controller decides which path to take at runtime.
 export class TotpDto extends OAuthContextDto {
+  @IsOptional()
   @IsString()
   @Matches(/^\d{6,8}$/, { message: 'OTP code must be 6-8 digits' })
-  otp_code!: string;
+  code?: string;
+
+  @IsOptional()
+  @IsString()
+  recoveryCode?: string;
 
   @IsOptional()
   @IsString()
   session_id?: string;
 }
 
+// Field names match change-password.hbs: currentPassword, newPassword, confirmPassword.
 export class ChangePasswordDto extends OAuthContextDto {
   @IsOptional()
   @IsString()
   token?: string;
 
   @IsString()
-  current_password!: string;
+  currentPassword!: string;
 
   @IsString()
-  new_password!: string;
+  newPassword!: string;
 
   @IsOptional()
   @IsString()
@@ -148,12 +157,13 @@ export class ForgotPasswordDto extends OAuthContextDto {
   email!: string;
 }
 
+// Field names match reset-password.hbs: token, password, confirmPassword.
 export class ResetPasswordDto extends OAuthContextDto {
   @IsString()
   token!: string;
 
   @IsString()
-  new_password!: string;
+  password!: string;
 
   @IsOptional()
   @IsString()
