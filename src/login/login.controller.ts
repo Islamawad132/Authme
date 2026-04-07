@@ -462,7 +462,7 @@ export class LoginController {
       return res.redirect(`/realms/${realm.name}/login?error=${encodeURIComponent('User not found.')}`);
     }
 
-    return await this.completeLogin(realm, user, body, challenge.oauthParams ?? {}, req, res);
+    return await this.completeLogin(realm, user, body as unknown as Record<string, unknown>, challenge.oauthParams ?? {}, req, res);
   }
 
   // ─── CHANGE PASSWORD (forced) ─────────────────────────────
