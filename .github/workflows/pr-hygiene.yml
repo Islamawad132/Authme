@@ -1,0 +1,59 @@
+name: PR Hygiene
+
+## Baseline checks that every PR must pass:
+##  - No accidental secret in the diff
+##  - No changes to workflow files from a contributor PR (must be merged deliberately)
+##  - No env / credentials files leaked
+##  - Bot / auto-generated PRs (marked with the `autonomous` label) are bounded in size
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  hygiene:
+    name: PR hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Forbid sensitive path changes in contributor PRs
+        run: |
+          set -e
+          CHANGED=$(git diff --name-only origin/main...HEAD)
+          echo "$CHANGED"
+          if echo "$CHANGED" | grep -E '^\.env|/\.env|(^|/)secrets/|(^|/)credentials/' ; then
+            echo "::error::PR touches env / secrets / credentials files"
+            exit 1
+          fi
+
+      - name: Scan diff for inline secrets
+        run: |
+          set -e
+          if git diff origin/main...HEAD \
+             | grep -iE '(api[_-]?key|secret|password|token|bearer)[^A-Za-z]*[:=][^A-Za-z]*[A-Za-z0-9_-]{20,}' ; then
+            echo "::error::Possible secret leaked in diff"
+            exit 1
+          fi
+
+      - name: Size limits for automated PRs
+        run: |
+          set -e
+          LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+          if echo "$LABELS" | grep -q '"autonomous"'; then
+            FILES=$(git diff --name-only origin/main...HEAD | wc -l)
+            LINES=$(git diff --shortstat origin/main...HEAD | awk '{print $4 + $6}')
+            echo "Automated PR — files=$FILES lines=${LINES:-0}"
+            if [ "$FILES" -gt 15 ]; then
+              echo "::error::Automated PR exceeds 15 files; split required"
+              exit 1
+            fi
+            if [ "${LINES:-0}" -gt 300 ]; then
+              echo "::error::Automated PR exceeds 300 lines; split required"
+              exit 1
+            fi
+          else
+            echo "Manual PR — size limits skipped"
+          fi

@@ -30,3 +30,10 @@ pgdata
 
 # Claude
 .claude
+
+# Local workspace / scratch
+.agent/
+.agent-stop
+GEMINI.md
+.github/ISSUE_TEMPLATE/auto-task.md
+*.local.md
