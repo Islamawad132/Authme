@@ -1,3 +1,8 @@
+/**
+ * Service for managing multi-factor authentication (MFA) related operations.
+ * This includes setting up and verifying TOTP (Time-based One-Time Password),
+ * handling recovery codes, and managing MFA challenges.
+ */
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as OTPAuth from 'otpauth';
 import * as QRCode from 'qrcode';
