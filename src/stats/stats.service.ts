@@ -1,3 +1,7 @@
+/**
+ * This service provides statistical data for different realms.
+ * It includes metrics like active users, login attempts, and session counts.
+ */
 import { Injectable } from '@nestjs/common';
 import type { Realm } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
