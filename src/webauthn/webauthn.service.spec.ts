@@ -490,24 +490,30 @@ describe('WebAuthnService', () => {
     it('should throw NotFoundException when credential does not exist', async () => {
       prisma.webAuthnCredential.findFirst.mockResolvedValue(null);
 
-      await expect(service.removeCredential('user-1', 'cred-db-1'))
+      await expect(service.removeCredential('user-1', 'realm-1', 'cred-db-1'))
         .rejects.toThrow(NotFoundException);
     });
 
     it('should throw NotFoundException when credential belongs to different user', async () => {
-      // findFirst returns null when userId does not match
       prisma.webAuthnCredential.findFirst.mockResolvedValue(null);
 
-      await expect(service.removeCredential('user-1', 'cred-db-1'))
+      await expect(service.removeCredential('user-1', 'realm-1', 'cred-db-1'))
         .rejects.toThrow(NotFoundException);
     });
 
-    it('should delete the credential when it belongs to the user', async () => {
+    it('should throw NotFoundException when credential belongs to different realm', async () => {
+      prisma.webAuthnCredential.findFirst.mockResolvedValue(null);
+
+      await expect(service.removeCredential('user-1', 'wrong-realm', 'cred-db-1'))
+        .rejects.toThrow(NotFoundException);
+    });
+
+    it('should delete the credential when it belongs to the user and realm', async () => {
       const cred = makeCredential();
       prisma.webAuthnCredential.findFirst.mockResolvedValue(cred as any);
       prisma.webAuthnCredential.delete.mockResolvedValue(cred as any);
 
-      await service.removeCredential('user-1', 'cred-db-1');
+      await service.removeCredential('user-1', 'realm-1', 'cred-db-1');
 
       expect(prisma.webAuthnCredential.delete).toHaveBeenCalledWith({
         where: { id: 'cred-db-1' },

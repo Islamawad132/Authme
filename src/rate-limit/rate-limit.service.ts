@@ -81,6 +81,12 @@ export class RateLimitService {
     return this.check(`admin:ip:${ip}`, ADMIN_LIMIT_PER_MINUTE, ADMIN_LIMIT_PER_HOUR);
   }
 
+  async checkAdminApiKeyLimit(ip: string): Promise<RateLimitResult> {
+    const ADMIN_API_KEY_LIMIT_PER_MINUTE = 15;
+    const ADMIN_API_KEY_LIMIT_PER_HOUR = 100;
+    return this.check(`admin:apikey:${ip}`, ADMIN_API_KEY_LIMIT_PER_MINUTE, ADMIN_API_KEY_LIMIT_PER_HOUR);
+  }
+
   async checkIpLimit(ip: string, realmId: string): Promise<RateLimitResult> {
     const realm = await this.prisma.realm.findUnique({
       where: { id: realmId },

@@ -12,6 +12,7 @@ function createMockExecutionContext(
     getClass: jest.fn(),
     switchToHttp: jest.fn().mockReturnValue({
       getRequest: jest.fn().mockReturnValue({ headers, path }),
+      getResponse: jest.fn().mockReturnValue({ setHeader: jest.fn() }),
     }),
   } as any;
 }
@@ -22,20 +23,30 @@ function createMockAdminAuthService() {
   };
 }
 
+function createMockRateLimitService() {
+  return {
+    checkAdminApiKeyLimit: jest.fn().mockResolvedValue({ allowed: true, limit: 15, remaining: 14, resetAt: 0 }),
+    computeHeaders: jest.fn().mockReturnValue({}),
+  };
+}
+
 describe('AdminApiKeyGuard', () => {
   let guard: AdminApiKeyGuard;
   let configService: { get: jest.Mock };
   let reflector: { getAllAndOverride: jest.Mock };
   let adminAuthService: ReturnType<typeof createMockAdminAuthService>;
+  let rateLimitService: ReturnType<typeof createMockRateLimitService>;
 
   beforeEach(() => {
     configService = { get: jest.fn() };
     reflector = { getAllAndOverride: jest.fn() };
     adminAuthService = createMockAdminAuthService();
+    rateLimitService = createMockRateLimitService();
     guard = new AdminApiKeyGuard(
       configService as unknown as ConfigService,
       reflector as unknown as Reflector,
       adminAuthService as any,
+      rateLimitService as any,
     );
   });
 

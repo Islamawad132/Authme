@@ -189,40 +189,33 @@ describe('SessionsService', () => {
   // ─── revokeAllUserSessions ──────────────────────────────────
 
   describe('revokeAllUserSessions', () => {
-    it('should find all oauth sessions, revoke their tokens, and delete all sessions', async () => {
+    it('should revoke all user sessions in batch operations', async () => {
       prisma.session.findMany.mockResolvedValue([
         { id: 'session-1' },
         { id: 'session-2' },
       ]);
-      prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+      prisma.refreshToken.updateMany.mockResolvedValue({ count: 2 });
       prisma.session.deleteMany.mockResolvedValue({ count: 2 });
       (prisma.loginSession.deleteMany as jest.Mock).mockResolvedValue({ count: 1 });
 
       await service.revokeAllUserSessions(mockRealm, 'user-1');
 
-      // Should find all oauth sessions
       expect(prisma.session.findMany).toHaveBeenCalledWith({
         where: { userId: 'user-1', user: { realmId: 'realm-1' } },
         select: { id: true },
       });
 
-      // Should revoke refresh tokens for each session
-      expect(prisma.refreshToken.updateMany).toHaveBeenCalledTimes(2);
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledTimes(1);
       expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
-        where: { sessionId: 'session-1' },
-        data: { revoked: true },
-      });
-      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
-        where: { sessionId: 'session-2' },
+        where: { sessionId: { in: ['session-1', 'session-2'] } },
         data: { revoked: true },
       });
 
-      // Should delete all oauth sessions
+      expect(prisma.session.deleteMany).toHaveBeenCalledTimes(1);
       expect(prisma.session.deleteMany).toHaveBeenCalledWith({
-        where: { userId: 'user-1', user: { realmId: 'realm-1' } },
+        where: { id: { in: ['session-1', 'session-2'] } },
       });
 
-      // Should delete all sso sessions
       expect(prisma.loginSession.deleteMany).toHaveBeenCalledWith({
         where: { userId: 'user-1', realmId: 'realm-1' },
       });
@@ -230,13 +223,12 @@ describe('SessionsService', () => {
 
     it('should handle case with no existing sessions', async () => {
       prisma.session.findMany.mockResolvedValue([]);
-      prisma.session.deleteMany.mockResolvedValue({ count: 0 });
       (prisma.loginSession.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
 
       await service.revokeAllUserSessions(mockRealm, 'user-1');
 
       expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
-      expect(prisma.session.deleteMany).toHaveBeenCalled();
+      expect(prisma.session.deleteMany).not.toHaveBeenCalled();
       expect(prisma.loginSession.deleteMany).toHaveBeenCalled();
     });
   });

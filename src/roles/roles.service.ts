@@ -160,6 +160,13 @@ export class RolesService {
     userId: string,
     roleNames: string[],
   ) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, realmId: realm.id },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     const roles = await this.prisma.role.findMany({
       where: { realmId: realm.id, clientId: null, name: { in: roleNames } },
     });
@@ -218,6 +225,13 @@ export class RolesService {
       throw new NotFoundException(`Client '${clientId}' not found`);
     }
 
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, realmId: realm.id },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     const roles = await this.prisma.role.findMany({
       where: {
         realmId: realm.id,
@@ -249,6 +263,13 @@ export class RolesService {
     });
     if (!client) {
       throw new NotFoundException(`Client '${clientId}' not found`);
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, realmId: realm.id },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
 
     return this.prisma.role.findMany({

@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import type { Realm } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -19,6 +20,8 @@ import { matchesRedirectUri } from '../common/redirect-uri.utils.js';
 
 @Injectable()
 export class TokensService {
+  private readonly logger = new Logger(TokensService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
@@ -66,19 +69,25 @@ export class TokensService {
       // on it being present even when the claim is not embedded in the JWT.
       const sub = payload.sub as string | undefined;
       let username: string | undefined;
+      let active = true;
       if (sub) {
         const user = await this.prisma.user.findUnique({
           where: { id: sub },
           select: { username: true, enabled: true },
         });
-        if (!user || !user.enabled) {
+if (!user) {
+          // User was deleted after token was issued
           return { active: false };
         }
-        username = user?.username;
+        if (!user.enabled) {
+          // User is disabled
+          active = false;
+        }
+        username = user.username;
       }
 
       return {
-        active: true,
+        active,
         sub: payload.sub,
         iss: payload.iss,
         aud: payload.aud,
@@ -241,17 +250,18 @@ export class TokensService {
       if (sid) {
         await this.endSession(realm, sid, sub, ip);
       } else if (sub) {
-        // No session ID in token, end all sessions for this user
         const sessions = await this.prisma.session.findMany({
           where: { userId: sub },
           select: { id: true },
         });
-        for (const session of sessions) {
-          await this.endSession(realm, session.id, sub, ip);
-        }
+        await Promise.all(
+          sessions.map((session) => this.endSession(realm, session.id, sub, ip)),
+        );
       }
-    } catch {
+    } catch (err) {
       // Invalid or expired id_token — best-effort logout, don't throw
+      // Log for debugging purposes
+      this.logger.warn(`logoutByIdToken failed: ${(err as Error)?.message ?? 'Unknown error'}`);
     }
   }
 
@@ -297,9 +307,7 @@ export class TokensService {
     }
 
     if (!clientId) {
-      throw new BadRequestException(
-        'Unable to determine client from id_token_hint',
-      );
+      throw new BadRequestException('Invalid logout request');
     }
 
     const client = await this.prisma.client.findUnique({
@@ -308,14 +316,12 @@ export class TokensService {
     });
 
     if (!client) {
-      throw new BadRequestException(
-        `Client '${clientId}' not found in this realm`,
-      );
+      throw new BadRequestException('Invalid logout request');
     }
 
     if (!matchesRedirectUri(postLogoutRedirectUri, client.redirectUris)) {
       throw new BadRequestException(
-        'post_logout_redirect_uri does not match any registered redirect URI for this client',
+        'post_logout_redirect_uri is not valid for this client',
       );
     }
   }

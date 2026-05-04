@@ -293,9 +293,9 @@ export class WebAuthnService {
     });
   }
 
-  async removeCredential(userId: string, credentialId: string): Promise<void> {
+  async removeCredential(userId: string, realmId: string, credentialId: string): Promise<void> {
     const credential = await this.prisma.webAuthnCredential.findFirst({
-      where: { id: credentialId, userId },
+      where: { id: credentialId, userId, realmId },
     });
 
     if (!credential) {
