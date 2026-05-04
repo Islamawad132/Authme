@@ -81,7 +81,7 @@ if (!user) {
         }
         if (!user.enabled) {
           // User is disabled
-          active = false;
+          return { active: false };
         }
         username = user.username;
       }
