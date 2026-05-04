@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import type { Realm } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -19,6 +20,8 @@ import { matchesRedirectUri } from '../common/redirect-uri.utils.js';
 
 @Injectable()
 export class TokensService {
+  private readonly logger = new Logger(TokensService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
@@ -238,17 +241,18 @@ export class TokensService {
       if (sid) {
         await this.endSession(realm, sid, sub, ip);
       } else if (sub) {
-        // No session ID in token, end all sessions for this user
         const sessions = await this.prisma.session.findMany({
           where: { userId: sub },
           select: { id: true },
         });
-        for (const session of sessions) {
-          await this.endSession(realm, session.id, sub, ip);
-        }
+        await Promise.all(
+          sessions.map((session) => this.endSession(realm, session.id, sub, ip)),
+        );
       }
-    } catch {
+    } catch (err) {
       // Invalid or expired id_token — best-effort logout, don't throw
+      // Log for debugging purposes
+      this.logger.warn(`logoutByIdToken failed: ${(err as Error)?.message ?? 'Unknown error'}`);
     }
   }
 
