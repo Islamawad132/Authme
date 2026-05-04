@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
