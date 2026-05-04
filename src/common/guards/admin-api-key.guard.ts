@@ -28,8 +28,10 @@ export class AdminApiKeyGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<Request>();
 
-    // Only enforce auth on admin routes
-    if (!request.path.startsWith('/admin/') && !request.path.startsWith('/admin')) {
+    // Only enforce auth on admin routes: /admin exactly, or /admin/...
+    const isAdminRoute =
+      request.path === '/admin' || request.path.startsWith('/admin/');
+    if (!isAdminRoute) {
       return true;
     }
 
