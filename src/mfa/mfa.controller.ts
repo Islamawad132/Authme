@@ -7,13 +7,19 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  UnauthorizedException,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
+import type { Request } from 'express';
 import type { Realm } from '@prisma/client';
 import { MfaService } from './mfa.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
+import { StepUpService, ACR_MFA } from '../step-up/step-up.service.js';
+import { LoginService } from '../login/login.service.js';
+import { CryptoService } from '../crypto/crypto.service.js';
 
 @ApiTags('MFA')
 @Controller('admin/realms/:realmName/users/:userId/mfa')
@@ -23,6 +29,9 @@ export class MfaController {
   constructor(
     private readonly mfaService: MfaService,
     private readonly prisma: PrismaService,
+    private readonly stepUpService: StepUpService,
+    private readonly loginService: LoginService,
+    private readonly crypto: CryptoService,
   ) {}
 
   /**
@@ -60,8 +69,54 @@ export class MfaController {
   async resetMfa(
     @CurrentRealm() realm: Realm,
     @Param('userId') userId: string,
+    @Req() req: Request,
   ) {
     await this.assertUserInRealm(userId, realm);
+    await this.requireAdminMfaStepUp(realm, req);
     await this.mfaService.disableTotp(userId);
+  }
+
+  private async requireAdminMfaStepUp(realm: Realm, req: Request): Promise<void> {
+    const adminUser = (req as any).adminUser;
+    if (!adminUser?.userId) {
+      throw new UnauthorizedException('Admin identity could not be determined');
+    }
+
+    if (adminUser.userId.startsWith('api-key:')) {
+      throw new UnauthorizedException(
+        'MFA step-up is required to disable user MFA. API key authentication is not permitted for this operation.',
+      );
+    }
+
+    const sessionToken: string | undefined = req.cookies?.AUTHME_SESSION;
+    if (!sessionToken) {
+      throw new UnauthorizedException(
+        'MFA step-up is required. No active session found. Please log in via the user login flow to establish an MFA-verified session.',
+      );
+    }
+
+    const adminUserFromSession = await this.loginService.validateLoginSession(realm, sessionToken);
+    if (!adminUserFromSession) {
+      throw new UnauthorizedException('Invalid or expired session');
+    }
+
+    if (adminUserFromSession.id !== adminUser.userId) {
+      throw new UnauthorizedException('Session does not match admin identity');
+    }
+
+    const tokenHash = this.crypto.sha256(sessionToken);
+    const loginSession = await this.prisma.loginSession.findUnique({
+      where: { tokenHash },
+    });
+    if (!loginSession) {
+      throw new UnauthorizedException('Session not found');
+    }
+
+    const currentAcr = await this.stepUpService.getSessionAcr(loginSession.id);
+    if (!this.stepUpService.satisfiesAcr(currentAcr, ACR_MFA)) {
+      throw new UnauthorizedException(
+        'MFA step-up is required to disable user MFA. Please complete MFA verification via POST /realms/:realmName/step-up/verify with acr=urn:authme:acr:mfa before retrying.',
+      );
+    }
   }
 }

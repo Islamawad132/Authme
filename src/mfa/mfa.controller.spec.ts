@@ -11,10 +11,24 @@ describe('MfaController', () => {
   };
   let mockPrisma: {
     user: { findUnique: jest.Mock };
+    loginSession: { findUnique: jest.Mock };
+  };
+  let mockStepUpService: {
+    getSessionAcr: jest.Mock;
+    satisfiesAcr: jest.Mock;
+  };
+  let mockLoginService: {
+    validateLoginSession: jest.Mock;
+  };
+  let mockCrypto: {
+    sha256: jest.Mock;
   };
 
   const realm = { id: 'realm-1', name: 'test' } as Realm;
   const mockUser = { id: 'user-1', realmId: 'realm-1', email: 'test@test.com' };
+  const mockSessionToken = 'valid-session-token';
+  const mockTokenHash = 'hashed-token';
+  const mockLoginSession = { id: 'session-1', userId: 'user-1', realmId: 'realm-1' };
 
   beforeEach(() => {
     mockMfaService = {
@@ -26,9 +40,31 @@ describe('MfaController', () => {
       user: {
         findUnique: jest.fn().mockResolvedValue(mockUser),
       },
+      loginSession: {
+        findUnique: jest.fn().mockResolvedValue(mockLoginSession),
+      },
     };
 
-    controller = new MfaController(mockMfaService as any, mockPrisma as any);
+    mockStepUpService = {
+      getSessionAcr: jest.fn().mockResolvedValue('urn:authme:acr:mfa'),
+      satisfiesAcr: jest.fn().mockReturnValue(true),
+    };
+
+    mockLoginService = {
+      validateLoginSession: jest.fn().mockResolvedValue(mockUser),
+    };
+
+    mockCrypto = {
+      sha256: jest.fn().mockReturnValue(mockTokenHash),
+    };
+
+    controller = new MfaController(
+      mockMfaService as any,
+      mockPrisma as any,
+      mockStepUpService as any,
+      mockLoginService as any,
+      mockCrypto as any,
+    );
   });
 
   describe('getMfaStatus', () => {
@@ -64,12 +100,52 @@ describe('MfaController', () => {
   });
 
   describe('resetMfa', () => {
+    const mockReq = {
+      cookies: { AUTHME_SESSION: mockSessionToken },
+      adminUser: { userId: 'user-1' },
+    } as any;
+
     it('should call mfaService.disableTotp with the userId', async () => {
       mockMfaService.disableTotp.mockResolvedValue(undefined);
 
-      await controller.resetMfa(realm, 'user-1');
+      await controller.resetMfa(realm, 'user-1', mockReq);
 
       expect(mockMfaService.disableTotp).toHaveBeenCalledWith('user-1');
+    });
+
+    it('should throw UnauthorizedException when no adminUser is present', async () => {
+      const reqWithoutAdmin = { cookies: { AUTHME_SESSION: mockSessionToken } } as any;
+
+      await expect(controller.resetMfa(realm, 'user-1', reqWithoutAdmin)).rejects.toThrow(
+        'Admin identity could not be determined',
+      );
+    });
+
+    it('should throw UnauthorizedException for API key authentication', async () => {
+      const reqWithApiKey = {
+        cookies: { AUTHME_SESSION: mockSessionToken },
+        adminUser: { userId: 'api-key:abc123' },
+      } as any;
+
+      await expect(controller.resetMfa(realm, 'user-1', reqWithApiKey)).rejects.toThrow(
+        'API key authentication is not permitted',
+      );
+    });
+
+    it('should throw UnauthorizedException when no session token is present', async () => {
+      const reqWithoutSession = { adminUser: { userId: 'user-1' } } as any;
+
+      await expect(controller.resetMfa(realm, 'user-1', reqWithoutSession)).rejects.toThrow(
+        'No active session found',
+      );
+    });
+
+    it('should throw UnauthorizedException when session ACR does not satisfy MFA', async () => {
+      mockStepUpService.satisfiesAcr.mockReturnValue(false);
+
+      await expect(controller.resetMfa(realm, 'user-1', mockReq)).rejects.toThrow(
+        'MFA step-up is required',
+      );
     });
   });
 });
