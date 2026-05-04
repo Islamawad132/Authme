@@ -240,6 +240,6 @@ export class WebAuthnController {
       throw new BadRequestException('You must be signed in to remove a passkey');
     }
 
-    await this.webAuthnService.removeCredential(user.id, credentialId);
+    await this.webAuthnService.removeCredential(user.id, realm.id, credentialId);
   }
 }
