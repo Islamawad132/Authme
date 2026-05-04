@@ -251,6 +251,13 @@ export class RolesService {
   }
 
   async getUserClientRoles(realm: Realm, userId: string, clientId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, realmId: realm.id },
+    });
+    if (!user) {
+      throw new NotFoundException(`User '${userId}' not found`);
+    }
+
     const client = await this.prisma.client.findUnique({
       where: { realmId_clientId: { realmId: realm.id, clientId } },
     });

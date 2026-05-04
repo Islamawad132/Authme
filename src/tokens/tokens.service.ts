@@ -75,7 +75,7 @@ export class TokensService {
           where: { id: sub },
           select: { username: true, enabled: true },
         });
-        if (!user) {
+if (!user) {
           // User was deleted after token was issued
           return { active: false };
         }
@@ -333,7 +333,7 @@ export class TokensService {
       data: { revoked: true },
     });
 
-    // Send backchannel logout notifications (fire-and-forget — must not block)
+    // Send backchannel logout notifications
     if (userId) {
       this.backchannelLogout.sendLogoutTokens(realm, userId, sessionId);
     }
