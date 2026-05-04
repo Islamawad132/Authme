@@ -258,6 +258,13 @@ export class RolesService {
       throw new NotFoundException(`Client '${clientId}' not found`);
     }
 
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, realmId: realm.id },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     return this.prisma.role.findMany({
       where: {
         realmId: realm.id,
