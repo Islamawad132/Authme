@@ -87,6 +87,9 @@ export class TokensController {
     @Body() body: { token: string; token_type_hint?: string; client_id?: string; client_secret?: string },
     @Req() req: Request,
   ) {
+    if (!body.token || typeof body.token !== 'string' || body.token.trim() === '') {
+      throw new BadRequestException('token is required');
+    }
     const callerClientId = await this.authenticateClient(realm, body.client_id, body.client_secret, req);
     await this.tokensService.assertTokenBelongsToClient(realm, body.token, callerClientId, body.token_type_hint);
     return this.tokensService.revoke(realm, body.token, body.token_type_hint);
@@ -112,11 +115,15 @@ export class TokensController {
     if (!cId && req) {
       const authHeader = req.headers['authorization'];
       if (authHeader?.startsWith('Basic ')) {
-        const decoded = Buffer.from(authHeader.slice(6), 'base64').toString();
-        const colonIdx = decoded.indexOf(':');
-        if (colonIdx > 0) {
-          cId = decodeURIComponent(decoded.slice(0, colonIdx));
-          cSecret = decodeURIComponent(decoded.slice(colonIdx + 1));
+        try {
+          const decoded = Buffer.from(authHeader.slice(6), 'base64').toString();
+          const colonIdx = decoded.indexOf(':');
+          if (colonIdx > 0) {
+            cId = decodeURIComponent(decoded.slice(0, colonIdx));
+            cSecret = decodeURIComponent(decoded.slice(colonIdx + 1));
+          }
+        } catch {
+          // Malformed Basic auth - ignore
         }
       }
     }
