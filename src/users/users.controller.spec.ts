@@ -131,7 +131,7 @@ describe('UsersController', () => {
       expect(result).toEqual({ message: 'Verification email sent' });
     });
 
-    it('should return message when user has no email', async () => {
+    it('should return success message even when user has no email (does not send)', async () => {
       const user = { id: 'u1', email: null };
       usersService.findById.mockResolvedValue(user);
 
@@ -139,17 +139,17 @@ describe('UsersController', () => {
 
       expect(usersService.findById).toHaveBeenCalledWith(realm, 'u1');
       expect(usersService.sendVerificationEmail).not.toHaveBeenCalled();
-      expect(result).toEqual({ message: 'User has no email address' });
+      expect(result).toEqual({ message: 'Verification email sent' });
     });
 
-    it('should return message when user email is empty string', async () => {
+    it('should return success message even when user email is empty string', async () => {
       const user = { id: 'u1', email: '' };
       usersService.findById.mockResolvedValue(user);
 
       const result = await controller.sendVerificationEmail(realm, 'u1');
 
       expect(usersService.sendVerificationEmail).not.toHaveBeenCalled();
-      expect(result).toEqual({ message: 'User has no email address' });
+      expect(result).toEqual({ message: 'Verification email sent' });
     });
   });
 
