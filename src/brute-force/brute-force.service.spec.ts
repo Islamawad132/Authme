@@ -192,7 +192,7 @@ describe('BruteForceService', () => {
       await service.unlockUser('realm-1', 'user-1');
 
       expect(prisma.user.update).toHaveBeenCalledWith({
-        where: { id: 'user-1' },
+        where: { id: 'user-1', realmId: 'realm-1' },
         data: { lockedUntil: null, enabled: true },
       });
     });
