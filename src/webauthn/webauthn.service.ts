@@ -181,6 +181,12 @@ export class WebAuthnService {
 
     let allowCredentials: { id: string; transports: AuthenticatorTransportFuture[] }[] | undefined;
     if (userId) {
+      const user = await this.prisma.user.findFirst({
+        where: { id: userId, realmId: realm.id },
+      });
+      if (!user) {
+        throw new NotFoundException(`User '${userId}' not found in realm`);
+      }
       const credentials = await this.prisma.webAuthnCredential.findMany({
         where: { userId, realmId: realm.id },
       });

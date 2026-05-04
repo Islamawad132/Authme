@@ -326,6 +326,7 @@ describe('WebAuthnService', () => {
 
       prisma.pendingAction.deleteMany.mockResolvedValue({ count: 0 });
       prisma.pendingAction.create.mockResolvedValue({} as any);
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1', realmId: 'realm-1' });
 
       await service.generateAuthenticationOptions(realm, 'user-1');
 

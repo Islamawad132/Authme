@@ -331,6 +331,7 @@ describe('RolesService', () => {
 
   describe('assignClientRoles', () => {
     it('should assign client roles to a user', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1', realmId: 'realm-1' });
       prisma.client.findUnique.mockResolvedValue(mockClient);
       prisma.role.findMany.mockResolvedValue([
         { id: 'crole-1', name: 'editor' },
