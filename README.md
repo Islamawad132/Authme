@@ -332,41 +332,83 @@ See the full CLI documentation at [`packages/authme-cli/`](packages/authme-cli/)
 
 ## Architecture
 
+### System Overview
+
+```mermaid
+graph TB
+    subgraph Client["Client Applications"]
+        Browser["Browser App"]
+        Mobile["Mobile App"]
+        API["API Client"]
+    end
+
+    subgraph AuthMe["AuthMe Server"]
+        subgraph Gateways["Gateways"]
+            AdminAPI["Admin REST API"]
+            OAuth["OAuth/OIDC Endpoints"]
+            SAML["SAML IdP & SP"]
+            WebAuthn["WebAuthn FIDO2"]
+        end
+
+        subgraph Services["NestJS Services"]
+            AuthService["Auth Service"]
+            TokenService["Token Service"]
+            UserService["User Service"]
+            ClientService["Client Service"]
+            MFAService["MFA Service"]
+            SessionService["Session Service"]
+        end
+
+        subgraph Storage["Data Layer"]
+            Redis["Redis (Cache)"]
+            Postgres["PostgreSQL / MySQL"]
+        end
+    end
+
+    subgraph External["External Services"]
+        SMTP["SMTP Server"]
+        LDAP["LDAP Server"]
+        IdP["Identity Providers"]
+    end
+
+    Browser --> OAuth
+    Mobile --> OAuth
+    API --> AdminAPI
+
+    OAuth --> AuthService
+    AdminAPI --> AuthService
+    AuthService --> TokenService
+    AuthService --> UserService
+    AuthService --> MFAService
+    TokenService --> SessionService
+
+    SessionService --> Redis
+    UserService --> Postgres
+    ClientService --> Postgres
+    AuthService --> SMTP
+    UserService --> LDAP
+    AuthService --> IdP
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                          AuthMe Server                               │
-│                                                                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────┐ │
-│  │  Admin API   │  │  OAuth/OIDC  │  │   SAML 2.0   │  │ WebAuthn│ │
-│  │  (REST v1)   │  │  Endpoints   │  │  IdP & SP    │  │ FIDO2   │ │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └────┬────┘ │
-│         │                 │                  │               │      │
-│  ┌──────┴─────────────────┴──────────────────┴───────────────┴───┐  │
-│  │                   NestJS Service Layer (55 modules)           │  │
-│  │                                                               │  │
-│  │  Auth · Tokens · Users · Clients · Roles · Groups · MFA      │  │
-│  │  Sessions · Scopes · Consent · Realms · Events · Metrics     │  │
-│  │  Organizations · Webhooks · Risk Assessment · Step-Up Auth   │  │
-│  │  Custom Attributes · Service Accounts · Auth Flows · Plugins │  │
-│  │  Impersonation · Broker · LDAP · Device Auth · Versioning    │  │
-│  └──────────────────────────┬────────────────────────────────────┘  │
-│                              │                                      │
-│  ┌────────────┐  ┌───────────┴──────────┐  ┌──────────────────────┐│
-│  │   Redis    │  │    Prisma ORM        │  │   External Services  ││
-│  │  (optional)│  │    53 Models         │  │                      ││
-│  │  cache +   │  │                      │  │  SMTP · LDAP · IdPs  ││
-│  │  sessions  │  │  PostgreSQL / MySQL  │  │  Webhooks · Plugins  ││
-│  └────────────┘  │  / SQLite            │  └──────────────────────┘│
-│                  └──────────────────────┘                           │
-│                                                                      │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │   Admin Console (React 19 + Tailwind CSS 4)  →  /console    │   │
-│  └──────────────────────────────────────────────────────────────┘   │
-│                                                                      │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │   Login / Account UI (Handlebars SSR + Per-Realm Theming)   │   │
-│  └──────────────────────────────────────────────────────────────┘   │
-└──────────────────────────────────────────────────────────────────────┘
+
+### Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant AuthMe
+    participant DB as Database
+    participant MFA as MFA Service
+
+    Client->>AuthMe: POST /token (credentials)
+    AuthMe->>DB: Validate credentials
+    DB-->>AuthMe: User found
+    AuthMe->>AuthMe: Check MFA required?
+    AuthMe->>MFA: Verify TOTP
+    MFA-->>AuthMe: MFA valid
+    AuthMe->>DB: Create session
+    AuthMe->>DB: Create tokens
+    DB-->>AuthMe: Tokens created
+    AuthMe-->>Client: { access_token, refresh_token }
 ```
 
 ### Tech Stack
