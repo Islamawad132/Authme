@@ -298,9 +298,7 @@ export class TokensService {
     }
 
     if (!clientId) {
-      throw new BadRequestException(
-        'Unable to determine client from id_token_hint',
-      );
+      throw new BadRequestException('Invalid logout request');
     }
 
     const client = await this.prisma.client.findUnique({
@@ -309,14 +307,12 @@ export class TokensService {
     });
 
     if (!client) {
-      throw new BadRequestException(
-        `Client '${clientId}' not found in this realm`,
-      );
+      throw new BadRequestException('Invalid logout request');
     }
 
     if (!matchesRedirectUri(postLogoutRedirectUri, client.redirectUris)) {
       throw new BadRequestException(
-        'post_logout_redirect_uri does not match any registered redirect URI for this client',
+        'post_logout_redirect_uri is not valid for this client',
       );
     }
   }

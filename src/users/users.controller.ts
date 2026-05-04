@@ -173,10 +173,9 @@ export class UsersController {
     @Param('userId') userId: string,
   ) {
     const user = await this.usersService.findById(realm, userId);
-    if (!user.email) {
-      return { message: 'User has no email address' };
+    if (user.email) {
+      await this.usersService.sendVerificationEmail(realm, user.id, user.email);
     }
-    await this.usersService.sendVerificationEmail(realm, user.id, user.email);
     return { message: 'Verification email sent' };
   }
 
