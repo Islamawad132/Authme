@@ -98,9 +98,9 @@ export class BruteForceService {
       throw new NotFoundException(`User not found`);
     }
 
-    // Clear the lock on the user record.
+    // Clear the lock on the user record - update only affects this realm's user
     await this.prisma.user.update({
-      where: { id: userId },
+      where: { id: userId, realmId },
       data: { lockedUntil: null, enabled: true },
     });
     // Also delete all stored failure records for this user.  Without this,
