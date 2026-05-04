@@ -69,8 +69,11 @@ export class TokensService {
       if (sub) {
         const user = await this.prisma.user.findUnique({
           where: { id: sub },
-          select: { username: true },
+          select: { username: true, enabled: true },
         });
+        if (!user || !user.enabled) {
+          return { active: false };
+        }
         username = user?.username;
       }
 
@@ -324,7 +327,7 @@ export class TokensService {
       data: { revoked: true },
     });
 
-    // Send backchannel logout notifications (fire-and-forget — must not block)
+    // Send backchannel logout notifications
     if (userId) {
       this.backchannelLogout.sendLogoutTokens(realm, userId, sessionId);
     }
