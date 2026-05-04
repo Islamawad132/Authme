@@ -93,6 +93,7 @@ describe('TokensService', () => {
   describe('introspect', () => {
     it('should return active=true with claims for a valid token', async () => {
       prisma.realmSigningKey.findFirst.mockResolvedValue(mockSigningKey);
+      prisma.user.findUnique.mockResolvedValue({ id: 'user-1', username: 'testuser', enabled: true });
       jwkService.verifyJwt.mockResolvedValue({
         sub: 'user-1',
         iss: 'https://authme/realm-1',

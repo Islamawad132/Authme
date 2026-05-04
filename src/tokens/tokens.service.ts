@@ -66,16 +66,25 @@ export class TokensService {
       // on it being present even when the claim is not embedded in the JWT.
       const sub = payload.sub as string | undefined;
       let username: string | undefined;
+      let active = true;
       if (sub) {
         const user = await this.prisma.user.findUnique({
           where: { id: sub },
-          select: { username: true },
+          select: { username: true, enabled: true },
         });
-        username = user?.username;
+        if (!user) {
+          // User was deleted after token was issued
+          return { active: false };
+        }
+        if (!user.enabled) {
+          // User is disabled
+          active = false;
+        }
+        username = user.username;
       }
 
       return {
-        active: true,
+        active,
         sub: payload.sub,
         iss: payload.iss,
         aud: payload.aud,
