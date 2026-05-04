@@ -121,22 +121,25 @@ export class SessionsService {
   }
 
   async revokeAllUserSessions(realm: Realm, userId: string): Promise<void> {
-    // Revoke all OAuth sessions
+    // Get all session IDs for this user in this realm
     const sessions = await this.prisma.session.findMany({
       where: { userId, user: { realmId: realm.id } },
       select: { id: true },
     });
+    const sessionIds = sessions.map((s) => s.id);
 
-    for (const session of sessions) {
+    if (sessionIds.length > 0) {
+      // Revoke all refresh tokens for these sessions in a single operation
       await this.prisma.refreshToken.updateMany({
-        where: { sessionId: session.id },
+        where: { sessionId: { in: sessionIds } },
         data: { revoked: true },
       });
-    }
 
-    await this.prisma.session.deleteMany({
-      where: { userId, user: { realmId: realm.id } },
-    });
+      // Delete all sessions
+      await this.prisma.session.deleteMany({
+        where: { id: { in: sessionIds } },
+      });
+    }
 
     // Revoke all SSO sessions
     await this.prisma.loginSession.deleteMany({
