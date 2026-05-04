@@ -23,11 +23,13 @@ import { ThemeEmailService } from '../theme/theme-email.service.js';
 import { CreateRealmDto } from './dto/create-realm.dto.js';
 import { UpdateRealmDto } from './dto/update-realm.dto.js';
 import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard.js';
+import { AdminRolesGuard } from '../common/guards/admin-roles.guard.js';
+import { RequireAdminRoles } from '../common/decorators/require-admin-roles.decorator.js';
 
 @ApiTags('Realms')
 @Controller('admin/realms')
 @ApiSecurity('admin-api-key')
-@UseGuards(AdminApiKeyGuard)
+@UseGuards(AdminApiKeyGuard, AdminRolesGuard)
 export class RealmsController {
   constructor(
     private readonly realmsService: RealmsService,
@@ -39,10 +41,12 @@ export class RealmsController {
   ) {}
 
   @Post()
+  @RequireAdminRoles(['super-admin'])
   @ApiOperation({ summary: 'Create a new realm' })
   @ApiResponse({ status: 201, description: 'Realm created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid request body' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - requires super-admin role' })
   create(@Body() dto: CreateRealmDto) {
     return this.realmsService.create(dto);
   }
@@ -73,10 +77,12 @@ export class RealmsController {
   }
 
   @Put(':realmName')
+  @RequireAdminRoles(['super-admin'])
   @ApiOperation({ summary: 'Update a realm' })
   @ApiResponse({ status: 200, description: 'Realm updated successfully' })
   @ApiResponse({ status: 400, description: 'Invalid request body' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - requires super-admin role' })
   @ApiResponse({ status: 404, description: 'Realm not found' })
   update(
     @Param('realmName') realmName: string,
@@ -86,10 +92,12 @@ export class RealmsController {
   }
 
   @Patch(':realmName')
+  @RequireAdminRoles(['super-admin'])
   @ApiOperation({ summary: 'Partially update a realm' })
   @ApiResponse({ status: 200, description: 'Realm updated successfully' })
   @ApiResponse({ status: 400, description: 'Invalid request body' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - requires super-admin role' })
   @ApiResponse({ status: 404, description: 'Realm not found' })
   partialUpdate(
     @Param('realmName') realmName: string,
@@ -100,9 +108,11 @@ export class RealmsController {
 
   @Delete(':realmName')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @RequireAdminRoles(['super-admin'])
   @ApiOperation({ summary: 'Delete a realm' })
   @ApiResponse({ status: 204, description: 'Realm deleted successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - requires super-admin role' })
   @ApiResponse({ status: 404, description: 'Realm not found' })
   remove(@Param('realmName') realmName: string) {
     return this.realmsService.remove(realmName);
@@ -125,10 +135,12 @@ export class RealmsController {
   }
 
   @Post('import')
+  @RequireAdminRoles(['super-admin'])
   @ApiOperation({ summary: 'Import a realm from JSON' })
   @ApiResponse({ status: 201, description: 'Realm imported successfully' })
   @ApiResponse({ status: 400, description: 'Invalid import data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - requires super-admin role' })
   importRealm(
     @Body() body: Record<string, unknown>,
     @Query('overwrite') overwrite?: string,
