@@ -54,9 +54,9 @@ export class ImpersonationService {
     }
 
     // Validate admin user exists.
-    // When authenticated via static API key, adminUserId is 'api-key' (not a real user).
+    // When authenticated via static API key, adminUserId is 'api-key:...' (with fingerprint).
     // API key auth is already verified by AdminApiKeyGuard, so skip the DB lookup.
-    if (adminUserId !== 'api-key') {
+    if (!adminUserId.startsWith('api-key:')) {
       const adminUser = await this.prisma.user.findUnique({
         where: { id: adminUserId },
       });
