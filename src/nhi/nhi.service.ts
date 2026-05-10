@@ -14,7 +14,7 @@ import { CreateNhiCredentialDto } from './dto/create-nhi-credential.dto.js';
 import { SetCertificateDto, CertificateInfoDto, GenerateCertificateDto, CertificateKeyAlgorithm, CertificateFormat } from './dto/certificate.dto.js';
 import { CreateNhiCredentialPolicyDto } from './dto/create-nhi-credential-policy.dto.js';
 import { UpdateNhiCredentialPolicyDto } from './dto/update-nhi-credential-policy.dto.js';
-import { BulkRegistrationDto, BulkRegistrationResponseDto, BulkRegistrationResultItemDto } from './dto/bulk-registration.dto.js';
+import { BulkRegistrationDto, BulkRegistrationResponseDto, BulkRegistrationResultItemDto, BulkDeviceItemDto } from './dto/bulk-registration.dto.js';
 
 // ── Select projections ────────────────────────────────────────────────────────
 
@@ -1203,7 +1203,7 @@ export class NhiService {
 
   /**
    * Register multiple devices in bulk for fleet management.
-   * Creates NHI identities for each device and returns results with API keys.
+   * Creates NHI identities for each device and optionally generates certificates.
    */
   async bulkRegistration(
     realm: Realm,
@@ -1253,6 +1253,34 @@ export class NhiService {
         result.id = identity.id;
         result.metadata = identity.metadata ?? undefined;
         result.success = true;
+
+        // Generate certificate if requested
+        if (device.generateCertificate) {
+          const keyAlgorithm = this.parseKeyAlgorithm(device.certificateKeyAlgorithm);
+          const validityDays = device.certificateValidityDays ?? 365;
+
+          const certDto: GenerateCertificateDto = {
+            name: device.name,
+            subjectCommonName: device.name,
+            subjectOrganizationalUnit: device.environment,
+            keyAlgorithm: keyAlgorithm,
+            validityDays: validityDays,
+          };
+
+          const certResult = await this.generateDeviceCertificate(realm, certDto);
+          result.certificatePem = certResult.certificatePem;
+          result.privateKeyPem = certResult.privateKeyPem;
+          result.certificateInfo = {
+            subject: certResult.info.subject,
+            issuer: certResult.info.issuer,
+            notBefore: certResult.info.notBefore,
+            notAfter: certResult.info.notAfter,
+            fingerprint: certResult.info.fingerprint,
+            isCA: certResult.info.isCA,
+            sans: certResult.info.sans,
+          };
+        }
+
         results.push(result);
       } catch (error) {
         result.success = false;
@@ -1275,5 +1303,22 @@ export class NhiService {
     }
 
     return response;
+  }
+
+  /**
+   * Parse key algorithm string to CertificateKeyAlgorithm enum.
+   */
+  private parseKeyAlgorithm(algorithm?: string): CertificateKeyAlgorithm {
+    switch (algorithm?.toUpperCase()) {
+      case 'RSA_2048':
+        return CertificateKeyAlgorithm.RSA_2048;
+      case 'RSA_4096':
+        return CertificateKeyAlgorithm.RSA_4096;
+      case 'ECDSA_P384':
+        return CertificateKeyAlgorithm.ECDSA_P384;
+      case 'ECDSA_P256':
+      default:
+        return CertificateKeyAlgorithm.ECDSA_P256;
+    }
   }
 }

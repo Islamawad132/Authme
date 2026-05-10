@@ -397,7 +397,8 @@
             "url": "http://localhost:3000/api/v1/admin/realms/master/nhi/devices/bulk-register",
             "expected_status": 201
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Added bulk certificate generation for device fleet. When device.generateCertificate is true, the system generates ECDSA/RSA certificates for each device during bulk registration. Added new fields to BulkDeviceItemDto (generateCertificate, certificateKeyAlgorithm, certificateValidityDays) and BulkRegistrationResultItemDto (certificatePem, privateKeyPem, certificateInfo). Added parseKeyAlgorithm helper method. Certificate generation uses generateDeviceCertificate() method."
         }
       ]
     },
@@ -805,6 +806,6 @@
   "planStatus": "in_progress",
   "xstateState": "backlog",
   "executionPhase": "coding",
-  "updated_at": "2026-05-10T21:12:13.166Z",
+  "updated_at": "2026-05-10T21:15:22.753Z",
   "last_updated": "2026-05-10T21:14:19.050713+00:00"
 }

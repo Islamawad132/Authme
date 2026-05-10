@@ -42,6 +42,22 @@ export class BulkDeviceItemDto {
   @IsOptional()
   @IsString()
   environment?: string;
+
+  @ApiPropertyOptional({ description: 'Generate a certificate for this device during bulk registration' })
+  @IsOptional()
+  @IsBoolean()
+  generateCertificate?: boolean;
+
+  @ApiPropertyOptional({ description: 'Key algorithm for generated certificate (if generateCertificate is true)', example: 'ECDSA_P256' })
+  @IsOptional()
+  @IsString()
+  certificateKeyAlgorithm?: string;
+
+  @ApiPropertyOptional({ description: 'Validity in days for generated certificate', example: 365 })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  certificateValidityDays?: number;
 }
 
 /**
@@ -104,6 +120,15 @@ export class BulkRegistrationResultItemDto {
 
   @ApiPropertyOptional({ example: 'NHI identity already exists' })
   error?: string;
+
+  @ApiPropertyOptional({ description: 'Generated certificate PEM (if generateCertificate was true)' })
+  certificatePem?: string;
+
+  @ApiPropertyOptional({ description: 'Private key PEM (if generateCertificate was true)' })
+  privateKeyPem?: string;
+
+  @ApiPropertyOptional({ description: 'Certificate info including subject, validity, fingerprint' })
+  certificateInfo?: Record<string, unknown>;
 }
 
 /**
