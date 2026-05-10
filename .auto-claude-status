@@ -3,23 +3,23 @@
   "spec": "016-non-human-identity-management",
   "state": "building",
   "subtasks": {
-    "completed": 5,
+    "completed": 9,
     "total": 27,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Backend Core API",
+    "current": "Automated Credential Rotation",
     "id": null,
-    "total": 4
+    "total": 3
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 7,
+    "number": 11,
     "started_at": "2026-05-10T22:13:43.706807"
   },
-  "last_update": "2026-05-10T23:07:08.319803"
+  "last_update": "2026-05-10T23:41:03.166875"
 }

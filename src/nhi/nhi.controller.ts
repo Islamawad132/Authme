@@ -16,6 +16,7 @@ import { NhiService } from './nhi.service.js';
 import { CreateNhiIdentityDto } from './dto/create-nhi.dto.js';
 import { UpdateNhiIdentityDto } from './dto/update-nhi.dto.js';
 import { CreateNhiCredentialDto } from './dto/create-nhi-credential.dto.js';
+import { GenerateCertificateDto } from './dto/certificate.dto.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 
@@ -165,6 +166,21 @@ export class NhiController {
     @Param('credentialId') credentialId: string,
   ) {
     return this.nhiService.rotateCredential(realm, id, credentialId);
+  }
+
+  // ── Certificate generation ────────────────────────────────────────────────
+
+  @Post('device-certificates')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Generate a device certificate (self-signed)' })
+  @ApiResponse({ status: 201, description: 'Certificate generated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  generateDeviceCertificate(
+    @CurrentRealm() realm: Realm,
+    @Body() dto: GenerateCertificateDto,
+  ) {
+    return this.nhiService.generateDeviceCertificate(realm, dto);
   }
 
   // ── Certificate management ─────────────────────────────────────────────────
