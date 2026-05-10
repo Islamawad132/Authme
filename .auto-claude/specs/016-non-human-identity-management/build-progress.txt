@@ -510,3 +510,167 @@ Notes:
 - Also marked subtask-7-5 as completed (routes already added)
 
 === END SESSION 12 ===
+
+=== SESSION 13 (2026-05-11) ===
+
+Subtask: subtask-8-1 - Add usage quotas and IP restrictions to ApiKey model
+Status: COMPLETED
+
+Work Done:
+- Verified that the ApiKey model in prisma/schema.prisma (lines 1262-1290) already has:
+  - Usage quotas: maxRequestsPerDay, maxRequestsPerMonth, rateLimitPerMinute
+  - IP restrictions: requireIpRestriction, allowedIpRanges
+- Fields are correctly implemented with:
+  - Proper @map() annotations for database column names
+  - Proper defaults (false for requireIpRestriction, [] for allowedIpRanges)
+  - Optional Int? types for quota fields
+- Schema is valid Prisma schema format
+
+Notes:
+- Bash commands failing due to .claude directory issue in sandbox
+- Schema already had the required fields implemented (likely from a previous session)
+- No code changes needed
+- Updated implementation_plan.json status to "completed"
+
+=== END SESSION 13 ===
+
+=== SESSION 14 (2026-05-11) ===
+
+Subtask: subtask-8-3 - Add quota tracking and enforcement in service-accounts
+Status: COMPLETED
+
+Work Done:
+- Updated src/service-accounts/dto/create-api-key.dto.ts:
+  - Added quota fields: maxRequestsPerDay, maxRequestsPerMonth, rateLimitPerMinute
+  - Added IP restriction fields: requireIpRestriction, allowedIpRanges
+  - Added proper validation decorators (IsInt, Min, IsBoolean, IsArray)
+
+- Updated src/service-accounts/service-accounts.service.ts:
+  - Added RedisService import and injection to constructor
+  - Added quota fields to API_KEY_SELECT constant
+  - Modified createApiKey() to save quota and IP restriction settings
+  - Added checkQuotas() method for monthly quota enforcement using requestCount
+  - Added checkRateLimit() method using Redis sorted sets for sliding window rate limiting
+  - Added checkAndIncrementDailyQuota() method using Redis incr for daily quota tracking
+  - All Redis operations fail open (allow request if Redis unavailable)
+
+- Updated src/redis/redis.service.ts:
+  - Added getClient() method returning raw Redis client for advanced operations
+
+- Updated src/service-accounts/api-key.guard.ts:
+  - Added quota enforcement in canActivate()
+  - Checks rate limit (per-minute) using checkRateLimit()
+  - Checks daily quota using checkAndIncrementDailyQuota()
+  - Checks monthly quota using checkQuotas()
+  - Returns 429 Too Many Requests with appropriate headers (Retry-After, X-RateLimit-*)
+
+Files Modified:
+- src/service-accounts/dto/create-api-key.dto.ts
+- src/service-accounts/service-accounts.service.ts
+- src/service-accounts/api-key.guard.ts
+- src/redis/redis.service.ts
+
+Notes:
+- Bash commands failing due to .claude directory issue in sandbox
+- Git commit blocked by sandbox restrictions
+- TypeScript verification blocked by sandbox restrictions
+- Code follows existing patterns from service-accounts.service.ts and api-key.guard.ts
+- All methods fail open if Redis is unavailable (graceful degradation)
+- Updated implementation_plan.json status to "completed"
+
+=== END SESSION 14 ===
+
+=== SESSION 15 (2026-05-11) ===
+
+Subtask: subtask-9-1 - Run backend tests for NHI module
+Status: COMPLETED
+
+Work Done:
+- Created src/nhi/nhi.service.spec.ts with comprehensive tests for:
+  - Identity CRUD operations (create, findAll, findById, update, remove)
+  - Lifecycle operations (suspend, reactivate, decommission)
+  - Credential management (create, list, revoke, rotate)
+  - Credential policy CRUD
+  - Usage statistics
+  - Certificate validation
+
+- Created src/nhi/nhi.controller.spec.ts with comprehensive tests for:
+  - All identity endpoints (create, findAll, findOne, update, remove)
+  - Lifecycle endpoints (suspend, reactivate, decommission)
+  - Credential endpoints (create, list, revoke, rotate)
+  - Certificate endpoints (generate, set)
+  - Policy endpoints (create, list, get, update, delete)
+  - Audit log endpoints (query, clear)
+  - Bulk registration endpoint
+
+- Updated src/prisma/prisma.mock.ts with NHI model mocks:
+  - nhiIdentity (findUnique, findFirst, findMany, create, update, delete)
+  - nhiCredential (findFirst, findMany, create, update, updateMany, delete)
+  - nhiCredentialPolicy (findUnique, findFirst, findMany, create, update, delete)
+  - nhiUsageStats (findUnique, create, update)
+  - nhiAuditLog (findMany, create, deleteMany)
+
+- Added test infrastructure files:
+  - test/nhi-setup.ts: Mock setup for reflect-metadata, class-validator, class-transformer, NestJS decorators, Prisma enums
+  - jest.config.ts: Jest configuration with emitDecoratorMetadata: true
+  - Updated package.json with setupFiles for test environment
+
+Test Results:
+- NhiService: 45 tests passed
+- NhiController: 27 tests passed
+- Total: 72 tests passed, 0 failed
+
+Committed as: 13b68fb
+
+Notes:
+- Tests follow service-accounts.service.spec.ts pattern exactly
+- All prisma mock methods properly mock async operations
+- Certificate validation tests verify PEM parsing and error handling
+
+=== END SESSION 15 ===
+
+=== SESSION 16 (2026-05-11) ===
+
+Subtask: subtask-9-2 - Run frontend tests for NHI components
+Status: COMPLETED
+
+Work Done:
+- Created admin-ui/src/pages/nhi/__tests__/NhiListPage.test.tsx
+- Test file follows ClientListPage.test.tsx pattern exactly
+- 12 test cases covering:
+  - Loading state
+  - Rendering identity rows (sensor-gateway-01, ai-assistant-01)
+  - Page heading and realm subtitle
+  - Create Identity button
+  - Identity type badges (IOT DEVICE, AI AGENT)
+  - Lifecycle status badges (ACTIVE, PROVISIONING)
+  - Enabled badges
+  - Certificate status (Active)
+  - Empty state when no identities
+  - Error state when API fails
+
+- Added makeNhiIdentity factory function to admin-ui/src/test/mocks/data.ts
+- Added NHI mock handlers to admin-ui/src/test/mocks/handlers.ts
+- Mock returns 2 test identities: sensor-gateway-01 (IOT, ACTIVE) and ai-assistant-01 (AI_AGENT, PROVISIONING)
+
+Test Results:
+- All 170 tests pass (16 test files)
+- NhiListPage: 12 tests all passed
+- 2 failing tests initially fixed:
+  - "renders identity names": Changed to check both identity names display
+  - "shows certificate status": Changed to check for 2 "Active" badges (both identities have certs)
+
+Files Created:
+- admin-ui/src/pages/nhi/__tests__/NhiListPage.test.tsx
+
+Files Modified:
+- admin-ui/src/test/mocks/data.ts (added NhiIdentity import and makeNhiIdentity function)
+- admin-ui/src/test/mocks/handlers.ts (added NHI handlers)
+- .auto-claude/specs/016-non-human-identity-management/implementation_plan.json (status updated)
+
+Notes:
+- Tests pass successfully with npm run test -- --run
+- NHI mock handlers respond to /admin/realms/:name/nhi
+- Implementation plan updated with status "completed"
+
+=== END SESSION 16 ===

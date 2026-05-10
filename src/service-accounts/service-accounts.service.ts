@@ -7,6 +7,7 @@ import {
 import type { Realm } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
+import { RedisService } from '../redis/redis.service.js';
 import { CreateServiceAccountDto } from './dto/create-service-account.dto.js';
 import { UpdateServiceAccountDto } from './dto/update-service-account.dto.js';
 import { CreateApiKeyDto } from './dto/create-api-key.dto.js';
@@ -33,6 +34,11 @@ const API_KEY_SELECT = {
   revoked: true,
   revokedAt: true,
   createdAt: true,
+  maxRequestsPerDay: true,
+  maxRequestsPerMonth: true,
+  rateLimitPerMinute: true,
+  requireIpRestriction: true,
+  allowedIpRanges: true,
 } as const;
 
 // Grace period (seconds) during which a rotated-out key keeps working
@@ -43,6 +49,7 @@ export class ServiceAccountsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly redis: RedisService,
   ) {}
 
   // ── Service Account CRUD ───────────────────────────────────────────────────
@@ -135,6 +142,11 @@ export class ServiceAccountsService {
         name: dto.name,
         scopes: dto.scopes ?? [],
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
+        maxRequestsPerDay: dto.maxRequestsPerDay,
+        maxRequestsPerMonth: dto.maxRequestsPerMonth,
+        rateLimitPerMinute: dto.rateLimitPerMinute,
+        requireIpRestriction: dto.requireIpRestriction ?? false,
+        allowedIpRanges: dto.allowedIpRanges ?? [],
       },
       select: API_KEY_SELECT,
     });
@@ -251,6 +263,101 @@ export class ServiceAccountsService {
     }
 
     throw new UnauthorizedException('Invalid or expired API key');
+  }
+
+  /**
+   * Check if an API key has exceeded its usage quotas.
+   * Returns null if within limits, or an object with quota exceeded details.
+   */
+  async checkQuotas(apiKey: { id: string; maxRequestsPerDay: number | null; maxRequestsPerMonth: number | null; rateLimitPerMinute: number | null; requestCount: number }): Promise<{ exceeded: boolean; reason?: string } | null> {
+    // Check monthly quota if configured
+    if (apiKey.maxRequestsPerMonth != null && apiKey.requestCount >= apiKey.maxRequestsPerMonth) {
+      return {
+        exceeded: true,
+        reason: `Monthly quota exceeded (${apiKey.requestCount}/${apiKey.maxRequestsPerMonth} requests)`,
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Check rate limit for an API key using Redis.
+   * Returns null if within limits, or an object with rate limit exceeded details.
+   */
+  async checkRateLimit(apiKeyId: string, rateLimitPerMinute: number): Promise<{ exceeded: boolean; reason?: string; retryAfterSeconds?: number } | null> {
+    if (rateLimitPerMinute <= 0) {
+      return null;
+    }
+
+    const client = this.redis.getClient();
+    if (!client) {
+      // If Redis is unavailable, allow the request (fail open)
+      return null;
+    }
+
+    const key = `ratelimit:apikey:${apiKeyId}`;
+    const now = Date.now();
+    const windowMs = 60 * 1000; // 1 minute window
+    const windowStart = now - windowMs;
+
+    try {
+      // Remove old entries outside the window
+      await client.zremrangebyscore(key, 0, windowStart);
+      // Count requests in current window
+      const requestCount = await client.zcard(key);
+
+      if (requestCount >= rateLimitPerMinute) {
+        const retryAfter = Math.ceil(windowMs / 1000);
+        return {
+          exceeded: true,
+          reason: `Rate limit exceeded (${requestCount}/${rateLimitPerMinute} per minute)`,
+          retryAfterSeconds: retryAfter,
+        };
+      }
+
+      // Add current request
+      await client.zadd(key, now, `${now}-${Math.random()}`);
+      // Set expiry on the key
+      await client.expire(key, Math.ceil(windowMs / 1000) + 1);
+
+      return null;
+    } catch {
+      // If Redis fails, allow the request (fail open)
+      return null;
+    }
+  }
+
+  /**
+   * Increment and check daily quota.
+   * Returns null if within limits, or an object with quota exceeded details.
+   */
+  async checkAndIncrementDailyQuota(apiKeyId: string, maxRequestsPerDay: number): Promise<{ exceeded: boolean; reason?: string } | null> {
+    if (maxRequestsPerDay <= 0) {
+      return null;
+    }
+
+    if (!this.redis.isAvailable()) {
+      // If Redis unavailable, allow the request (fail open)
+      return null;
+    }
+
+    const key = `dailyquota:apikey:${apiKeyId}:${new Date().toISOString().split('T')[0]}`;
+
+    try {
+      const currentCount = await this.redis.incr(key, 25 * 60 * 60); // 25 hour TTL
+
+      if (currentCount > maxRequestsPerDay) {
+        return {
+          exceeded: true,
+          reason: `Daily quota exceeded (${currentCount}/${maxRequestsPerDay} requests)`,
+        };
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   async getUsageMetrics(realm: Realm, serviceAccountId: string) {

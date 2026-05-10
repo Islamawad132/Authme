@@ -3,23 +3,23 @@
   "spec": "016-non-human-identity-management",
   "state": "building",
   "subtasks": {
-    "completed": 15,
+    "completed": 26,
     "total": 27,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Bulk Device Registration",
+    "current": "Integration & Testing",
     "id": null,
-    "total": 2
+    "total": 3
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 17,
+    "number": 28,
     "started_at": "2026-05-10T22:13:43.706807"
   },
-  "last_update": "2026-05-11T00:15:22.777790"
+  "last_update": "2026-05-11T02:05:59.943061"
 }

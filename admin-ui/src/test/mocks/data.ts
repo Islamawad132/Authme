@@ -1,4 +1,4 @@
-import type { Realm, User, Client, Role } from '../../types';
+import type { Realm, User, Client, Role, NhiIdentity } from '../../types';
 import type { LoginEvent, AdminEvent } from '../../api/events';
 import type { RealmStats } from '../../api/stats';
 import type { AuthFlow } from '../../api/authFlows';
@@ -158,6 +158,31 @@ export function makeAuthFlow(overrides: Partial<AuthFlow> = {}): AuthFlow {
         config: {},
       },
     ],
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export function makeNhiIdentity(overrides: Partial<NhiIdentity> = {}): NhiIdentity {
+  return {
+    id: 'nhi-1',
+    realmId: 'realm-1',
+    identityType: 'IOT_DEVICE',
+    name: 'sensor-gateway-01',
+    description: 'Temperature Sensor',
+    enabled: true,
+    lifecycleStatus: 'ACTIVE',
+    suspendedAt: null,
+    decommissionedAt: null,
+    certificateSubject: 'CN=sensor-gateway-01',
+    certificateFingerprint: 'AB:CD:EF:12:34:56:78',
+    certificateNotBefore: '2024-01-01T00:00:00.000Z',
+    certificateNotAfter: '2025-01-01T00:00:00.000Z',
+    agentPurpose: null,
+    permissionScopes: ['read:sensors', 'write:sensors'],
+    metadata: {},
+    tags: ['iot', 'temperature'],
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
     ...overrides,

@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { makeRealm, makeUser, makeClient, makeLoginEvent, makeAdminEvent, makeStats, makeAuthFlow } from './data';
+import { makeRealm, makeUser, makeClient, makeLoginEvent, makeAdminEvent, makeStats, makeAuthFlow, makeNhiIdentity } from './data';
 
 const BASE = '/admin';
 
@@ -167,5 +167,19 @@ export const handlers = [
       status: 'ok',
       info: { database: { status: 'up' }, memory_heap: { status: 'up' } },
     });
+  }),
+
+  // Non-Human Identities
+  http.get(`${BASE}/realms/:name/nhi`, () => {
+    return HttpResponse.json([
+      makeNhiIdentity({ id: 'nhi-1', name: 'sensor-gateway-01', identityType: 'IOT_DEVICE', description: 'Temperature Sensor', lifecycleStatus: 'ACTIVE', certificateFingerprint: 'AB:CD:EF:12:34:56:78' }),
+      makeNhiIdentity({ id: 'nhi-2', name: 'ai-assistant-01', identityType: 'AI_AGENT', description: 'AI Assistant', lifecycleStatus: 'PROVISIONING' }),
+    ]);
+  }),
+
+  http.get(`${BASE}/realms/:name/nhi/:id`, ({ params }) => {
+    return HttpResponse.json(
+      makeNhiIdentity({ id: params.id as string }),
+    );
   }),
 ];
