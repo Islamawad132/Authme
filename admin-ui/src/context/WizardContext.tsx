@@ -308,8 +308,12 @@ export function useWizard() {
     next: context.goToNextStep,
     previous: context.goToPreviousStep,
     goToStep: context.setCurrentStep,
+    setCurrentStep: context.setCurrentStep,
     canGoNext: context.canGoNext,
     canGoPrevious: context.canGoPrevious,
+
+    // Step info
+    getStepInfo: context.getStepInfo,
 
     // Data setters
     setAdminAccount: context.setAdminAccount,
