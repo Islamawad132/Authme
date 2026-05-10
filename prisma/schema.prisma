@@ -78,6 +78,11 @@ model Realm {
   // Email verification
   requireEmailVerification Boolean @default(false) @map("require_email_verification")
 
+  // Magic link / passwordless authentication
+  magicLinkEnabled         Boolean @default(false) @map("magic_link_enabled")
+  magicLinkExpirySeconds  Int     @default(300)    @map("magic_link_expiry_seconds")
+  magicLinkRateLimitPerEmail Int  @default(5)       @map("magic_link_rate_limit_per_email")
+
   // MFA
   mfaRequired Boolean @default(false) @map("mfa_required")
 
@@ -156,6 +161,7 @@ model Realm {
   userLoginProfiles     UserLoginProfile[]
   organizations         Organization[]
   serviceAccounts       ServiceAccount[]
+  magicLinkRequests     MagicLinkRequest[]
 
   @@map("realms")
 }
@@ -198,6 +204,7 @@ model User {
   attributes          UserAttribute[]
   loginRiskAssessments LoginRiskAssessment[]
   userLoginProfile    UserLoginProfile?
+  magicLinkRequests  MagicLinkRequest[]
 
   @@unique([realmId, username])
   @@unique([realmId, email])
@@ -484,6 +491,37 @@ model VerificationToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("verification_tokens")
+}
+
+// ─── MAGIC LINK REQUESTS (passwordless auth) ─────────────
+
+enum MagicLinkStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+model MagicLinkRequest {
+  id        String   @id @default(uuid())
+  realmId   String   @map("realm_id")
+  userId    String   @map("user_id")
+  email     String   @map("email")
+  tokenHash String   @unique @map("token_hash")
+  status    MagicLinkStatus @default(PENDING) @map("status")
+  expiresAt DateTime @map("expires_at")
+  completedAt DateTime? @map("completed_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([realmId, email, createdAt])
+  @@index([realmId, userId])
+  @@index([realmId, status])
+  @@map("magic_link_requests")
 }
 
 // ─── PASSWORD HISTORY ────────────────────────────────────

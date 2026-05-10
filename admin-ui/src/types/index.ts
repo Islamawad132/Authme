@@ -211,3 +211,12 @@ export interface UserFederation {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface MagicLinkSettings {
+  enabled: boolean;
+  expirySeconds: number;
+  rateLimitPerEmail: number;
+  rateLimitWindowSeconds: number;
+  emailSubject: string | null;
+  emailTemplate: string | null;
+}

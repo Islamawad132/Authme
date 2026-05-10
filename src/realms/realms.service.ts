@@ -99,6 +99,13 @@ export class RealmsService {
         adaptiveAuthEnabled: dto.adaptiveAuthEnabled,
         riskThresholdStepUp: dto.riskThresholdStepUp,
         riskThresholdBlock: dto.riskThresholdBlock,
+        // Magic link / passwordless authentication
+        magicLinkEnabled: dto.magicLinkEnabled,
+        magicLinkExpirySeconds: dto.magicLinkExpirySeconds,
+        magicLinkRateLimitPerEmail: dto.magicLinkRateLimitPerEmail,
+        magicLinkRateLimitWindowSeconds: dto.magicLinkRateLimitWindowSeconds,
+        magicLinkEmailSubject: dto.magicLinkEmailSubject,
+        magicLinkEmailTemplate: dto.magicLinkEmailTemplate,
         // Localisation
         defaultLocale: dto.defaultLocale,
         supportedLocales: dto.supportedLocales,
@@ -242,6 +249,13 @@ export class RealmsService {
       adaptiveAuthEnabled: dto.adaptiveAuthEnabled,
       riskThresholdStepUp: dto.riskThresholdStepUp,
       riskThresholdBlock: dto.riskThresholdBlock,
+      // Magic link / passwordless authentication
+      magicLinkEnabled: dto.magicLinkEnabled,
+      magicLinkExpirySeconds: dto.magicLinkExpirySeconds,
+      magicLinkRateLimitPerEmail: dto.magicLinkRateLimitPerEmail,
+      magicLinkRateLimitWindowSeconds: dto.magicLinkRateLimitWindowSeconds,
+      magicLinkEmailSubject: dto.magicLinkEmailSubject,
+      magicLinkEmailTemplate: dto.magicLinkEmailTemplate,
       // Localisation
       defaultLocale: dto.defaultLocale,
       supportedLocales: dto.supportedLocales,
