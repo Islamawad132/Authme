@@ -102,6 +102,8 @@ func (p *AuthmeProvider) Resources(ctx context.Context) []resource.Resource {
 		NewRoleResource(),
 		NewGroupResource(),
 		NewUserResource(),
+		NewIdentityProviderResource(),
+		NewAuthFlowResource(),
 	}
 }
 
