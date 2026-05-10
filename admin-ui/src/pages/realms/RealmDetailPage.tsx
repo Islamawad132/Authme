@@ -10,6 +10,7 @@ import { getGroups } from '../../api/groups';
 import { getClientScopes } from '../../api/clientScopes';
 import { getRealmSessions } from '../../api/sessions';
 import { getIdentityProviders } from '../../api/identityProviders';
+import { getConsentCategories, getConsentStatistics } from '../../api/consent';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import PasswordInput from '../../components/PasswordInput';
 
@@ -25,7 +26,7 @@ export default function RealmDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showDelete, setShowDelete] = useState(false);
-  const [activeTab, setActiveTab] = useState<'general' | 'tokens' | 'email' | 'security' | 'events' | 'theme'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'tokens' | 'email' | 'security' | 'events' | 'theme' | 'consent'>('general');
   const [testEmailTo, setTestEmailTo] = useState('');
 
   const { data: realm, isLoading } = useQuery({
@@ -79,6 +80,18 @@ export default function RealmDetailPage() {
   const { data: themes } = useQuery({
     queryKey: ['themes'],
     queryFn: () => getThemes(),
+  });
+
+  const { data: consentCategories } = useQuery({
+    queryKey: ['consentCategories', name],
+    queryFn: () => getConsentCategories(name!),
+    enabled: !!name && !!realm,
+  });
+
+  const { data: consentStats } = useQuery({
+    queryKey: ['consentStats', name],
+    queryFn: () => getConsentStatistics(name!),
+    enabled: !!name && !!realm,
   });
 
   const [form, setForm] = useState({
@@ -220,6 +233,7 @@ export default function RealmDetailPage() {
     { key: 'security' as const, label: 'Security' },
     { key: 'events' as const, label: 'Events' },
     { key: 'theme' as const, label: 'Theme' },
+    { key: 'consent' as const, label: 'Consent' },
   ];
 
   const quickLinks = [
@@ -230,6 +244,7 @@ export default function RealmDetailPage() {
     { to: `/console/realms/${name}/client-scopes`, label: 'Client Scopes', count: clientScopes?.length },
     { to: `/console/realms/${name}/sessions`, label: 'Sessions', count: sessions?.length },
     { to: `/console/realms/${name}/identity-providers`, label: 'Identity Providers', count: identityProviders?.length },
+    { to: `/console/realms/${name}/consent-categories`, label: 'Consent Categories', count: consentCategories?.length },
   ];
 
   return (
@@ -1092,6 +1107,97 @@ export default function RealmDetailPage() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* Consent Tab */}
+      {activeTab === 'consent' && (
+        <div className="space-y-6">
+          {/* Consent Management Header */}
+          <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Consent Management</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  GDPR-compliant consent tracking and user data management
+                </p>
+              </div>
+              <Link
+                to={`/console/realms/${name}/consent-categories`}
+                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                Manage Categories
+              </Link>
+            </div>
+          </div>
+
+          {/* Consent Statistics */}
+          {consentStats && (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="text-sm text-gray-500">Total Consents</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{consentStats.totalConsents}</p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="text-sm text-gray-500">Active (24h)</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{consentStats.activeUsersWithConsents24h}</p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="text-sm text-gray-500">Active (7d)</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{consentStats.activeUsersWithConsents7d}</p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="text-sm text-gray-500">Actions (30d)</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{consentStats.consentActionsLast30d}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Consents by Category */}
+          {consentStats && consentStats.consentsByCategory.length > 0 && (
+            <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+              <div className="border-b border-gray-200 px-6 py-4">
+                <h3 className="text-sm font-semibold text-gray-900">Consents by Category</h3>
+              </div>
+              <div className="divide-y divide-gray-200">
+                {consentStats.consentsByCategory.map((cat) => (
+                  <div key={cat.categoryId} className="flex items-center justify-between px-6 py-4">
+                    <span className="text-sm font-medium text-gray-700">{cat.categoryName}</span>
+                    <span className="rounded-full bg-indigo-100 px-3 py-0.5 text-sm font-medium text-indigo-700">
+                      {cat.totalGrants} grants
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Quick Actions */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Link
+              to={`/console/realms/${name}/consent-categories`}
+              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div>
+                <p className="text-sm font-medium text-gray-500">Consent Categories</p>
+                <p className="text-lg font-bold text-gray-900">{consentCategories?.length ?? '-'}</p>
+              </div>
+              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+            {consentStats && consentStats.pendingDeletions > 0 && (
+              <div className="flex items-center justify-between rounded-lg border border-orange-200 bg-orange-50 p-4 shadow-sm">
+                <div>
+                  <p className="text-sm font-medium text-orange-700">Pending Deletions</p>
+                  <p className="text-lg font-bold text-orange-900">{consentStats.pendingDeletions}</p>
+                </div>
+                <svg className="h-5 w-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       <ConfirmDialog
