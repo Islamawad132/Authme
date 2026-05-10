@@ -1,0 +1,75 @@
+# Build Progress - Documentation Site (authme.dev)
+
+## Current Status
+
+**Phase:** Phase 2: Core Documentation
+**Subtask:** subtask-2-1
+**Status:** COMPLETED
+
+## Completed Subtasks
+
+### subtask-2-1: Landing Page (COMPLETED)
+- **Files Created:**
+  - `docs/src/pages/index.tsx` - Landing page with hero section and features overview
+  - `docs/src/pages/index.module.css` - CSS module for landing page styling
+- **Features:**
+  - Hero section with title, subtitle, CTA buttons, and stats
+  - Features grid with 6 feature cards (security, protocols, cloud, SDKs, user mgmt, performance)
+  - Quick links section for common documentation pages
+  - Responsive styling for mobile devices
+  - Light and dark theme support
+- **Patterns Followed:** admin-ui/src/pages/DashboardPage.tsx
+- **Commit:** 79f93a3
+- **Git Status:** Files committed successfully
+
+### subtask-1-1: Docs Structure (COMPLETED)
+- **Files Created:**
+  - `docs/package.json` - Docusaurus 3.8.0 with React 19, TypeScript
+  - `docs/tsconfig.json` - Extends @docusaurus/tsconfig
+  - `docs/babel.config.js` - Docusaurus babel preset configuration
+  - `docs/docusaurus.config.ts` - Full Docusaurus config with navbar, footer, prism themes
+  - `docs/sidebars.ts` - Comprehensive sidebar with all documentation sections
+  - `docs/src/css/custom.css` - AuthMe brand colors (primary blue #2563eb)
+
+### subtask-1-2: Docusaurus Config (COMPLETED)
+- Enhanced docusaurus.config.ts with AuthMe branding
+- Added: baseUrl for proper routing, color mode (light/dark), enhanced navbar with logo and API Reference link
+- Comprehensive footer with SDK/Resources/Community sections
+- Prism syntax highlighting for 7 languages, collapsible sidebar, announcement bar
+
+## Files Created (All Verified)
+
+| File | Status |
+|------|--------|
+| docs/package.json | ✅ Exists - Docusaurus 3.8.0, React 19, TypeScript |
+| docs/tsconfig.json | ✅ Exists - Extends @docusaurus/tsconfig |
+| docs/babel.config.js | ✅ Exists - Standard Docusaurus babel preset |
+| docs/docusaurus.config.ts | ✅ Exists - Full config with navbar, footer, themes |
+| docs/sidebars.ts | ✅ Exists - All sections defined |
+| docs/src/css/custom.css | ✅ Exists - AuthMe branding applied |
+| docs/src/pages/index.tsx | ✅ Exists - Landing page with hero and features |
+| docs/src/pages/index.module.css | ✅ Exists - CSS module for styling |
+
+## Git History
+
+```
+79f93a3 docs: Create landing page with hero section and features
+8b2c857 docs: Configure Docusaurus with proper plugins and theme
+dd96d23 docs: Update subtask-1-2 status to completed
+d8971b1 docs: add DECISIONS.md with technical decision log (#633)
+```
+
+## Verification Commands
+
+To verify the docs site is working:
+```bash
+cd docs && npm install --legacy-peer-deps
+npm run start
+# Then open http://localhost:3001/
+```
+
+## Next Steps
+
+1. **subtask-2-2**: Create intro/overview documentation page
+2. **subtask-2-3**: Create quickstart guide with Docker Compose setup
+3. **subtask-2-4**: Create getting-started section with installation guide
