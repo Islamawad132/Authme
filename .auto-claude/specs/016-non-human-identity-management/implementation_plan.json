@@ -45,7 +45,9 @@
             "command": "npx prisma migrate status",
             "expected": "No pending migrations"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Created migration for NHI models: NhiIdentity, NhiCredential, NhiCredentialPolicy, NhiAuditLog, NhiUsageStats. Committed as c752d10.",
+          "updated_at": "2026-05-10T19:43:30.664674+00:00"
         }
       ]
     },
@@ -75,7 +77,9 @@
             "command": "npx tsc --noEmit src/nhi/nhi.service.ts",
             "expected": "No TypeScript errors"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Created NhiService with full CRUD operations for NHI identities and credentials. Includes lifecycle management (suspend, reactivate, decommission), credential CRUD with API key generation, rotation, and revocation. Also added usage statistics tracking. Committed as a34f1f2.",
+          "updated_at": "2026-05-10T19:49:52.961690+00:00"
         },
         {
           "id": "subtask-2-2",
@@ -93,7 +97,9 @@
             "command": "npx tsc --noEmit src/nhi/nhi.controller.ts",
             "expected": "No TypeScript errors"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Created NhiController with full REST API coverage for NHI identity management: CRUD endpoints (create, list, get, update, delete), lifecycle operations (suspend, reactivate, decommission), credential management (create, list, revoke, rotate), certificate management, and usage statistics. Follows pattern from service-accounts.controller.ts. Committed as c8208f5.",
+          "updated_at": "2026-05-10T20:02:23.042170+00:00"
         },
         {
           "id": "subtask-2-3",
@@ -114,7 +120,9 @@
             "command": "npx tsc --noEmit src/nhi/dto/*.ts",
             "expected": "No TypeScript errors"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Created DTOs for NHI operations: CreateNhiIdentityDto, UpdateNhiIdentityDto (already existed), RegisterDeviceDto, RegisterAiAgentDto. These follow the patterns from service-accounts DTOs and include validation decorators, Swagger documentation, and proper TypeScript types.",
+          "updated_at": "2026-05-10T20:05:41.453554+00:00"
         },
         {
           "id": "subtask-2-4",
@@ -774,5 +782,6 @@
   "planStatus": "in_progress",
   "xstateState": "backlog",
   "executionPhase": "coding",
-  "updated_at": "2026-05-10T19:21:12.528Z"
+  "updated_at": "2026-05-10T20:07:08.289Z",
+  "last_updated": "2026-05-10T20:05:41.453565+00:00"
 }

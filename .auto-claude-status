@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "016-non-human-identity-management",
+  "state": "building",
+  "subtasks": {
+    "completed": 5,
+    "total": 27,
+    "in_progress": 1,
+    "failed": 0
+  },
+  "phase": {
+    "current": "Backend Core API",
+    "id": null,
+    "total": 4
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 7,
+    "started_at": "2026-05-10T22:13:43.706807"
+  },
+  "last_update": "2026-05-10T23:07:08.319803"
+}

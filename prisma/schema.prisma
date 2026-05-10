@@ -156,6 +156,9 @@ model Realm {
   userLoginProfiles     UserLoginProfile[]
   organizations         Organization[]
   serviceAccounts       ServiceAccount[]
+  nhiIdentities         NhiIdentity[]
+  nhiCredentialPolicies NhiCredentialPolicy[]
+  nhiAuditLogs          NhiAuditLog[]
 
   @@map("realms")
 }
@@ -202,6 +205,29 @@ model User {
   @@unique([realmId, username])
   @@unique([realmId, email])
   @@map("users")
+}
+
+// ─── NON-HUMAN IDENTITY TYPES ────────────────────────────
+
+enum NhiIdentityType {
+  IOT_DEVICE
+  AI_AGENT
+  BOT
+  MACHINE_TO_MACHINE
+}
+
+enum NhiLifecycleStatus {
+  PROVISIONING
+  ACTIVE
+  SUSPENDED
+  DECOMMISSIONED
+}
+
+enum NhiCredentialType {
+  API_KEY
+  CERTIFICATE
+  JWT_BEARER
+  MTLS
 }
 
 // ─── CLIENTS ──────────────────────────────────────────────
@@ -1252,4 +1278,185 @@ model ApiKey {
   @@index([serviceAccountId])
   @@index([keyPrefix])
   @@map("api_keys")
+}
+
+// ─── NON-HUMAN IDENTITIES ─────────────────────────────────
+
+model NhiIdentity {
+  id            String   @id @default(uuid())
+  realmId       String   @map("realm_id")
+  identityType  NhiIdentityType @default(MACHINE_TO_MACHINE) @map("identity_type")
+  name          String
+  description   String?
+  enabled       Boolean  @default(true)
+
+  // Lifecycle management
+  lifecycleStatus NhiLifecycleStatus @default(PROVISIONING) @map("lifecycle_status")
+  suspendedAt    DateTime? @map("suspended_at")
+  decommissionedAt DateTime? @map("decommissioned_at")
+
+  // Certificate-based auth (for IoT/mTLS)
+  certificateSubject String? @map("certificate_subject")
+  certificateFingerprint String? @map("certificate_fingerprint")
+  certificateNotBefore DateTime? @map("certificate_not_before")
+  certificateNotAfter DateTime? @map("certificate_not_after")
+
+  // AI agent specific
+  agentPurpose String? @map("agent_purpose")
+  permissionScopes String[] @default([]) @map("permission_scopes")
+
+  // Metadata
+  metadata Json? @default("{}") @map("metadata")
+  tags String[] @default([]) @map("tags")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  realm   Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  credentials NhiCredential[]
+  usageStats NhiUsageStats?
+
+  @@unique([realmId, name])
+  @@index([realmId])
+  @@index([realmId, identityType])
+  @@index([realmId, lifecycleStatus])
+  @@map("nhi_identities")
+}
+
+// ─── NHI CREDENTIALS ──────────────────────────────────────
+
+model NhiCredential {
+  id           String   @id @default(uuid())
+  nhiIdentityId String  @map("nhi_identity_id")
+  credentialType NhiCredentialType @default(API_KEY) @map("credential_type")
+  name         String
+  keyPrefix    String?  @map("key_prefix")
+  keyHash      String?  @map("key_hash")
+
+  // Certificate fields
+  certificatePem String? @map("certificate_pem")
+  certificateChain String? @map("certificate_chain")
+  privateKeyPem String? @map("private_key_pem")
+
+  // JWT fields
+  jwtSigningAlgorithm String? @map("jwt_signing_algorithm")
+  jwtIssuer String? @map("jwt_issuer")
+  jwtAudience String? @map("jwt_audience")
+
+  // Expiration and rotation
+  expiresAt       DateTime? @map("expires_at")
+  rotatedAt       DateTime? @map("rotated_at")
+  rotationRequired Boolean  @default(false) @map("rotation_required")
+
+  // Status
+  enabled         Boolean @default(true)
+  revoked         Boolean @default(false) @map("revoked")
+  revokedAt       DateTime? @map("revoked_at")
+
+  // Usage tracking
+  lastUsedAt       DateTime? @map("last_used_at")
+  requestCount     Int        @default(0) @map("request_count")
+
+  // IP restrictions
+  allowedIpRanges  String[]   @default([]) @map("allowed_ip_ranges")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  nhiIdentity NhiIdentity @relation(fields: [nhiIdentityId], references: [id], onDelete: Cascade)
+
+  @@index([nhiIdentityId])
+  @@index([keyPrefix])
+  @@index([expiresAt])
+  @@map("nhi_credentials")
+}
+
+// ─── NHI CREDENTIAL POLICIES ──────────────────────────────
+
+model NhiCredentialPolicy {
+  id           String   @id @default(uuid())
+  realmId      String   @map("realm_id")
+  name         String
+  description  String?
+  enabled      Boolean  @default(true)
+  priority     Int      @default(0)
+
+  // Credential type this policy applies to
+  credentialType NhiCredentialType @default(API_KEY) @map("credential_type")
+
+  // Rotation settings
+  rotationIntervalDays Int @default(90) @map("rotation_interval_days")
+  rotationBeforeDays   Int @default(7)  @map("rotation_before_days")
+  autoRotate          Boolean @default(false) @map("auto_rotate")
+
+  // Expiration settings
+  maxCredentialAgeDays Int @default(365) @map("max_credential_age_days")
+
+  // Usage limits
+  maxRequestsPerDay    Int? @map("max_requests_per_day")
+  maxRequestsPerMonth  Int? @map("max_requests_per_month")
+  rateLimitPerMinute  Int? @map("rate_limit_per_minute")
+
+  // Security settings
+  requireCertificate   Boolean @default(false) @map("require_certificate")
+  requireIpRestriction Boolean @default(false) @map("require_ip_restriction")
+  requireAuditLogging  Boolean @default(true)  @map("require_audit_logging")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@unique([realmId, name])
+  @@index([realmId])
+  @@map("nhi_credential_policies")
+}
+
+// ─── NHI AUDIT LOG ───────────────────────────────────────
+
+model NhiAuditLog {
+  id            String   @id @default(uuid())
+  realmId       String   @map("realm_id")
+  nhiIdentityId String   @map("nhi_identity_id")
+  action        String   // PROVISIONED, CREDENTIAL_ISSUED, CREDENTIAL_ROTATED, ACCESS_GRANTED, ACCESS_DENIED, SUSPENDED, DECOMMISSIONED
+  credentialId  String?  @map("credential_id")
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  success       Boolean  @default(true)
+  errorCode     String?  @map("error_code")
+  details       Json?   @map("details")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  realm       Realm       @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  nhiIdentity NhiIdentity @relation(fields: [nhiIdentityId], references: [id], onDelete: Cascade)
+
+  @@index([realmId, createdAt])
+  @@index([nhiIdentityId, createdAt])
+  @@index([realmId, action])
+  @@index([createdAt])
+  @@map("nhi_audit_logs")
+}
+
+// ─── NHI USAGE STATISTICS ────────────────────────────────
+
+model NhiUsageStats {
+  id               String   @id @default(uuid())
+  nhiIdentityId    String   @unique @map("nhi_identity_id")
+  totalRequests    Int      @default(0) @map("total_requests")
+  successfulRequests Int    @default(0) @map("successful_requests")
+  failedRequests   Int      @default(0) @map("failed_requests")
+  lastActiveAt     DateTime? @map("last_active_at")
+  lastSuccessfulAt DateTime? @map("last_successful_at")
+  lastFailedAt     DateTime? @map("last_failed_at")
+
+  // Credential age tracking
+  oldestCredentialAgeDays Int? @map("oldest_credential_age_days")
+  newestCredentialAgeDays Int? @map("newest_credential_age_days")
+  credentialsExpiringSoon Int @default(0) @map("credentials_expiring_soon")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  nhiIdentity NhiIdentity @relation(fields: [nhiIdentityId], references: [id], onDelete: Cascade)
+
+  @@map("nhi_usage_stats")
 }
