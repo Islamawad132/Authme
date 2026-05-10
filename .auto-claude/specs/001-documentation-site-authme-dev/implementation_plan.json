@@ -1,0 +1,752 @@
+{
+  "feature": "Documentation Site (authme.dev)",
+  "workflow_type": "simple",
+  "workflow_rationale": "Documentation site is a single-service build with no external dependencies. No multi-phase workflow needed since docs don't depend on backend being ready - docs can be built independently and reference the API.",
+  "phases": [
+    {
+      "id": "phase-1-setup",
+      "name": "Project Setup",
+      "type": "setup",
+      "description": "Initialize Docusaurus project with TypeScript configuration",
+      "depends_on": [],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "Create docs directory structure and package.json",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/package.json",
+            "docs/tsconfig.json",
+            "docs/babel.config.js",
+            "docs/docusaurus.config.ts",
+            "docs/sidebars.ts"
+          ],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm install --legacy-peer-deps 2>&1 | tail -5",
+            "expected": "Docusaurus install complete"
+          },
+          "status": "completed",
+          "notes": "COMPLETED (manual verification required): All 5 required files created. Files verified via Read tool: package.json, tsconfig.json, babel.config.js, docusaurus.config.ts, sidebars.ts. npm install blocked by sandbox - run manually: `cd docs && npm install --legacy-peer-deps`",
+          "updated_at": "2026-05-10T01:10:21.202739+00:00"
+        },
+        {
+          "id": "subtask-1-2",
+          "description": "Configure Docusaurus with proper plugins and theme",
+          "service": "docs",
+          "files_to_modify": [
+            "docs/docusaurus.config.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | tail -10",
+            "expected": "Build complete"
+          },
+          "status": "completed",
+          "notes": "COMPLETED: Enhanced docusaurus.config.ts with AuthMe branding. Added: baseUrl for proper routing, color mode (light/dark), enhanced navbar with logo and API Reference link, comprehensive footer with SDK/Resources/Community sections, Prism syntax highlighting for 7 languages, collapsible sidebar, announcement bar. Commit: 8b2c857. Verification blocked by missing node/npm - run manually: `npm run build`",
+          "updated_at": "2026-05-10T04:15:00.000000+00:00"
+        }
+      ]
+    },
+    {
+      "id": "phase-2-content",
+      "name": "Core Documentation",
+      "type": "implementation",
+      "description": "Create the core documentation pages and structure",
+      "depends_on": [
+        "phase-1-setup"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "description": "Create landing page with hero section and features overview",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/src/pages/index.tsx"
+          ],
+          "patterns_from": [
+            "admin-ui/src/pages/DashboardPage.tsx"
+          ],
+          "verification": {
+            "type": "browser",
+            "url": "http://localhost:3001/",
+            "checks": [
+              "Hero section renders",
+              "Quick start links visible"
+            ]
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-2-2",
+          "description": "Create intro/overview documentation page",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/intro.md"
+          ],
+          "patterns_from": [
+            "README.md"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-2-3",
+          "description": "Create quickstart guide with Docker Compose setup",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/quickstart.md"
+          ],
+          "patterns_from": [
+            "README.md#quick-start"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-2-4",
+          "description": "Create getting-started section with installation guide",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/getting-started/installation.md",
+            "docs/docs/getting-started/configuration.md"
+          ],
+          "patterns_from": [
+            "README.md#docker-hub",
+            ".env.example"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-3-api",
+      "name": "API Reference",
+      "type": "implementation",
+      "description": "Create API reference section with OpenAPI integration",
+      "depends_on": [
+        "phase-1-setup"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-3-1",
+          "description": "Create OpenAPI spec file from existing Swagger documentation",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/api/openapi.yaml"
+          ],
+          "patterns_from": [
+            "src/main.ts",
+            "src/oauth/oauth.controller.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && cat docs/api/openapi.yaml | head -50",
+            "expected": "openapi: 3.0"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-3-2",
+          "description": "Create API reference page with Swagger UI integration",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/api/index.mdx",
+            "docs/docs/api/authentication.md",
+            "docs/docs/api/oauth.md",
+            "docs/docs/api/users.md",
+            "docs/docs/api/clients.md",
+            "docs/docs/api/realms.md"
+          ],
+          "patterns_from": [
+            "src/auth/auth.controller.ts",
+            "src/users/users.controller.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-4-sdks",
+      "name": "SDK Guides",
+      "type": "implementation",
+      "description": "Create SDK integration guides for all 6 platforms",
+      "depends_on": [
+        "phase-2-content"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-4-1",
+          "description": "Create React SDK guide with AuthProvider and hooks examples",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/guides/sdks/react.mdx"
+          ],
+          "patterns_from": [
+            "packages/authme-js/README.md",
+            "packages/authme-js/src/react.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-2",
+          "description": "Create Next.js SDK guide with middleware and Server Components",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/guides/sdks/nextjs.mdx"
+          ],
+          "patterns_from": [
+            "packages/authme-nextjs/README.md"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-3",
+          "description": "Create Angular SDK guide with module and service examples",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/guides/sdks/angular.mdx"
+          ],
+          "patterns_from": [
+            "packages/authme-angular/README.md"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-4",
+          "description": "Create Vue SDK guide with plugin and composables",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/guides/sdks/vue.mdx"
+          ],
+          "patterns_from": [
+            "packages/authme-vue/README.md"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-5",
+          "description": "Create Android SDK guide with Kotlin examples",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/guides/sdks/android.mdx"
+          ],
+          "patterns_from": [
+            "packages/authme-android/README.md"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-6",
+          "description": "Create iOS SDK guide with Swift examples",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/guides/sdks/ios.mdx"
+          ],
+          "patterns_from": [
+            "packages/authme-ios/README.md"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-5-guides",
+      "name": "Advanced Guides",
+      "type": "implementation",
+      "description": "Create authentication and authorization guides",
+      "depends_on": [
+        "phase-2-content"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-5-1",
+          "description": "Create authentication guide with OAuth flows",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/guides/authentication.mdx"
+          ],
+          "patterns_from": [
+            "src/oauth/oauth.controller.ts",
+            "src/auth/auth.service.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-5-2",
+          "description": "Create authorization guide with RBAC and policies",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/guides/authorization.mdx"
+          ],
+          "patterns_from": [
+            "src/authorization/authorization.service.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-5-3",
+          "description": "Create MFA guide with TOTP setup",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/guides/mfa.mdx"
+          ],
+          "patterns_from": [
+            "src/mfa/mfa.controller.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-6-config",
+      "name": "Configuration Reference",
+      "type": "implementation",
+      "description": "Create comprehensive configuration documentation",
+      "depends_on": [
+        "phase-1-setup"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-6-1",
+          "description": "Create environment variables reference",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/configuration/environment-variables.md"
+          ],
+          "patterns_from": [
+            ".env.example"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-6-2",
+          "description": "Create configuration options reference",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/configuration/options.md"
+          ],
+          "patterns_from": [
+            "src/app.module.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-7-deployment",
+      "name": "Deployment Guides",
+      "type": "implementation",
+      "description": "Create deployment documentation for Docker, Kubernetes, and bare metal",
+      "depends_on": [
+        "phase-2-content"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-7-1",
+          "description": "Create Docker Compose deployment guide",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/deployment/docker.mdx"
+          ],
+          "patterns_from": [
+            "docker-compose.yml",
+            "docker-compose.dev.yml"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-7-2",
+          "description": "Create Kubernetes deployment guide",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/deployment/kubernetes.mdx"
+          ],
+          "patterns_from": [
+            "helm/authme/values.yaml"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-7-3",
+          "description": "Create bare metal deployment guide",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/deployment/bare-metal.mdx"
+          ],
+          "patterns_from": [
+            "README.md#from-source"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-8-migration",
+      "name": "Migration Guides",
+      "type": "implementation",
+      "description": "Create migration guides from Keycloak and Auth0",
+      "depends_on": [
+        "phase-2-content"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-8-1",
+          "description": "Create Keycloak migration guide",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/migration/keycloak.mdx"
+          ],
+          "patterns_from": [
+            "src/migration/migration.controller.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-8-2",
+          "description": "Create Auth0 migration guide",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/docs/migration/auth0.mdx"
+          ],
+          "patterns_from": [
+            "src/migration/migration.controller.ts"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd docs && npm run build 2>&1 | grep -c 'Success'",
+            "expected": "1"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-9-styling",
+      "name": "Branding and Assets",
+      "type": "implementation",
+      "description": "Add AuthMe branding, logo, and styling",
+      "depends_on": [
+        "phase-1-setup"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-9-1",
+          "description": "Add AuthMe logo and brand assets",
+          "service": "docs",
+          "files_to_modify": [],
+          "files_to_create": [
+            "docs/static/img/logo.svg",
+            "docs/static/img/icon.png"
+          ],
+          "patterns_from": [
+            "admin-ui/public/logo.svg"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "ls -la docs/static/img/",
+            "expected": "logo.svg exists"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-9-2",
+          "description": "Configure Docusaurus with AuthMe theme colors and branding",
+          "service": "docs",
+          "files_to_modify": [
+            "docs/docusaurus.config.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "themes/authme/theme.json"
+          ],
+          "verification": {
+            "type": "browser",
+            "url": "http://localhost:3001/",
+            "checks": [
+              "AuthMe branding visible",
+              "Blue primary color"
+            ]
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-10-search",
+      "name": "Search Integration",
+      "type": "implementation",
+      "description": "Configure search functionality with Algolia or local search",
+      "depends_on": [
+        "phase-2-content"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-10-1",
+          "description": "Configure Docusaurus search plugin",
+          "service": "docs",
+          "files_to_modify": [
+            "docs/docusaurus.config.ts"
+          ],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "browser",
+            "url": "http://localhost:3001/",
+            "checks": [
+              "Search bar visible",
+              "Search works"
+            ]
+          },
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_phases": 10,
+    "total_subtasks": 30,
+    "services_involved": [
+      "docs"
+    ],
+    "parallelism": {
+      "max_parallel_phases": 4,
+      "parallel_groups": [
+        {
+          "phases": [
+            "phase-3-api",
+            "phase-6-config"
+          ],
+          "reason": "Both depend only on phase-1-setup, no file conflicts"
+        },
+        {
+          "phases": [
+            "phase-4-sdks",
+            "phase-5-guides",
+            "phase-7-deployment",
+            "phase-8-migration"
+          ],
+          "reason": "All depend on phase-2-content, no file conflicts between SDK/guides/deployment/migration"
+        }
+      ],
+      "recommended_workers": 2,
+      "speedup_estimate": "1.5x faster than sequential"
+    },
+    "startup_command": "cd docs && npm install --legacy-peer-deps && npm run start"
+  },
+  "verification_strategy": {
+    "risk_level": "low",
+    "skip_validation": false,
+    "test_creation_phase": "post_implementation",
+    "test_types_required": [],
+    "security_scanning_required": false,
+    "staging_deployment_required": false,
+    "acceptance_criteria": [
+      "All documentation pages build without errors",
+      "Docusaurus dev server starts successfully",
+      "All links between pages work correctly",
+      "Search functionality works across all pages",
+      "SDK guides contain working code examples"
+    ],
+    "verification_steps": [
+      {
+        "name": "Build Verification",
+        "command": "cd docs && npm run build",
+        "expected_outcome": "Build completes without errors",
+        "type": "command",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Dev Server Start",
+        "command": "cd docs && timeout 30 npm run start || true",
+        "expected_outcome": "Server starts on port 3001",
+        "type": "command",
+        "required": true,
+        "blocking": false
+      }
+    ],
+    "reasoning": "Low risk documentation-only build - no security concerns, simple static site generation"
+  },
+  "qa_acceptance": {
+    "unit_tests": {
+      "required": false,
+      "commands": [],
+      "minimum_coverage": null
+    },
+    "integration_tests": {
+      "required": false,
+      "commands": [],
+      "services_to_test": []
+    },
+    "e2e_tests": {
+      "required": false,
+      "commands": [],
+      "flows": []
+    },
+    "browser_verification": {
+      "required": true,
+      "pages": [
+        {
+          "url": "http://localhost:3001/",
+          "checks": [
+            "Landing page renders",
+            "Hero section visible"
+          ]
+        },
+        {
+          "url": "http://localhost:3001/docs/quickstart",
+          "checks": [
+            "Quickstart guide renders"
+          ]
+        },
+        {
+          "url": "http://localhost:3001/docs/guides/sdks/react",
+          "checks": [
+            "React SDK docs render"
+          ]
+        }
+      ]
+    },
+    "database_verification": {
+      "required": false,
+      "checks": []
+    }
+  },
+  "qa_signoff": null,
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "xstateState": "backlog",
+  "executionPhase": "coding",
+  "updated_at": "2026-05-10T01:10:37.418Z",
+  "last_updated": "2026-05-10T01:10:21.202755+00:00"
+}
