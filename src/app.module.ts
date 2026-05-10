@@ -55,6 +55,7 @@ import { StepUpModule } from './step-up/step-up.module.js';
 import { OrganizationsModule } from './organizations/organizations.module.js';
 import { RiskAssessmentModule } from './risk-assessment/risk-assessment.module.js';
 import { MigrationModule } from './migration/migration.module.js';
+import { UpgradeModule } from './upgrade/upgrade.module.js';
 import { CorsModule } from './cors/cors.module.js';
 import { ServiceAccountsModule } from './service-accounts/service-accounts.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
@@ -122,6 +123,7 @@ import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
     OrganizationsModule,
     RiskAssessmentModule,
     MigrationModule,
+    UpgradeModule,
     CorsModule,
     ServiceAccountsModule,
   ],
