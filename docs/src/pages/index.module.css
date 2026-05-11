@@ -1,0 +1,405 @@
+/**
+ * CSS Module for the landing page
+ */
+
+/* ─── Hero Section ─────────────────────────────────────────────────────────── */
+
+.heroSection {
+  padding: 6rem 1rem 4rem;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.03) 0%, transparent 100%);
+}
+
+.heroContainer {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1.5rem;
+  background: rgba(37, 99, 235, 0.08);
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #2563eb;
+}
+
+.badgeDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #2563eb;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.heroTitle {
+  font-size: 3.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #111827;
+  margin: 0 0 1.5rem;
+}
+
+[data-theme='dark'] .heroTitle {
+  color: #f9fafb;
+}
+
+.heroHighlight {
+  color: #2563eb;
+}
+
+.heroSubtitle {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  color: #4b5563;
+  margin: 0 0 2.5rem;
+}
+
+[data-theme='dark'] .heroSubtitle {
+  color: #9ca3af;
+}
+
+.heroCta {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 3rem;
+}
+
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.75rem;
+  background: #2563eb;
+  color: white;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.ctaPrimary:hover {
+  background: #1d4ed8;
+  color: white;
+  text-decoration: none;
+}
+
+.ctaSecondary {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.875rem 1.75rem;
+  background: transparent;
+  color: #2563eb;
+  border: 2px solid #2563eb;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.ctaSecondary:hover {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  text-decoration: none;
+}
+
+[data-theme='dark'] .ctaSecondary {
+  color: #60a5fa;
+  border-color: #60a5fa;
+}
+
+[data-theme='dark'] .ctaSecondary:hover {
+  background: rgba(96, 165, 250, 0.1);
+  color: #60a5fa;
+}
+
+.ctaIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.heroStats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+[data-theme='dark'] .heroStats {
+  border-top-color: #374151;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.statValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+[data-theme='dark'] .statValue {
+  color: #f9fafb;
+}
+
+.statLabel {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+.statDivider {
+  width: 1px;
+  height: 2.5rem;
+  background: #e5e7eb;
+}
+
+[data-theme='dark'] .statDivider {
+  background: #374151;
+}
+
+/* ─── Features Section ─────────────────────────────────────────────────────── */
+
+.featuresSection {
+  padding: 5rem 1rem;
+  background: white;
+}
+
+[data-theme='dark'] .featuresSection {
+  background: #111827;
+}
+
+.featuresContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.sectionTitle {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 1rem;
+}
+
+[data-theme='dark'] .sectionTitle {
+  color: #f9fafb;
+}
+
+.sectionSubtitle {
+  font-size: 1.125rem;
+  color: #6b7280;
+  margin: 0;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.featureCard {
+  padding: 2rem;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  background: white;
+  transition: all 0.2s;
+}
+
+[data-theme='dark'] .featureCard {
+  border-color: #374151;
+  background: #1f2937;
+}
+
+.featureLink {
+  text-decoration: none;
+  color: inherit;
+}
+
+.featureLink:hover .featureCard {
+  border-color: #2563eb;
+  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.1);
+}
+
+.featureTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.75rem;
+}
+
+[data-theme='dark'] .featureTitle {
+  color: #f9fafb;
+}
+
+.featureDescription {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #6b7280;
+  margin: 0;
+}
+
+[data-theme='dark'] .featureDescription {
+  color: #9ca3af;
+}
+
+/* ─── Quick Links Section ──────────────────────────────────────────────────── */
+
+.quickLinksSection {
+  padding: 5rem 1rem;
+  background: #f9fafb;
+}
+
+[data-theme='dark'] .quickLinksSection {
+  background: #111827;
+}
+
+.quickLinksContainer {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.quickLinksTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  color: #111827;
+  margin: 0 0 2.5rem;
+}
+
+[data-theme='dark'] .quickLinksTitle {
+  color: #f9fafb;
+}
+
+.quickLinksGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.quickLinkCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s;
+}
+
+[data-theme='dark'] .quickLinkCard {
+  background: #1f2937;
+  border-color: #374151;
+}
+
+.quickLinkCard:hover {
+  border-color: #2563eb;
+  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.15);
+  text-decoration: none;
+}
+
+.quickLinkIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.quickLinkIcon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.quickLinkCard h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.25rem;
+}
+
+[data-theme='dark'] .quickLinkCard h3 {
+  color: #f9fafb;
+}
+
+.quickLinkCard p {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+[data-theme='dark'] .quickLinkCard p {
+  color: #9ca3af;
+}
+
+/* ─── Responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .heroSection {
+    padding: 4rem 1rem 3rem;
+  }
+
+  .heroTitle {
+    font-size: 2.5rem;
+  }
+
+  .heroSubtitle {
+    font-size: 1.125rem;
+  }
+
+  .heroStats {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .statDivider {
+    width: 3rem;
+    height: 1px;
+  }
+
+  .featuresSection,
+  .quickLinksSection {
+    padding: 3rem 1rem;
+  }
+
+  .sectionTitle {
+    font-size: 1.75rem;
+  }
+}

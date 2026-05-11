@@ -1,0 +1,691 @@
+---
+id: vue-sdk
+title: Vue SDK
+description: Integrate AuthMe authentication into your Vue 3 application using the official SDK with plugin, composables, and router guard
+---
+
+# Vue SDK
+
+The AuthMe Vue SDK provides Vue 3-specific bindings for the authme-sdk, including an `AuthmePlugin`, composables (`useAuth`, `useUser`, `usePermissions`), a Vue Router navigation guard (`createAuthGuard`), and an `AuthProvider` component for scoped authentication context.
+
+## Installation
+
+```bash
+npm install @authme/vue authme-sdk vue
+```
+
+---
+
+## Quick Start
+
+### 1. Install the Plugin
+
+```typescript
+// main.ts
+import { createApp } from 'vue';
+import { AuthmePlugin } from '@authme/vue';
+import App from './App.vue';
+
+const app = createApp(App);
+
+app.use(AuthmePlugin, {
+  url: 'http://localhost:3000',
+  realm: 'my-realm',
+  clientId: 'my-app',
+  redirectUri: 'http://localhost:5173/callback',
+});
+
+app.mount('#app');
+```
+
+### 2. Use Composables in Components
+
+```vue
+<script setup lang="ts">
+import { useAuth } from '@authme/vue';
+
+const { isAuthenticated, user, login, logout, isLoading } = useAuth();
+</script>
+
+<template>
+  <div v-if="isLoading">Loading...</div>
+  <div v-else-if="isAuthenticated">
+    Hello, {{ user?.name }}
+    <button @click="logout">Sign out</button>
+  </div>
+  <div v-else>
+    <button @click="login()">Sign in</button>
+  </div>
+</template>
+```
+
+### 3. Protect Routes with the Navigation Guard
+
+```typescript
+// router/index.ts
+import { createRouter, createWebHistory } from 'vue-router';
+import { createAuthGuard } from '@authme/vue';
+import { AuthmeClient } from 'authme-sdk';
+
+const authClient = new AuthmeClient({
+  url: 'http://localhost:3000',
+  realm: 'my-realm',
+  clientId: 'my-app',
+  redirectUri: 'http://localhost:5173/callback',
+});
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    { path: '/', component: Home },
+    {
+      path: '/dashboard',
+      component: Dashboard,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin',
+      component: Admin,
+      meta: { requiresAuth: true, roles: ['admin'] },
+    },
+  ],
+});
+
+router.beforeEach(createAuthGuard({ loginRoute: '/login' }, authClient));
+
+export default router;
+```
+
+---
+
+## AuthmePlugin
+
+The `AuthmePlugin` is a Vue 3 plugin that initializes authentication and provides auth state globally via composables.
+
+### Plugin Options
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `url` | `string` | Yes | AuthMe server URL |
+| `realm` | `string` | Yes | Realm name |
+| `clientId` | `string` | Yes | OAuth2 client ID |
+| `redirectUri` | `string` | Yes | Redirect URI after login |
+| `scope` | `string[]` | No | OAuth2 scopes (default: `['openid', 'profile', 'email']`) |
+| `storage` | `'sessionStorage' \| 'localStorage' \| 'memory'` | No | Token storage type (default: `sessionStorage`) |
+| `autoRefresh` | `boolean` | No | Enable automatic token refresh (default: `true`) |
+| `refreshBuffer` | `number` | No | Seconds before expiry to trigger refresh (default: `30`) |
+| `onLogin` | `(tokens: TokenResponse) => void` | No | Called on successful login |
+| `onLogout` | `() => void` | No | Called on logout |
+| `onError` | `(error: Error) => void` | No | Called on authentication error |
+
+### With Inline Config
+
+```typescript
+// main.ts
+import { createApp } from 'vue';
+import { AuthmePlugin } from '@authme/vue';
+import App from './App.vue';
+
+const app = createApp(App);
+
+app.use(AuthmePlugin, {
+  url: 'http://localhost:3000',
+  realm: 'my-realm',
+  clientId: 'my-app',
+  redirectUri: 'http://localhost:5173/callback',
+  scope: ['openid', 'profile', 'email', 'custom:scope'],
+  storage: 'localStorage',
+  autoRefresh: true,
+  refreshBuffer: 30,
+  onLogin: (tokens) => {
+    console.log('Access token:', tokens.access_token);
+  },
+  onLogout: () => {
+    console.log('User signed out');
+  },
+});
+
+app.mount('#app');
+```
+
+### With Pre-built Client
+
+For more control over the client configuration:
+
+```typescript
+// main.ts
+import { createApp } from 'vue';
+import { AuthmePlugin } from '@authme/vue';
+import { AuthmeClient } from 'authme-sdk';
+import App from './App.vue';
+
+const authClient = new AuthmeClient({
+  url: 'http://localhost:3000',
+  realm: 'my-realm',
+  clientId: 'my-app',
+  redirectUri: 'http://localhost:5173/callback',
+  storage: 'sessionStorage',
+  autoRefresh: true,
+  refreshBuffer: 30,
+});
+
+const app = createApp(App);
+
+app.use(AuthmePlugin, authClient);
+
+app.mount('#app');
+```
+
+---
+
+## useAuth Composable
+
+The `useAuth` composable provides access to authentication state and actions:
+
+```typescript
+const {
+  client,            // AuthmeClient - the SDK client instance
+  isAuthenticated,    // boolean - whether user is authenticated
+  isLoading,          // boolean - whether auth state is loading
+  user,               // UserInfo | null - current user info
+  login,              // (options?) => Promise<void> - initiate login
+  logout,            // () => Promise<void> - sign out
+  getToken,           // () => string | null - get current access token
+} = useAuth();
+```
+
+### Example: Login Component
+
+```vue
+<script setup lang="ts">
+import { useAuth } from '@authme/vue';
+
+const { isAuthenticated, isLoading, login, logout } = useAuth();
+
+const handleLogin = async () => {
+  try {
+    await login();
+  } catch (error) {
+    console.error('Login failed:', error);
+  }
+};
+</script>
+
+<template>
+  <div v-if="isLoading">Loading...</div>
+  <div v-else-if="isAuthenticated">
+    <button @click="logout">Sign Out</button>
+  </div>
+  <div v-else>
+    <button @click="handleLogin">Sign In with AuthMe</button>
+  </div>
+</template>
+```
+
+### Example: Accessing the Token
+
+```vue
+<script setup lang="ts">
+import { useAuth } from '@authme/vue';
+
+const { getToken, isAuthenticated } = useAuth();
+
+const token = getToken();
+</script>
+
+<template>
+  <div v-if="isAuthenticated" class="token-display">
+    <p>Your access token:</p>
+    <code>{{ token?.substring(0, 20) }}...</code>
+  </div>
+</template>
+```
+
+### Example: Login with Custom Options
+
+```vue
+<script setup lang="ts">
+import { useAuth } from '@authme/vue';
+
+const { login } = useAuth();
+
+const handleLogin = async () => {
+  try {
+    await login({
+      scope: ['openid', 'profile', 'email', 'custom:scope'],
+    });
+  } catch (error) {
+    console.error('Login failed:', error);
+  }
+};
+</script>
+
+<template>
+  <button @click="handleLogin">Sign In with Custom Scope</button>
+</template>
+```
+
+---
+
+## useUser Composable
+
+The `useUser` composable returns the current user's information from the ID token claims:
+
+```typescript
+const user = useUser();
+// Returns: ComputedRef<UserInfo | null>
+
+interface UserInfo {
+  sub: string;        // User ID
+  name?: string;      // Display name
+  email?: string;     // Email address
+  emailVerified?: boolean;
+  picture?: string;   // Avatar URL
+  roles?: string[];   // Assigned roles
+  permissions?: string[]; // Direct permissions
+  [key: string]: any; // Any custom claims
+}
+```
+
+### Example: User Profile Card
+
+```vue
+<script setup lang="ts">
+import { useUser } from '@authme/vue';
+
+const user = useUser();
+</script>
+
+<template>
+  <div v-if="user" class="profile-card">
+    <img
+      v-if="user.picture"
+      :src="user.picture"
+      :alt="user.name"
+      class="avatar"
+    />
+    <h2>{{ user.name || 'User' }}</h2>
+    <p>{{ user.email }}</p>
+    <span v-if="user.emailVerified">Email verified</span>
+    <span v-else>Email not verified</span>
+  </div>
+  <div v-else>
+    <p>Not signed in</p>
+  </div>
+</template>
+```
+
+---
+
+## usePermissions Composable
+
+The `usePermissions` composable provides role and permission checking:
+
+```typescript
+const {
+  roles,           // string[] - all assigned roles
+  permissions,    // string[] - all direct permissions
+  hasRole,         // (role: string) => boolean
+  hasPermission,   // (permission: string) => boolean
+  hasAnyRole,      // (roles: string[]) => boolean
+  hasAllRoles,     // (roles: string[]) => boolean
+} = usePermissions();
+```
+
+### Example: Role-Based UI
+
+```vue
+<script setup lang="ts">
+import { usePermissions } from '@authme/vue';
+
+const { hasRole, hasPermission, roles } = usePermissions();
+</script>
+
+<template>
+  <div class="dashboard">
+    <h1>Dashboard</h1>
+
+    <!-- Admin-only section -->
+    <section v-if="hasRole('admin')">
+      <h2>Admin Panel</h2>
+      <a href="/admin">Go to Admin</a>
+    </section>
+
+    <!-- Content with multiple role check -->
+    <section v-if="hasAnyRole(['editor', 'admin'])">
+      <h2>Content Editor</h2>
+      <button>Edit Content</button>
+    </section>
+
+    <!-- Permission-based access -->
+    <section v-if="hasPermission('read:reports')">
+      <h2>Reports</h2>
+      <button>View Reports</button>
+    </section>
+
+    <!-- Fallback for unauthorized -->
+    <p v-if="!hasRole('admin')">
+      You don't have admin access.
+    </p>
+  </div>
+</template>
+```
+
+### Example: Multi-Role Check
+
+```vue
+<script setup lang="ts">
+import { usePermissions } from '@authme/vue';
+
+const { hasAllRoles } = usePermissions();
+
+const canAccessModeration = hasAllRoles(['moderator', 'content-editor']);
+</script>
+
+<template>
+  <div v-if="canAccessModeration">
+    <h2>Moderation Tools</h2>
+    <!-- Moderation UI -->
+  </div>
+  <div v-else>
+    <p>You need both moderator and content-editor roles.</p>
+  </div>
+</template>
+```
+
+---
+
+## Navigation Guard
+
+The `createAuthGuard` function creates a Vue Router navigation guard for route protection:
+
+```typescript
+const guard = createAuthGuard(options?, authClient?);
+```
+
+### Guard Options
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `loginRoute` | `string` | No | Redirect path for unauthenticated users (default: `'/login'`) |
+| `roles` | `string[]` | No | Global required roles |
+| `excludePaths` | `string[]` | No | Routes to skip auth check |
+
+### Basic Usage
+
+```typescript
+// router/index.ts
+import { createRouter, createWebHistory } from 'vue-router';
+import { createAuthGuard } from '@authme/vue';
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    { path: '/', component: Home },
+    { path: '/login', component: Login },
+    {
+      path: '/dashboard',
+      component: Dashboard,
+      meta: { requiresAuth: true },
+    },
+  ],
+});
+
+router.beforeEach(createAuthGuard({ loginRoute: '/login' }));
+
+export default router;
+```
+
+### Route-Level Role Protection
+
+```typescript
+// router/index.ts
+import { createRouter, createWebHistory } from 'vue-router';
+import { createAuthGuard } from '@authme/vue';
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    { path: '/', component: Home },
+    { path: '/login', component: Login },
+    {
+      path: '/dashboard',
+      component: Dashboard,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin',
+      component: Admin,
+      meta: { requiresAuth: true, roles: ['admin'] },
+    },
+    {
+      path: '/moderator',
+      component: Moderator,
+      meta: { requiresAuth: true, roles: ['moderator', 'content-editor'] },
+    },
+  ],
+});
+
+router.beforeEach(createAuthGuard({ loginRoute: '/login' }));
+
+export default router;
+```
+
+### Using with Pre-built Client
+
+```typescript
+// router/index.ts
+import { createRouter, createWebHistory } from 'vue-router';
+import { createAuthGuard } from '@authme/vue';
+import { AuthmeClient } from 'authme-sdk';
+
+const authClient = new AuthmeClient({
+  url: 'http://localhost:3000',
+  realm: 'my-realm',
+  clientId: 'my-app',
+  redirectUri: 'http://localhost:5173/callback',
+});
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    { path: '/', component: Home },
+    {
+      path: '/dashboard',
+      component: Dashboard,
+      meta: { requiresAuth: true },
+    },
+  ],
+});
+
+router.beforeEach(createAuthGuard({ loginRoute: '/login' }, authClient));
+
+export default router;
+```
+
+---
+
+## AuthProvider Component
+
+The `AuthProvider` component provides scoped authentication context to a component subtree, useful when you need multiple auth configurations or want isolated auth state:
+
+```vue
+<!-- App.vue -->
+<template>
+  <AuthProvider
+    url="http://localhost:3000"
+    realm="my-realm"
+    client-id="my-app"
+    redirect-uri="http://localhost:5173/callback"
+  >
+    <RouterView />
+  </AuthProvider>
+</template>
+
+<script setup lang="ts">
+import { AuthProvider } from '@authme/vue';
+</script>
+```
+
+### AuthProvider Props
+
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `url` | `string` | Yes | AuthMe server URL |
+| `realm` | `string` | Yes | Realm name |
+| `clientId` | `string` | Yes | OAuth2 client ID |
+| `redirectUri` | `string` | Yes | Redirect URI after login |
+| `client` | `AuthmeClient` | Yes* | Pre-built client instance |
+| `scope` | `string[]` | No | OAuth2 scopes |
+| `auto-handle-callback` | `boolean` | No | Auto-handle callback (default: `true`) |
+
+*Either a `client` prop or all of `url`, `realm`, `clientId`, and `redirectUri` are required.
+
+### With Pre-built Client
+
+```vue
+<!-- App.vue -->
+<template>
+  <AuthProvider :client="authClient">
+    <RouterView />
+  </AuthProvider>
+</template>
+
+<script setup lang="ts">
+import { AuthProvider } from '@authme/vue';
+import { AuthmeClient } from 'authme-sdk';
+
+const authClient = new AuthmeClient({
+  url: 'http://localhost:3000',
+  realm: 'my-realm',
+  clientId: 'my-app',
+  redirectUri: 'http://localhost:5173/callback',
+});
+</script>
+```
+
+---
+
+## API Reference
+
+### Plugin
+
+| Export | Description |
+|--------|-------------|
+| `AuthmePlugin` | Vue 3 plugin, call `app.use(AuthmePlugin, AuthmeConfig)` |
+
+### Composables
+
+| Export | Description |
+|--------|-------------|
+| `useAuth()` | Returns `{ client, isAuthenticated, isLoading, user, login, logout, getToken }` |
+| `useUser()` | Returns `ComputedRef<UserInfo \| null>` |
+| `usePermissions()` | Returns `{ roles, permissions, hasRole, hasPermission, hasAnyRole, hasAllRoles }` |
+
+### Navigation Guard
+
+| Export | Description |
+|--------|-------------|
+| `createAuthGuard(options?, client?)` | Creates a `NavigationGuard` for Vue Router |
+
+### Components
+
+| Export | Description |
+|--------|-------------|
+| `AuthProvider` | Provides scoped auth context to a component subtree |
+
+### Types
+
+```typescript
+interface AuthmeConfig {
+  url: string;
+  realm: string;
+  clientId: string;
+  redirectUri: string;
+  scope?: string[];
+  storage?: 'sessionStorage' | 'localStorage' | 'memory';
+  autoRefresh?: boolean;
+  refreshBuffer?: number;
+  onLogin?: (tokens: TokenResponse) => void;
+  onLogout?: () => void;
+  onError?: (error: Error) => void;
+}
+
+interface UserInfo {
+  sub: string;
+  name?: string;
+  email?: string;
+  emailVerified?: boolean;
+  picture?: string;
+  roles?: string[];
+  permissions?: string[];
+  [key: string]: any;
+}
+
+interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  refresh_token?: string;
+  id_token?: string;
+  scope?: string;
+}
+```
+
+---
+
+## TypeScript Support
+
+The SDK is written in TypeScript and provides full type definitions:
+
+```typescript
+import type {
+  AuthmeClient,
+  AuthmeConfig,
+  TokenResponse,
+  UserInfo,
+} from 'authme-sdk';
+
+import {
+  useAuth,
+  useUser,
+  usePermissions,
+  AuthProvider,
+  createAuthGuard,
+} from '@authme/vue';
+
+// All composables are fully typed
+function MyComponent() {
+  const user = useUser(); // ComputedRef<UserInfo | null>
+  const { isAuthenticated } = useAuth(); // Fully typed
+  const { hasRole } = usePermissions(); // Fully typed
+}
+```
+
+---
+
+## Next Steps
+
+<div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginTop: '2rem'}}>
+
+[**Quickstart**](/docs/quickstart)
+Set up AuthMe and create your first authenticated Vue app
+
+[**Configuration**](/docs/getting-started/configuration)
+Learn about all configuration options
+
+[**API Reference**](/docs/api)
+Complete REST API documentation
+
+[**React SDK**](/docs/guides/sdks/react)
+React-specific hooks and components
+
+</div>
+
+---
+
+<p align="center">
+  <a href="https://authme.dev">authme.dev</a> &middot;
+  <a href="https://github.com/Islamawad132/Authme">GitHub</a> &middot;
+  <a href="https://discord.gg/authme">Discord</a>
+</p>
