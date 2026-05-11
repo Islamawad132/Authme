@@ -93,6 +93,28 @@ export class UpgradeController {
   }
 
   /**
+   * GET /admin/upgrade/audit
+   *
+   * Returns audit entries formatted for CLI consumption.
+   * This is an alias for history that transforms entries into a format
+   * suitable for the upgrade:status command.
+   */
+  @Get('audit')
+  @ApiOperation({ summary: 'Get upgrade audit entries for CLI' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Maximum number of entries to return', type: Number })
+  @ApiResponse({ status: 200, description: 'Audit entries response with total count' })
+  @ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid admin API key' })
+  async getUpgradeAudit(@Query('limit') limit?: string): Promise<{
+    entries: UpgradeAuditEntry[];
+    total: number;
+  }> {
+    const entries = await this.rollbackService.getUpgradeHistory(
+      limit ? Math.min(Math.max(parseInt(limit, 10), 1), 100) : 20,
+    );
+    return { entries, total: entries.length };
+  }
+
+  /**
    * GET /admin/upgrade/:upgradeId
    *
    * Returns the current state of a specific upgrade operation.

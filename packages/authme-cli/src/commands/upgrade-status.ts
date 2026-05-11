@@ -4,14 +4,13 @@ import { HttpClient } from '../http.js';
 
 interface UpgradeAuditEntry {
   id: string;
-  action: 'started' | 'completed' | 'failed' | 'rolled_back';
-  version: string;
-  timestamp: string;
-  triggeredBy: string | null;
-  duration: number | null;
-  migrationsApplied: string[];
+  fromVersion: string;
+  toVersion: string;
+  status: string;
+  startedAt: string;
+  completedAt: string | null;
+  backupId: string | null;
   errorMessage: string | null;
-  rollbackPerformed: boolean;
 }
 
 interface UpgradeAuditResponse {
@@ -95,16 +94,16 @@ export function registerUpgradeStatusCommand(program: Command): void {
 
       // Table rows
       for (const entry of entries) {
-        const timestamp = formatTimestamp(entry.timestamp);
-        const action = formatAction(entry.action);
-        const version = entry.version || chalk.dim('(none)');
-        const migrations = entry.migrationsApplied.length > 0
-          ? entry.migrationsApplied.slice(-2).join(', ') + (entry.migrationsApplied.length > 2 ? '...' : '')
-          : chalk.dim('(none)');
-        const status = formatStatus(entry);
+        const timestamp = formatTimestamp(entry.startedAt);
+        const action = formatActionFromStatus(entry.status);
+        const version = entry.toVersion || chalk.dim('(none)');
+        const duration = entry.completedAt && entry.startedAt
+          ? ` (${new Date(entry.completedAt).getTime() - new Date(entry.startedAt).getTime()}ms)`
+          : '';
+        const status = formatStatusFromStatus(entry.status, duration);
 
         console.log(
-          `  ${chalk.dim(timestamp)}  ${action}  ${version.padEnd(10)}  ${chalk.dim(migrations.substring(0, 15).padEnd(15))}  ${status}`,
+          `  ${chalk.dim(timestamp)}  ${action}  ${version.padEnd(10)}  ${chalk.dim('(see API)'.padEnd(15))}  ${status}`,
         );
 
         // Show error message if present
@@ -113,7 +112,7 @@ export function registerUpgradeStatusCommand(program: Command): void {
         }
 
         // Show rollback indicator if applicable
-        if (entry.rollbackPerformed) {
+        if (entry.status.startsWith('ROLLBACK')) {
           console.log(chalk.yellow(`    └─ Rollback performed`));
         }
       }
@@ -139,33 +138,33 @@ function formatTimestamp(iso: string): string {
   }
 }
 
-function formatAction(action: UpgradeAuditEntry['action']): string {
-  switch (action) {
-    case 'started':
+function formatActionFromStatus(status: string): string {
+  switch (status) {
+    case 'IN_PROGRESS':
       return chalk.blue('STARTED');
-    case 'completed':
+    case 'COMPLETED':
       return chalk.green('COMPLETED');
-    case 'failed':
+    case 'FAILED':
       return chalk.red('FAILED');
-    case 'rolled_back':
+    case 'ROLLBACK_COMPLETED':
+    case 'ROLLBACK_FAILED':
       return chalk.yellow('ROLLED_BACK');
     default:
       return chalk.dim('UNKNOWN');
   }
 }
 
-function formatStatus(entry: UpgradeAuditEntry): string {
-  if (entry.action === 'completed') {
-    const duration = entry.duration ? ` (${entry.duration}ms)` : '';
+function formatStatusFromStatus(status: string, duration: string): string {
+  if (status === 'COMPLETED') {
     return chalk.green(`✓ Success${duration}`);
   }
-  if (entry.action === 'failed') {
+  if (status === 'FAILED') {
     return chalk.red('✗ Failed');
   }
-  if (entry.action === 'rolled_back') {
+  if (status.startsWith('ROLLBACK')) {
     return chalk.yellow('↩ Rolled back');
   }
-  if (entry.action === 'started') {
+  if (status === 'IN_PROGRESS') {
     return chalk.blue('● In progress');
   }
   return chalk.dim('?');
