@@ -156,6 +156,17 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Get the raw Redis client for advanced operations.
+   * Returns null if Redis is unavailable.
+   */
+  getClient(): Redis | null {
+    if (!this.client || !this._available) {
+      return null;
+    }
+    return this.client;
+  }
+
   // ─── Atomic Set (SADD / SREM / SMEMBERS / EXPIRE) ───────────
 
   /**
