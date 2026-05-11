@@ -218,7 +218,7 @@ export class NhiRotationScheduler {
       data: {
         nhiIdentityId: oldCredential.nhiIdentityId,
         credentialType: 'API_KEY',
-        name: oldCredential.name ? `${oldCredential.name} (rotated)` : undefined,
+        name: oldCredential.name ? `${oldCredential.name} (rotated)` : 'rotated credential',
         keyPrefix: newPrefix,
         keyHash: newHash,
         expiresAt: oldCredential.expiresAt,

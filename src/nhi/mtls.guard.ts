@@ -134,6 +134,7 @@ export class MtlsGuard implements CanActivate {
       fingerprint: string;
       subject: string;
       issuer: string;
+      valid: boolean;
     };
     nhiIdentityId?: string;
   }> {
@@ -160,6 +161,7 @@ export class MtlsGuard implements CanActivate {
             fingerprint: validationResult.info!.fingerprint,
             subject: validationResult.info!.subject,
             issuer: validationResult.info!.issuer,
+            valid: true,
           },
         };
       } catch {
@@ -181,6 +183,7 @@ export class MtlsGuard implements CanActivate {
           fingerprint: `SHA256:${fingerprint}`,
           subject: 'Unknown (verified by fingerprint)',
           issuer: 'Unknown',
+          valid: true,
         },
       };
     }

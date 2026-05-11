@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import {
   Injectable,
   ConflictException,
@@ -118,7 +119,7 @@ export class NhiService {
         lifecycleStatus: dto.lifecycleStatus ?? 'PROVISIONING',
         agentPurpose: dto.agentPurpose,
         permissionScopes: dto.permissionScopes ?? [],
-        metadata: dto.metadata ?? {},
+        metadata: (dto.metadata ?? {}) as Prisma.InputJsonValue,
         tags: dto.tags ?? [],
       },
       select: NHI_IDENTITY_SELECT,
@@ -168,7 +169,7 @@ export class NhiService {
         lifecycleStatus: dto.lifecycleStatus,
         agentPurpose: dto.agentPurpose,
         permissionScopes: dto.permissionScopes,
-        metadata: dto.metadata,
+        metadata: dto.metadata as Prisma.InputJsonValue | undefined,
         tags: dto.tags,
         // Lifecycle management
         suspendedAt: dto.lifecycleStatus === 'SUSPENDED' ? new Date() : undefined,
@@ -342,7 +343,7 @@ export class NhiService {
       data: {
         nhiIdentityId,
         credentialType: 'API_KEY',
-        name: oldCredential.name ? `${oldCredential.name} (rotated)` : undefined,
+        name: oldCredential.name ? `${oldCredential.name} (rotated)` : 'rotated credential',
         keyPrefix: newPrefix,
         keyHash: newHash,
         expiresAt: oldCredential.expiresAt,
@@ -1244,14 +1245,14 @@ export class NhiService {
             enabled: device.enabled ?? true,
             lifecycleStatus: 'PROVISIONING',
             permissionScopes: device.permissionScopes ?? [],
-            metadata: device.metadata ?? {},
+            metadata: (device.metadata ?? {}) as Prisma.InputJsonValue,
             tags: device.tags ?? [],
           },
           select: NHI_IDENTITY_SELECT,
         });
 
         result.id = identity.id;
-        result.metadata = identity.metadata ?? undefined;
+        result.metadata = (identity.metadata ?? undefined) as Record<string, unknown> | undefined;
         result.success = true;
 
         // Generate certificate if requested

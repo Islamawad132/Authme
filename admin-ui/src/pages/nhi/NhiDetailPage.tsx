@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getNhiIdentityById,
@@ -233,7 +233,7 @@ export default function NhiDetailPage() {
                   {suspendMutation.isPending ? 'Suspending...' : 'Suspend'}
                 </button>
               )}
-              {(isSuspended || isDecommissioned) && (
+              {isSuspended && (
                 <button
                   onClick={() => reactivateMutation.mutate()}
                   disabled={reactivateMutation.isPending}
@@ -242,6 +242,13 @@ export default function NhiDetailPage() {
                   {reactivateMutation.isPending ? 'Reactivating...' : 'Reactivate'}
                 </button>
               )}
+              <button
+                onClick={() => decommissionMutation.mutate()}
+                disabled={decommissionMutation.isPending}
+                className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+              >
+                {decommissionMutation.isPending ? 'Decommissioning...' : 'Decommission'}
+              </button>
             </>
           )}
           {!isDecommissioned && (

@@ -1323,6 +1323,7 @@ model NhiIdentity {
 
   realm   Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
   credentials NhiCredential[]
+  auditLogs NhiAuditLog[]
   usageStats NhiUsageStats?
 
   @@unique([realmId, name])
