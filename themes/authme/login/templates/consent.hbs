@@ -2,18 +2,232 @@
 
 <p class="consent-description">{{msg "consentWouldLikeTo"}}</p>
 
-<ul class="consent-scopes">
-  {{#each scopes}}
-  <li>{{this}}</li>
-  {{/each}}
-</ul>
+{{#if info}}
+<div class="auth-success">{{info}}</div>
+{{/if}}
+
+{{#if error}}
+<div class="auth-error">{{error}}</div>
+{{/if}}
 
 <form method="POST" action="/realms/{{realmName}}/consent" class="auth-form consent-form">
   <input type="hidden" name="_csrf" value="{{csrfToken}}">
   <input type="hidden" name="auth_req_id" value="{{authReqId}}">
+
+  {{#if gdprCategories}}
+  <div class="gdpr-consent-section">
+    <p class="gdpr-intro">{{msg "consentGdprIntro"}}</p>
+
+    <div class="gdpr-category-list">
+      {{#each gdprCategories}}
+      <div class="gdpr-category-item {{#if this.required}}required{{else}}optional{{/if}}">
+        <div class="gdpr-category-header">
+          <label class="gdpr-category-label">
+            <input
+              type="checkbox"
+              name="consent_categories"
+              value="{{this.id}}"
+              {{#if this.required}}checked disabled{{else}}checked{{/if}}
+              class="gdpr-checkbox"
+            >
+            <span class="gdpr-category-name">{{this.name}}</span>
+            {{#if this.required}}
+            <span class="gdpr-required-badge">{{msg "consentRequired"}}</span>
+            {{else}}
+            <span class="gdpr-optional-badge">{{msg "consentOptional"}}</span>
+            {{/if}}
+          </label>
+        </div>
+        {{#if this.description}}
+        <p class="gdpr-category-description">{{this.description}}</p>
+        {{/if}}
+        {{#if this.dataTypes}}
+        <div class="gdpr-data-types">
+          <span class="gdpr-data-label">{{msg "consentDataTypes"}}:</span>
+          <span class="gdpr-data-values">{{this.dataTypes}}</span>
+        </div>
+        {{/if}}
+      </div>
+      {{/each}}
+    </div>
+
+    <div class="gdpr-consent-summary">
+      <p class="gdpr-summary-text">{{msg "consentSummaryText"}}</p>
+    </div>
+  </div>
+  {{else}}
+  <ul class="consent-scopes">
+    {{#each scopes}}
+    <li>{{this}}</li>
+    {{/each}}
+  </ul>
+  {{/if}}
 
   <div class="consent-buttons">
     <button type="submit" name="action" value="grant" class="btn-primary">{{msg "consentAllow"}}</button>
     <button type="submit" name="action" value="deny" class="btn-secondary">{{msg "consentDeny"}}</button>
   </div>
 </form>
+
+<style>
+.gdpr-consent-section {
+  margin: 1.5rem 0;
+}
+
+.gdpr-intro {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
+}
+
+.gdpr-category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.gdpr-category-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #ffffff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gdpr-category-item:hover {
+  border-color: #d1d5db;
+}
+
+.gdpr-category-item.required {
+  background: #f9fafb;
+  border-left: 3px solid #4f46e5;
+}
+
+.gdpr-category-header {
+  display: flex;
+  align-items: flex-start;
+}
+
+.gdpr-category-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  width: 100%;
+}
+
+.gdpr-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #4f46e5;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.gdpr-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.gdpr-category-name {
+  font-weight: 500;
+  color: #111827;
+  font-size: 0.95rem;
+}
+
+.gdpr-required-badge,
+.gdpr-optional-badge {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.gdpr-required-badge {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.gdpr-optional-badge {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.gdpr-category-description {
+  margin: 0.5rem 0 0 2.5rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.gdpr-data-types {
+  margin: 0.5rem 0 0 2.5rem;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.gdpr-data-label {
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.gdpr-data-values {
+  color: #9ca3af;
+}
+
+.gdpr-consent-summary {
+  margin-top: 1.25rem;
+  padding: 0.875rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+}
+
+.gdpr-summary-text {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #166534;
+}
+
+.consent-buttons {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.consent-buttons .btn-primary,
+.consent-buttons .btn-secondary {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.consent-buttons .btn-primary {
+  background: #4f46e5;
+  color: #ffffff;
+  border: 1px solid #4f46e5;
+}
+
+.consent-buttons .btn-primary:hover {
+  background: #4338ca;
+  border-color: #4338ca;
+}
+
+.consent-buttons .btn-secondary {
+  background: #ffffff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.consent-buttons .btn-secondary:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+</style>
