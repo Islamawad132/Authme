@@ -1245,6 +1245,352 @@ model UserLoginProfile {
 
 
 
+// ─── SESSION RISK PROFILES (continuous verification) ───────
+
+/**
+ * Persistent risk profile for each active session.
+ * Re-evaluated periodically by the continuous-verification scheduler.
+ * Stored in Postgres so it survives process restarts and is cluster-safe.
+ */
+model SessionRiskProfile {
+  id              String    @id @default(uuid())
+  sessionId       String    @unique @map("session_id")
+  realmId         String    @map("realm_id")
+  userId          String    @map("user_id")
+  clientId        String?   @map("client_id")
+
+  // Current risk state
+  riskScore       Int       @default(0) @map("risk_score")
+  riskLevel       String    @default("LOW") @map("risk_level") // LOW, MEDIUM, HIGH, CRITICAL
+  trustScore      Float     @default(100) @map("trust_score") // 0-100, decays over time
+
+  // Signal snapshots (JSON) captured at last evaluation
+  devicePosture   Json?     @map("device_posture")
+  networkContext   Json?     @map("network_context")
+  behavioralSignals Json?   @map("behavioral_signals")
+
+  // Step-up state
+  stepUpRequired   Boolean   @default(false) @map("step_up_required")
+  stepUpReason     String?   @map("step_up_reason")
+  stepUpExpiresAt  DateTime? @map("step_up_expires_at")
+
+  // Termination
+  terminateSession Boolean   @default(false) @map("terminate_session")
+  terminationReason String?  @map("termination_reason")
+
+  lastEvaluatedAt  DateTime? @map("last_evaluated_at")
+  nextEvaluationAt DateTime? @map("next_evaluation_at")
+
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  session Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  realm   Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([realmId])
+  @@index([realmId, riskLevel])
+  @@index([userId])
+  @@index([nextEvaluationAt])
+  @@map("session_risk_profiles")
+}
+
+// ─── DEVICE POSTURE RECORDS ───────────────────────────────
+
+/**
+ * Device security posture record.
+ * Reported by SDK / client app at session start and periodically thereafter.
+ * Aggregated into a risk score by the device-posture service.
+ */
+model DevicePostureRecord {
+  id               String    @id @default(uuid())
+  sessionId        String    @map("session_id")
+  realmId          String    @map("realm_id")
+  userId           String    @map("user_id")
+  deviceFingerprint String   @map("device_fingerprint")
+
+  // OS / platform
+  osType           String?   @map("os_type")        // "windows" | "macos" | "linux" | "ios" | "android"
+  osVersion        String?   @map("os_version")
+  osBuild          String?   @map("os_build")
+
+  // Security patch level
+  securityPatchLevel String? @map("security_patch_level") // "2024-01" or ISO date
+  lastUpdateDate   DateTime? @map("last_update_date")
+
+  // Disk encryption
+  diskEncrypted    Boolean?  @map("disk_encrypted")
+  encryptionType    String?  @map("encryption_type") // "filevault" | "bitlocker" | "luks" | "dm-crypt"
+
+  // Endpoint protection
+  antivirusEnabled Boolean?  @map("antivirus_enabled")
+  antivirusName   String?   @map("antivirus_name")
+  firewallEnabled Boolean?  @map("firewall_enabled")
+
+  // Screen lock
+  screenLockEnabled Boolean  @default(false) @map("screen_lock_enabled")
+  lockTimeoutSeconds Int?    @map("lock_timeout_seconds")
+
+  // Managed device (MDM/EDM)
+  managedDevice     Boolean  @default(false) @map("managed_device")
+  mdmEnrollmentId  String?   @map("mdm_enrollment_id")
+
+  // Jailbreak/root detection
+  jailbroken        Boolean  @default(false)
+
+  // Trust tier computed by the device-posture service
+  deviceTrustTier   String   @default("UNKNOWN") @map("device_trust_tier") // UNKNOWN, LOW, MEDIUM, HIGH
+
+  // Compliance result from policy evaluation
+  complianceStatus  String?  @map("compliance_status") // COMPLIANT, NON_COMPLIANT, UNKNOWN
+  complianceDetails Json?    @map("compliance_details")
+
+  reportedAt        DateTime @default(now()) @map("reported_at")
+
+  @@index([sessionId])
+  @@index([realmId])
+  @@index([userId])
+  @@index([deviceFingerprint])
+  @@index([realmId, deviceTrustTier])
+  @@map("device_posture_records")
+}
+
+// ─── NETWORK CONTEXT RECORDS ─────────────────────────────
+
+/**
+ * Network context for a session at a point in time.
+ * Evaluated for VPN, corporate network, geolocation, and IP reputation.
+ */
+model NetworkContextRecord {
+  id           String    @id @default(uuid())
+  sessionId    String    @map("session_id")
+  realmId      String    @map("realm_id")
+  userId       String    @map("user_id")
+
+  // IP & geolocation
+  ipAddress    String    @map("ip_address")
+  ipVersion    Int?      @map("ip_version")        // 4 or 6
+  geoCountry   String?   @map("geo_country")
+  geoCity      String?   @map("geo_city")
+  geoLatitude  Float?    @map("geo_latitude")
+  geoLongitude Float?    @map("geo_longitude")
+  asn          String?   @map("asn")
+  isp          String?   @map("isp")
+
+  // Network type
+  networkType  String?   @map("network_type")      // CORPORATE, VPN, RESIDENTIAL, PUBLIC_WIFI, MOBILE
+  ispCategory String?    @map("isp_category")      // ISP, EDUCATIONAL, GOVERNMENT, ENTERPRISE
+
+  // VPN / proxy / TOR
+  isVpn        Boolean   @default(false) @map("is_vpn")
+  isProxy      Boolean   @default(false) @map("is_proxy")
+  isTor        Boolean   @default(false) @map("is_tor")
+
+  // Connection
+  connectionType String? @map("connection_type")   // wifi, ethernet, cellular
+  mtu           Int?      @map("mtu")
+
+  // Risk signals
+  ipReputationScore String   @default("UNKNOWN") @map("ip_reputation")    // UNKNOWN, GOOD, SUSPICIOUS, BAD
+  geoVelocity  String?   @map("geo_velocity")        // NORMAL, SLOW, FAST, IMPOSSIBLE
+  isDatacenter Boolean   @default(false) @map("is_datacenter")
+
+  // Geolocation change detection
+  geoChanged   Boolean   @default(false) @map("geo_changed")
+  geoChangeDetails Json?  @map("geo_change_details")
+
+  capturedAt    DateTime  @default(now()) @map("captured_at")
+
+  @@index([sessionId])
+  @@index([realmId])
+  @@index([userId])
+  @@index([ipAddress])
+  @@index([capturedAt])
+  @@map("network_context_records")
+}
+
+// ─── BEHAVIORAL BIOMETRICS ────────────────────────────────
+
+/**
+ * Aggregated behavioral biometric profile per user.
+ * Updated with each interaction sample collected by the SDK.
+ * Used for anomaly detection during continuous verification.
+ */
+model BehavioralBiometricProfile {
+  id            String    @id @default(uuid())
+  userId        String    @unique @map("user_id")
+  realmId       String    @map("realm_id")
+
+  // Typing cadence
+  avgTypingSpeed   Float   @default(0) @map("avg_typing_speed")      // chars per second
+  typingVariance   Float   @default(0) @map("typing_variance")       // inter-key variance
+  avgBurstLength   Float   @default(0) @map("avg_burst_length")        // avg chars per typing burst
+
+  // Mouse/pointer movement
+  avgPointerSpeed  Float   @default(0) @map("avg_pointer_speed")      // pixels per second
+  pointerSmoothness Float  @default(0) @map("pointer_smoothness")    // 0-1, 1 = perfectly straight lines
+  avgScrollSpeed   Float   @default(0) @map("avg_scroll_speed")
+
+  // Interaction timing patterns
+  avgSessionDuration Float @default(0) @map("avg_session_duration")   // seconds
+  interactionFrequency Float @default(0) @map("interaction_frequency") // interactions per minute
+
+  // Confidence & anomaly thresholds
+  modelConfidence   Float  @default(0) @map("model_confidence")     // 0-1, how confident the model is
+  anomalyThreshold  Float  @default(2.5) @map("anomaly_threshold")  // std-devs before flagging anomaly
+  sampleCount       Int    @default(0) @map("sample_count")          // total samples used to train
+
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  user  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  realm Realm   @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([realmId])
+  @@map("behavioral_biometric_profiles")
+}
+
+/**
+ * Individual interaction sample for behavioral biometrics.
+ * Low-cardinality signals sent from SDK, aggregated into BehavioralBiometricProfile.
+ */
+model BehavioralSample {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  sessionId    String    @map("session_id")
+
+  // Interaction type: "typing" | "pointer" | "scroll" | "keystroke"
+  interactionType String @map("interaction_type")
+
+  // Typed text cadence (only for typing interactions)
+  keystrokeDurations Json? @map("keystroke_durations")  // array of ms between keypresses
+  burstLength        Int?   @map("burst_length")
+
+  // Pointer/scroll signals (only for pointer/scroll interactions)
+  velocity           Float? @map("velocity")
+  acceleration       Float? @map("acceleration")
+  trajectoryAngle    Float? @map("trajectory_angle")
+  curvature          Float? @map("curvature")            // deviation from straight line
+
+  // Session metadata
+  pageUrl            String? @map("page_url")
+  focusedElement     String? @map("focused_element")      // input type / id hint
+
+  // Anomaly score for this sample (set by evaluation service)
+  anomalyScore       Float   @default(0) @map("anomaly_score")
+  isAnomalous        Boolean @default(false) @map("is_anomalous")
+
+  collectedAt        DateTime @default(now()) @map("collected_at")
+
+  @@index([userId, collectedAt])
+  @@index([sessionId])
+  @@index([userId, interactionType])
+  @@map("behavioral_samples")
+}
+
+// ─── CONTINUOUS RISK EVENTS ──────────────────────────────
+
+/**
+ * Event log for each continuous risk re-evaluation during an active session.
+ * Provides audit trail for security investigators and compliance reporting.
+ */
+model ContinuousRiskEvent {
+  id              String    @id @default(uuid())
+  sessionId       String    @map("session_id")
+  realmId         String    @map("realm_id")
+  userId          String    @map("user_id")
+  clientId        String?   @map("client_id")
+
+  // Evaluation metadata
+  evaluationType  String    @map("evaluation_type")      // PERIODIC | EVENT_DRIVEN | SCHEDULED
+  triggerReason   String?   @map("trigger_reason")        // why re-evaluation was triggered
+
+  // Risk scores
+  riskScoreBefore Int       @map("risk_score_before")
+  riskScoreAfter  Int       @map("risk_score_after")
+  riskLevelBefore String    @map("risk_level_before")
+  riskLevelAfter  String    @map("risk_level_after")
+  trustScoreBefore Float    @map("trust_score_before")
+  trustScoreAfter  Float    @map("trust_score_after")
+
+  // Signals that contributed to the score
+  signals         Json      // Array of signal objects with names and contributions
+  policyEvaluations Json?   @map("policy_evaluations")    // which policies fired
+
+  // Actions taken
+  action          String    @map("action")               // NO_ACTION | STEP_UP_REQUIRED | TERMINATE_SESSION
+  actionReason    String?   @map("action_reason")
+
+  // Step-up session reference (if action == STEP_UP_REQUIRED)
+  stepUpSessionId String?   @map("step_up_session_id")
+
+  evaluatedAt     DateTime  @default(now()) @map("evaluated_at")
+
+  @@index([sessionId])
+  @@index([realmId])
+  @@index([userId])
+  @@index([evaluatedAt])
+  @@index([realmId, action])
+  @@map("continuous_risk_events")
+}
+
+// ─── CONTINUOUS RISK POLICIES ─────────────────────────────
+
+/**
+ * Configurable policy for continuous session verification.
+ * Scoped per realm and optionally per client.
+ * Each policy defines conditions and the action to take when they are met.
+ */
+model ContinuousRiskPolicy {
+  id              String    @id @default(uuid())
+  realmId         String    @map("realm_id")
+  clientId        String?   @map("client_id")
+  realm           Realm     @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  name            String
+  description     String?
+  enabled         Boolean   @default(true)
+  priority        Int       @default(0)  // Higher = evaluated first; first-match wins
+
+  // Conditions that trigger this policy (JSON)
+  // Supported signal keys:
+  //   devicePosture.osVersion, devicePosture.diskEncrypted, devicePosture.managedDevice
+  //   devicePosture.securityPatchAge, devicePosture.jailbroken
+  //   network.isVpn, network.isProxy, network.isTor, network.networkType
+  //   network.geoVelocity, network.geoChanged, network.ipReputation
+  //   behavioral.anomalyScore, behavioral.interactionFrequency
+  //   session.riskScore, session.trustScore, session.timeSinceLastEval
+  conditions      Json      @map("conditions")
+  // Example conditions JSON:
+  // {
+  //   "all": [
+  //     { "signal": "devicePosture.diskEncrypted", "operator": "equals", "value": false },
+  //     { "signal": "devicePosture.deviceTrustTier", "operator": "in", "value": ["LOW", "UNKNOWN"] }
+  //   ]
+  // }
+
+  // Action when policy fires
+  // "NO_ACTION" | "STEP_UP" | "TERMINATE" | "NOTIFY"
+  action          String    @map("action") @default("NO_ACTION")
+  actionData     Json?     @map("action_data") // e.g. { "stepUpAcr": "urn:authme:acrs:phishing-resistant" }
+
+  // Risk score contribution (added to running risk score when policy fires)
+  riskScoreContribution Int @default(0) @map("risk_score_contribution")
+
+  // Cooldown (seconds) to avoid repeated triggers for the same condition
+  cooldownSeconds   Int     @default(300) @map("cooldown_seconds")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@unique([realmId, clientId, name])
+  @@index([realmId, priority])
+  @@index([realmId, enabled])
+  @@map("continuous_risk_policies")
+}
+
+
+
 // ─── ORGANIZATIONS ────────────────────────────────────────
 
 model Organization {
