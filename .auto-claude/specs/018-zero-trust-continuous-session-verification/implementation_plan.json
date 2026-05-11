@@ -49,7 +49,7 @@
             "expected": "Prisma schema is valid"
           },
           "status": "completed",
-          "notes": "Added SQLite and MySQL schema variants with all 7 new models (SessionRiskProfile, DevicePostureRecord, NetworkContextRecord, BehavioralBiometricProfile, BehavioralSample, ContinuousRiskEvent, ContinuousRiskPolicy). SQLite: Json→String, removed @db.VarChar. MySQL: added @db.VarChar constraints, native JSON columns. prisma validate blocked by sandbox; manual validation recommended.",
+          "notes": "Added SQLite and MySQL schema variants with all 7 new models (SessionRiskProfile, DevicePostureRecord, NetworkContextRecord, BehavioralBiometricProfile, BehavioralSample, ContinuousRiskEvent, ContinuousRiskPolicy). SQLite: Json\u2192String, removed @db.VarChar. MySQL: added @db.VarChar constraints, native JSON columns. prisma validate blocked by sandbox; manual validation recommended.",
           "updated_at": "2026-05-10T00:10:04.274271+00:00"
         }
       ]
@@ -471,6 +471,11 @@
           },
           "status": "completed",
           "notes": "Added 3 continuous verification routes to App.tsx: /continuous-verification (ContinuousRiskDashboard), /continuous-verification/policies (RiskPolicyListPage), /continuous-verification/sessions/:sessionId (SessionRiskDetailPage). Updated imports and routes following existing patterns. npm build blocked by sandbox restrictions; code verified manually against existing App.tsx patterns."
+        }
+      ]
+    },
+    {
+      "id": "phase-7-step-up-integration",
       "name": "Step-up Integration",
       "type": "implementation",
       "description": "Integrate continuous verification with step-up authentication for automatic step-up when risk thresholds are exceeded",
@@ -496,7 +501,8 @@
             "command": "cd . && npx ts-node --esm -e \"import { SessionStepUpTrigger } from './src/continuous-verification/session-step-up-trigger.js'; console.log('OK')\"",
             "expected": "OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Created session-step-up-trigger.ts with SessionStepUpTrigger class. Monitors session risk profiles and triggers step-up via StepUpService when risk thresholds exceeded. Determines ACR level based on risk score (MFA for HIGH >=60, WebAuthn for CRITICAL >=80). Creates step-up records and audit events. Integrated with ContinuousVerificationScheduler."
         },
         {
           "id": "subtask-7-2",
@@ -514,7 +520,8 @@
             "command": "cd . && npx ts-node --esm -e \"import { SessionTerminationService } from './src/continuous-verification/session-termination.service.js'; console.log('OK')\"",
             "expected": "OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Created session-termination.service.ts with SessionTerminationService class. Handles automatic session termination via SessionsService when critical risk detected. Revokes oauth and sso sessions, creates audit events. Integrated with ContinuousVerificationScheduler."
         }
       ]
     },
