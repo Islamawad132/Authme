@@ -142,6 +142,40 @@ export class CreateRealmDto {
   @IsBoolean()
   requireEmailVerification?: boolean;
 
+  // Magic link / passwordless authentication
+  @ApiPropertyOptional({ default: false, description: 'Enable magic link / passwordless email authentication' })
+  @IsOptional()
+  @IsBoolean()
+  magicLinkEnabled?: boolean;
+
+  @ApiPropertyOptional({ default: 600, description: 'Magic link expiry in seconds (default 10 minutes)' })
+  @IsOptional()
+  @IsInt()
+  @Min(60)
+  magicLinkExpirySeconds?: number;
+
+  @ApiPropertyOptional({ default: 3, description: 'Max magic link requests per email per rate limit window' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  magicLinkRateLimitPerEmail?: number;
+
+  @ApiPropertyOptional({ default: 900, description: 'Magic link rate limit window in seconds (default 15 minutes)' })
+  @IsOptional()
+  @IsInt()
+  @Min(60)
+  magicLinkRateLimitWindowSeconds?: number;
+
+  @ApiPropertyOptional({ description: 'Magic link email subject template' })
+  @IsOptional()
+  @IsString()
+  magicLinkEmailSubject?: string;
+
+  @ApiPropertyOptional({ description: 'Magic link email body template (supports {{link}} and {{email}} placeholders)' })
+  @IsOptional()
+  @IsString()
+  magicLinkEmailTemplate?: string;
+
   // MFA
   @ApiPropertyOptional({ default: false })
   @IsOptional()

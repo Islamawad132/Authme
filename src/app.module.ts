@@ -56,6 +56,7 @@ import { StepUpModule } from './step-up/step-up.module.js';
 import { OrganizationsModule } from './organizations/organizations.module.js';
 import { RiskAssessmentModule } from './risk-assessment/risk-assessment.module.js';
 import { MigrationModule } from './migration/migration.module.js';
+import { MagicLinkModule } from './magic-link/magic-link.module.js';
 import { CorsModule } from './cors/cors.module.js';
 import { ServiceAccountsModule } from './service-accounts/service-accounts.module.js';
 import { MagicLinkModule } from './magic-link/magic-link.module.js';
@@ -127,6 +128,7 @@ import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
     OrganizationsModule,
     RiskAssessmentModule,
     MigrationModule,
+    MagicLinkModule,
     CorsModule,
     ServiceAccountsModule,
     MagicLinkModule,

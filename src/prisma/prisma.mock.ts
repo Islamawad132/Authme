@@ -119,6 +119,14 @@ export function createMockPrismaService(): MockPrismaService {
       delete: jest.fn(),
       deleteMany: jest.fn(),
     },
+    magicLinkRequest: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      deleteMany: jest.fn(),
+      count: jest.fn(),
+    },
     group: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),

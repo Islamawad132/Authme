@@ -12,6 +12,7 @@ import { getRealmSessions } from '../../api/sessions';
 import { getIdentityProviders } from '../../api/identityProviders';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import PasswordInput from '../../components/PasswordInput';
+import MagicLinkSettingsForm from '../../components/magic-link/MagicLinkSettingsForm';
 
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
@@ -25,7 +26,7 @@ export default function RealmDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showDelete, setShowDelete] = useState(false);
-  const [activeTab, setActiveTab] = useState<'general' | 'tokens' | 'email' | 'security' | 'events' | 'theme'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'tokens' | 'email' | 'security' | 'events' | 'theme' | 'magic-link'>('general');
   const [testEmailTo, setTestEmailTo] = useState('');
 
   const { data: realm, isLoading } = useQuery({
@@ -220,6 +221,7 @@ export default function RealmDetailPage() {
     { key: 'security' as const, label: 'Security' },
     { key: 'events' as const, label: 'Events' },
     { key: 'theme' as const, label: 'Theme' },
+    { key: 'magic-link' as const, label: 'Magic Link' },
   ];
 
   const quickLinks = [
@@ -1092,6 +1094,11 @@ export default function RealmDetailPage() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* Magic Link Tab */}
+      {activeTab === 'magic-link' && realm && (
+        <MagicLinkSettingsForm realm={realm} />
       )}
 
       <ConfirmDialog
