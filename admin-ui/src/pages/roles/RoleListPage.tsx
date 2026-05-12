@@ -52,7 +52,7 @@ export default function RoleListPage() {
   if (error) {
     return (
       <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-        Failed to load roles.
+        {getErrorMessage(error, 'Failed to load roles.')}
       </div>
     );
   }
