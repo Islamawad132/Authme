@@ -12,6 +12,7 @@ import type { Realm } from '@prisma/client';
 interface MfaChallengeData {
   userId: string;
   realmId: string;
+  clientId?: string;
   oauthParams?: Record<string, string>;
   attempts: number;
 }
@@ -262,6 +263,7 @@ export class MfaService {
     userId: string,
     realmId: string,
     oauthParams?: Record<string, string>,
+    clientId?: string,
   ): Promise<string> {
     const token = this.crypto.generateSecret(32);
     const tokenHash = this.crypto.sha256(token);
@@ -269,6 +271,7 @@ export class MfaService {
     const challengeData: MfaChallengeData = {
       userId,
       realmId,
+      clientId,
       oauthParams,
       attempts: 0,
     };
@@ -287,6 +290,7 @@ export class MfaService {
   async validateMfaChallenge(challengeToken: string): Promise<{
     userId: string;
     realmId: string;
+    clientId?: string;
     oauthParams?: Record<string, string>;
   } | null> {
     const tokenHash = this.crypto.sha256(challengeToken);
@@ -308,6 +312,7 @@ export class MfaService {
     return {
       userId: data.userId,
       realmId: data.realmId,
+      clientId: data.clientId,
       oauthParams: data.oauthParams,
     };
   }
@@ -319,6 +324,7 @@ export class MfaService {
   async validateMfaChallengeWithAttemptCheck(challengeToken: string): Promise<{
     userId: string;
     realmId: string;
+    clientId?: string;
     oauthParams?: Record<string, string>;
   } | null> {
     const tokenHash = this.crypto.sha256(challengeToken);
@@ -355,6 +361,7 @@ export class MfaService {
     return {
       userId: data.userId,
       realmId: data.realmId,
+      clientId: data.clientId,
       oauthParams: data.oauthParams,
     };
   }
