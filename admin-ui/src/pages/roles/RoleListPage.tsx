@@ -192,6 +192,12 @@ export default function RoleListPage() {
         </table>
       </div>
 
+      {deleteMutation.isError && (
+          <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+            {getErrorMessage(deleteMutation.error, 'Failed to delete role.')}
+          </div>
+        )}
+
       <ConfirmDialog
         isOpen={!!deleteTarget}
         title="Delete Role"
