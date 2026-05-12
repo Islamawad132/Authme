@@ -522,7 +522,7 @@ GET  /metrics
 
 ```
 Authme/
-├── src/                           # NestJS backend (55 modules)
+├── src/                           # NestJS backend (62 modules)
 │   ├── auth/                      # Core OAuth 2.0 authentication
 │   ├── oauth/                     # OAuth 2.0 protocol logic
 │   ├── saml/                      # SAML 2.0 IdP & SP
