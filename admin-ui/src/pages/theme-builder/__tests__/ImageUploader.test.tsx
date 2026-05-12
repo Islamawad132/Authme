@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import ImageUploader from './ImageUploader';
+import ImageUploader from '../ImageUploader';
 import type { ThemeAssets } from '../../types/theme';
 
 const defaultAssets: ThemeAssets = {
