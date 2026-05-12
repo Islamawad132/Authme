@@ -138,6 +138,7 @@ export class LoginController {
         code_challenge_method: query['code_challenge_method'] ?? '',
         error: query['error'] ?? '',
         info: query['info'] ?? '',
+        login_hint: query['login_hint'] ?? '',
         csrfToken,
       },
       req,
