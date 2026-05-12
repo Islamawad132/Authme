@@ -238,4 +238,21 @@ export class TokensController {
     const token = authHeader.slice(7);
     return this.tokensService.userinfo(realm, token);
   }
+
+  @Post('logout/backchannel')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Backchannel logout (RFC 7009bis)' })
+  @ApiResponse({ status: 200, description: 'Logout token processed successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid logout token' })
+  @ApiResponse({ status: 401, description: 'No signing key available' })
+  async backchannelLogout(
+    @CurrentRealm() realm: Realm,
+    @Body() body: { logout_token: string },
+  ) {
+    if (!body.logout_token || typeof body.logout_token !== 'string') {
+      throw new BadRequestException('logout_token is required');
+    }
+    await this.tokensService.handleBackchannelLogout(realm, body.logout_token);
+    return { status: 'ok' };
+  }
 }
