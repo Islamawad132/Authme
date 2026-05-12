@@ -32,7 +32,6 @@ export class SamlIdpService {
 
   async validateAuthnRequest(samlRequest: string): Promise<ParsedAuthnRequest> {
     try {
-      // SAMLRequest is base64-encoded, and for HTTP-Redirect binding also DEFLATE-compressed
       const decoded = Buffer.from(samlRequest, 'base64');
 
       let xml: string;
@@ -40,37 +39,35 @@ export class SamlIdpService {
         const inflated = await inflateAsync(decoded);
         xml = inflated.toString('utf-8');
       } catch {
-        // If inflate fails, it might be plain base64 (HTTP-POST binding)
         xml = decoded.toString('utf-8');
       }
 
-      // Guard against XML bomb / oversized payloads
       if (xml.length > MAX_XML_SIZE) {
-        throw new BadRequestException('SAMLRequest exceeds maximum allowed size');
+        throw new BadRequestException(
+          'SAMLRequest exceeds maximum allowed size',
+        );
       }
 
-      // Parse with a proper XML parser — XXE protection is built in
-      // (fast-xml-parser does not resolve external entities by default)
       const parser = new XMLParser({
         ignoreAttributes: false,
         attributeNamePrefix: '@_',
-        removeNSPrefix: true, // strip namespace prefixes for easier access
+        removeNSPrefix: true,
       });
 
       const doc = parser.parse(xml);
       const authnRequest = doc['AuthnRequest'];
       if (!authnRequest) {
-        throw new BadRequestException('Invalid AuthnRequest: root element not found');
+        throw new BadRequestException(
+          'Invalid AuthnRequest: root element not found',
+        );
       }
 
       const id = authnRequest['@_ID'] ?? randomUUID();
       const issuer =
         typeof authnRequest['Issuer'] === 'string'
           ? authnRequest['Issuer']
-          : authnRequest['Issuer']?.['#text'] ?? '';
-      const acsUrl = authnRequest['@_AssertionConsumerServiceURL']
-        ?? authnRequest['@_AssertionConsumerServiceURL']
-        ?? null;
+          : (authnRequest['Issuer']?.['#text'] ?? '');
+      const acsUrl = authnRequest['@_AssertionConsumerServiceURL'] ?? null;
       const nameIdPolicy = authnRequest['NameIDPolicy']?.['@_Format'] ?? null;
 
       if (!issuer) {
@@ -82,6 +79,50 @@ export class SamlIdpService {
       if (err instanceof BadRequestException) throw err;
       this.logger.error('Failed to parse AuthnRequest', (err as Error).stack);
       throw new BadRequestException('Invalid SAMLRequest');
+    }
+  }
+
+  async validateSignature(
+    samlRequest: string,
+    certificate: string,
+  ): Promise<void> {
+    const decoded = Buffer.from(samlRequest, 'base64');
+
+    let xml: string;
+    try {
+      const inflated = await inflateAsync(decoded);
+      xml = inflated.toString('utf-8');
+    } catch {
+      xml = decoded.toString('utf-8');
+    }
+
+    const { DOMParser } = require('@xmldom/xmldom');
+    const doc = new DOMParser().parseFromString(xml, 'text/xml');
+    const signatures = doc.getElementsByTagName('Signature');
+    if (!signatures || signatures.length === 0) {
+      throw new BadRequestException('AuthnRequest is not signed');
+    }
+
+    const sig = new SignedXml({ publicCert: certificate });
+    sig.loadSignature(signatures[0]);
+    let valid = false;
+    try {
+      valid = sig.checkSignature(xml);
+    } catch (err) {
+      this.logger.error(
+        'Signature validation threw error',
+        (err as Error).stack,
+      );
+      throw new BadRequestException('AuthnRequest signature validation failed');
+    }
+    if (!valid) {
+      const errors = (sig as any).errors;
+      if (errors) {
+        this.logger.error(
+          `Signature validation errors: ${errors.map((e: any) => e.message).join(', ')}`,
+        );
+      }
+      throw new BadRequestException('AuthnRequest signature validation failed');
     }
   }
 
@@ -138,7 +179,11 @@ export class SamlIdpService {
     // Sign the assertion if configured
     let signedAssertion = assertion;
     if (sp.signAssertions) {
-      signedAssertion = this.signXml(assertion, signingKey.privateKey, assertionId);
+      signedAssertion = this.signXml(
+        assertion,
+        signingKey.privateKey,
+        assertionId,
+      );
     }
 
     const response = `<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" Destination="${this.escapeXml(sp.acsUrl)}" ID="${responseId}"${inResponseTo ? ` InResponseTo="${this.escapeXml(inResponseTo)}"` : ''} IssueInstant="${now.toISOString()}" Version="2.0">

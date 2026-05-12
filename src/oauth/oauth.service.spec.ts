@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { OAuthService, AuthorizeParams } from './oauth.service.js';
 import {
   createMockPrismaService,
@@ -67,7 +64,9 @@ describe('OAuthService', () => {
   };
 
   const mockScopesService = {
-    parseAndValidate: jest.fn((s?: string) => s ? s.split(' ').filter(Boolean) : []),
+    parseAndValidate: jest.fn((s?: string) =>
+      s ? s.split(' ').filter(Boolean) : [],
+    ),
     getClientEffectiveScopes: jest.fn(async () => ['openid']),
     toString: jest.fn((scopes: string[]) => scopes.join(' ')),
   };
@@ -235,11 +234,12 @@ describe('OAuthService', () => {
       expect(result).toEqual(publicClient);
     });
 
-    it('should allow confidential client without code_challenge', async () => {
+    it('should throw BadRequestException when confidential client omits code_challenge', async () => {
       prisma.client.findUnique.mockResolvedValue(mockClient);
 
-      const result = await service.validateAuthRequest(mockRealm, validParams);
-      expect(result).toBe(mockClient);
+      await expect(
+        service.validateAuthRequest(mockRealm, validParams),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

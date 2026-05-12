@@ -20,7 +20,7 @@ export class HealthController {
     private readonly redis: RedisHealthIndicator,
   ) {}
 
-  @Get()
+  @Get('live')
   @HealthCheck()
   @ApiOperation({ summary: 'Liveness check' })
   @ApiResponse({ status: 200, description: 'Service is alive' })
@@ -28,11 +28,22 @@ export class HealthController {
     return this.health.check([]);
   }
 
+  @Get()
+  @HealthCheck()
+  @ApiOperation({ summary: 'Liveness check (alias)' })
+  @ApiResponse({ status: 200, description: 'Service is alive' })
+  livenessAlias() {
+    return this.health.check([]);
+  }
+
   @Get('ready')
   @HealthCheck()
   @ApiOperation({ summary: 'Readiness check (database + memory + redis)' })
   @ApiResponse({ status: 200, description: 'All dependencies healthy' })
-  @ApiResponse({ status: 503, description: 'One or more dependencies unhealthy' })
+  @ApiResponse({
+    status: 503,
+    description: 'One or more dependencies unhealthy',
+  })
   readiness() {
     return this.health.check([
       () => this.db.isHealthy('database'),

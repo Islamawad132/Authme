@@ -416,7 +416,7 @@ sequenceDiagram
 | Layer | Technology |
 |-------|-----------|
 | **Backend** | NestJS 11, TypeScript 5.7, Node.js 22 |
-| **Database** | PostgreSQL 16 (primary), MySQL 8, SQLite — via Prisma 7 ORM (53 models) |
+| **Database** | PostgreSQL 16 (primary), MySQL 8, SQLite — via Prisma 7 ORM (81 models) |
 | **Admin UI** | React 19, Vite 7, Tailwind CSS 4, React Query |
 | **Auth Pages** | Handlebars SSR with per-realm theming and i18n |
 | **Security** | Argon2id (passwords), JOSE (JWTs), Helmet (headers), AES-256-GCM (webhooks) |
@@ -499,16 +499,16 @@ GET  /realms/{realm}/protocol/openid-connect/certs
 GET  /realms/{realm}/protocol/saml/descriptor
 
 # Admin API v1 (requires x-admin-api-key or Bearer token)
-GET/POST       /api/v1/admin/realms
-GET/PUT/DELETE /api/v1/admin/realms/{name}
-GET/POST       /api/v1/admin/realms/{name}/users
-GET/POST       /api/v1/admin/realms/{name}/clients
-GET/POST       /api/v1/admin/realms/{name}/roles
-GET/POST       /api/v1/admin/realms/{name}/groups
-GET/POST       /api/v1/admin/realms/{name}/organizations
+GET/POST       /admin/realms
+GET/PUT/DELETE /admin/realms/{name}
+GET/POST       /admin/realms/{name}/users
+GET/POST       /admin/realms/{name}/clients
+GET/POST       /admin/realms/{name}/roles
+GET/POST       /admin/realms/{name}/groups
+GET/POST       /admin/realms/{name}/organizations
 
 # Webhooks
-GET/POST       /api/v1/admin/realms/{name}/webhooks
+GET/POST       /admin/realms/{name}/webhooks
 
 # Health & Metrics
 GET  /health/live
@@ -522,7 +522,7 @@ GET  /metrics
 
 ```
 Authme/
-├── src/                           # NestJS backend (55 modules)
+├── src/                           # NestJS backend (62 modules)
 │   ├── auth/                      # Core OAuth 2.0 authentication
 │   ├── oauth/                     # OAuth 2.0 protocol logic
 │   ├── saml/                      # SAML 2.0 IdP & SP
@@ -586,7 +586,7 @@ Authme/
 ├── themes/                        # Login/account page themes
 │   ├── authme/                    # Default theme
 │   └── midnight/                  # Dark theme
-├── prisma/                        # Database schema (53 models) & migrations
+├── prisma/                        # Database schema (81 models) & migrations
 ├── test/                          # E2E tests
 ├── docker-compose.yml             # Production (pulls from Docker Hub)
 ├── docker-compose.dev.yml         # Development (builds from source)

@@ -1,9 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { evaluateNetworkContext } from './continuous-risk-signals.js';
-import type { NetworkContextData, ContinuousRiskSignal } from './continuous-risk-signals.js';
+import type {
+  NetworkContextData,
+  ContinuousRiskSignal,
+} from './continuous-risk-signals.js';
 
 export interface NetworkContextRecord {
+  id: string;
   ipAddress: string;
   geoCountry: string | null;
   geoCity: string | null;
@@ -100,8 +104,9 @@ export class NetworkContextService {
 
     // Check for geolocation change against most recent previous record
     const previousRecord = await this.getLastNetworkContext(sessionId);
-    if (previousRecord && previousRecord.id !== record.id) {
-      const changed = this.detectGeoChange(record, previousRecord);
+    const mappedRecord = this.mapPrismaRecord(record);
+    if (previousRecord && previousRecord.id !== mappedRecord.id) {
+      const changed = this.detectGeoChange(mappedRecord, previousRecord);
       if (changed) {
         await this.prisma.networkContextRecord.update({
           where: { id: record.id },
@@ -120,19 +125,71 @@ export class NetworkContextService {
           },
         });
         // Re-fetch to return updated record
-        return (await this.prisma.networkContextRecord.findUniqueOrThrow({
-          where: { id: record.id },
-        })) as unknown as NetworkContextRecord;
+        const updated =
+          await this.prisma.networkContextRecord.findUniqueOrThrow({
+            where: { id: record.id },
+          });
+        return this.mapPrismaRecord(updated);
       }
     }
 
-    return record as unknown as NetworkContextRecord;
+    return mappedRecord;
+  }
+
+  /**
+   * Maps a Prisma NetworkContextRecord model to the public NetworkContextRecord interface,
+   * renaming `ipReputationScore` to `ipReputation`.
+   */
+  private mapPrismaRecord(record: {
+    id: string;
+    ipAddress: string;
+    geoCountry: string | null;
+    geoCity: string | null;
+    geoLatitude: number | null;
+    geoLongitude: number | null;
+    asn: string | null;
+    isp: string | null;
+    networkType: string | null;
+    ispCategory: string | null;
+    isVpn: boolean;
+    isProxy: boolean;
+    isTor: boolean;
+    connectionType: string | null;
+    ipReputationScore: string;
+    geoVelocity: string | null;
+    isDatacenter: boolean;
+    geoChanged: boolean;
+    capturedAt: Date;
+  }): NetworkContextRecord {
+    return {
+      id: record.id,
+      ipAddress: record.ipAddress,
+      geoCountry: record.geoCountry,
+      geoCity: record.geoCity,
+      geoLatitude: record.geoLatitude,
+      geoLongitude: record.geoLongitude,
+      asn: record.asn,
+      isp: record.isp,
+      networkType: record.networkType,
+      ispCategory: record.ispCategory,
+      isVpn: record.isVpn,
+      isProxy: record.isProxy,
+      isTor: record.isTor,
+      connectionType: record.connectionType,
+      ipReputation: record.ipReputationScore,
+      geoVelocity: record.geoVelocity,
+      isDatacenter: record.isDatacenter,
+      geoChanged: record.geoChanged,
+      capturedAt: record.capturedAt,
+    };
   }
 
   /**
    * Returns the most recent network context for a session.
    */
-  async getLastNetworkContext(sessionId: string): Promise<NetworkContextRecord | null> {
+  async getLastNetworkContext(
+    sessionId: string,
+  ): Promise<NetworkContextRecord | null> {
     const record = await this.prisma.networkContextRecord.findFirst({
       where: { sessionId },
       orderBy: { capturedAt: 'desc' },
@@ -143,7 +200,9 @@ export class NetworkContextService {
   /**
    * Returns the network context history for a session.
    */
-  async getNetworkContextHistory(sessionId: string): Promise<NetworkContextRecord[]> {
+  async getNetworkContextHistory(
+    sessionId: string,
+  ): Promise<NetworkContextRecord[]> {
     const records = await this.prisma.networkContextRecord.findMany({
       where: { sessionId },
       orderBy: { capturedAt: 'desc' },
@@ -171,11 +230,18 @@ export class NetworkContextService {
   /**
    * Detects geolocation change between two network context records.
    */
-  detectGeoChange(current: NetworkContextRecord, previous: NetworkContextRecord): boolean {
+  detectGeoChange(
+    current: NetworkContextRecord,
+    previous: NetworkContextRecord,
+  ): boolean {
     if (!current.geoCountry || !previous.geoCountry) return false;
     if (current.geoCountry !== previous.geoCountry) return true;
     // City-level change within same country
-    if (current.geoCity && previous.geoCity && current.geoCity !== previous.geoCity) {
+    if (
+      current.geoCity &&
+      previous.geoCity &&
+      current.geoCity !== previous.geoCity
+    ) {
       const distanceKm = this.haversineDistance(
         current.geoLatitude ?? 0,
         current.geoLongitude ?? 0,
@@ -223,7 +289,9 @@ export class NetworkContextService {
    * Builds a NetworkContextData payload from the latest session context,
    * suitable for passing into risk signal evaluation.
    */
-  async buildNetworkContextData(sessionId: string): Promise<NetworkContextData | null> {
+  async buildNetworkContextData(
+    sessionId: string,
+  ): Promise<NetworkContextData | null> {
     const record = await this.getLastNetworkContext(sessionId);
     if (!record) return null;
 
@@ -301,7 +369,9 @@ export class NetworkContextService {
       this.cacheIp(ip, result);
       return result;
     } catch (err) {
-      this.logger.debug(`IP lookup failed for ${ip}: ${(err as Error).message}`);
+      this.logger.debug(
+        `IP lookup failed for ${ip}: ${(err as Error).message}`,
+      );
       const result = this.unknownResult(ip);
       this.cacheIp(ip, result);
       return result;
@@ -348,11 +418,16 @@ export class NetworkContextService {
   private inferIspCategory(data: IpApiResponse): string | null {
     if (!data.isp) return null;
     const isp = data.isp.toLowerCase();
-    if (isp.includes('university') || isp.includes('college') || isp.includes('school')) {
+    if (
+      isp.includes('university') ||
+      isp.includes('college') ||
+      isp.includes('school')
+    ) {
       return 'EDUCATIONAL';
     }
     if (isp.includes('government') || isp.includes('gov')) return 'GOVERNMENT';
-    if (isp.includes('enterprise') || isp.includes('business')) return 'ENTERPRISE';
+    if (isp.includes('enterprise') || isp.includes('business'))
+      return 'ENTERPRISE';
     return 'ISP';
   }
 
@@ -362,7 +437,9 @@ export class NetworkContextService {
     return 'GOOD';
   }
 
-  private parseReputation(value: string): 'TRUSTED' | 'NEUTRAL' | 'SUSPICIOUS' | 'BLOCKED' {
+  private parseReputation(
+    value: string,
+  ): 'TRUSTED' | 'NEUTRAL' | 'SUSPICIOUS' | 'BLOCKED' {
     const upper = value.toUpperCase();
     if (upper === 'GOOD' || upper === 'TRUSTED') return 'TRUSTED';
     if (upper === 'BAD') return 'BLOCKED';

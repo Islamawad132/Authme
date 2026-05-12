@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getRealmByName, updateRealm } from '../../api/realms';
+import type { Realm } from '../../types';
 
 export default function RegistrationSettingsPage() {
   const { name } = useParams<{ name: string }>();
@@ -29,8 +30,7 @@ export default function RegistrationSettingsPage() {
     captchaScoreThreshold: 0.5,
   });
 
-  // Update form when realm loads
-  useState(() => {
+  useEffect(() => {
     if (realm) {
       setForm({
         registrationAllowed: realm.registrationAllowed ?? true,
@@ -48,10 +48,18 @@ export default function RegistrationSettingsPage() {
         captchaScoreThreshold: realm.captchaScoreThreshold ?? 0.5,
       });
     }
-  });
+  }, [realm]);
 
   const mutation = useMutation({
-    mutationFn: (data: typeof form) => updateRealm(name!, data),
+    mutationFn: (data: typeof form) => {
+      const updateData = {
+        ...data,
+        allowedEmailDomains: data.allowedEmailDomains
+          ? data.allowedEmailDomains.split(',').map((s) => s.trim()).filter(Boolean)
+          : [],
+      };
+      return updateRealm(name!, updateData as unknown as Partial<Realm>);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['realm', name] });
     },
@@ -59,10 +67,7 @@ export default function RegistrationSettingsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    mutation.mutate({
-      ...form,
-      allowedEmailDomains: form.allowedEmailDomains ? form.allowedEmailDomains.split(',').map(s => s.trim()).filter(Boolean) : [],
-    });
+    mutation.mutate(form);
   };
 
   if (isLoading) {

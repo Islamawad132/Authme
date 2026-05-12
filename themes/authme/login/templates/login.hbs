@@ -9,7 +9,7 @@
 <form method="POST" action="/realms/{{realmName}}/login" class="auth-form">
   <div class="form-group">
     <label for="username">{{msg "loginUsername"}}</label>
-    <input type="text" id="username" name="username" required autocomplete="username" autofocus>
+    <input type="text" id="username" name="username" value="{{login_hint}}" required autocomplete="username" autofocus>
   </div>
 
   <div class="form-group">

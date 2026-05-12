@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { execSync } from 'child_process';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { PreUpgradeValidatorService } from './pre-upgrade-validator.service.js';
-import { DatabaseBackupService, BackupResult } from './database-backup.service.js';
+import {
+  DatabaseBackupService,
+  BackupResult,
+} from './database-backup.service.js';
 import { ConfigCompatibilityService } from './config-compatibility.service.js';
 import { RollbackService } from './rollback.service.js';
 import { UpgradeHealthService } from './upgrade-health.service.js';
@@ -125,7 +128,13 @@ export class UpgradeService {
     stages.push(initResult);
 
     if (!initResult.success) {
-      return this.buildFailureResult(upgradeId, toVersion, stages, startTime, initResult.message);
+      return this.buildFailureResult(
+        upgradeId,
+        toVersion,
+        stages,
+        startTime,
+        initResult.message,
+      );
     }
 
     // Stage 2: Pre-upgrade validation
@@ -143,7 +152,13 @@ export class UpgradeService {
         stages,
         'Pre-upgrade validation failed',
       );
-      return this.buildFailureResult(upgradeId, toVersion, stages, startTime, preValidationResult.message);
+      return this.buildFailureResult(
+        upgradeId,
+        toVersion,
+        stages,
+        startTime,
+        preValidationResult.message,
+      );
     }
 
     // Stage 3: Database backup (skip in dry-run)
@@ -200,14 +215,22 @@ export class UpgradeService {
     stages.push(configResult);
 
     if (!configResult.success) {
-      this.logger.error('Configuration compatibility check failed. Aborting upgrade.');
+      this.logger.error(
+        'Configuration compatibility check failed. Aborting upgrade.',
+      );
       await this.recordUpgradeFailure(
         upgradeId,
         toVersion,
         stages,
         'Configuration incompatibility',
       );
-      return this.buildFailureResult(upgradeId, toVersion, stages, startTime, configResult.message);
+      return this.buildFailureResult(
+        upgradeId,
+        toVersion,
+        stages,
+        startTime,
+        configResult.message,
+      );
     }
 
     // Stage 5: Database migration (skip in dry-run)
@@ -222,7 +245,11 @@ export class UpgradeService {
         this.logger.error('Database migration failed.');
         // Attempt rollback if backup was created
         if (backupResult?.success) {
-          const rollbackResult = await this.attemptRollback(upgradeId, toVersion, backupResult);
+          const rollbackResult = await this.attemptRollback(
+            upgradeId,
+            toVersion,
+            backupResult,
+          );
           stages.push(rollbackResult);
         }
         await this.recordUpgradeFailure(
@@ -259,7 +286,11 @@ export class UpgradeService {
       this.logger.error('Post-upgrade health check failed.');
       // Attempt rollback if backup was created
       if (backupResult?.success) {
-        const rollbackResult = await this.attemptRollback(upgradeId, toVersion, backupResult);
+        const rollbackResult = await this.attemptRollback(
+          upgradeId,
+          toVersion,
+          backupResult,
+        );
         stages.push(rollbackResult);
       }
       await this.recordUpgradeFailure(
@@ -439,7 +470,8 @@ export class UpgradeService {
           status: 'IN_PROGRESS',
           startedAt: new Date(),
           initiatedBy,
-          metadata: {
+          dryRun,
+          details: {
             dryRun,
             initiatedBy,
           },
@@ -470,7 +502,9 @@ export class UpgradeService {
 
     if (!validation.canProceed && !force) {
       const failures = validation.checks.filter((c) => c.status === 'fail');
-      const failureMessages = failures.map((f) => `${f.name}: ${f.message}`).join('; ');
+      const failureMessages = failures
+        .map((f) => `${f.name}: ${f.message}`)
+        .join('; ');
       return {
         success: false,
         message: `Pre-validation failed with ${failures.length} failure(s)`,
@@ -478,7 +512,9 @@ export class UpgradeService {
       };
     }
 
-    const warnings = validation.checks.filter((c) => c.status === 'warn').length;
+    const warnings = validation.checks.filter(
+      (c) => c.status === 'warn',
+    ).length;
     return {
       success: true,
       message: `Pre-validation passed (${validation.summary.passed} passed, ${warnings} warnings)`,
@@ -492,11 +528,14 @@ export class UpgradeService {
   private async checkConfigCompatibility(
     toVersion: string,
   ): Promise<{ success: boolean; message: string; details?: string }> {
-    const compatResult = await this.configCompatibility.checkCompatibility(toVersion);
+    const compatResult =
+      await this.configCompatibility.checkCompatibility(toVersion);
 
     if (!compatResult.compatible) {
       const errors = compatResult.issues.filter((i) => i.type === 'error');
-      const errorMessages = errors.map((e) => `${e.path}: ${e.message}`).join('; ');
+      const errorMessages = errors
+        .map((e) => `${e.path}: ${e.message}`)
+        .join('; ');
       return {
         success: false,
         message: `Configuration incompatible with ${toVersion}`,
@@ -504,7 +543,9 @@ export class UpgradeService {
       };
     }
 
-    const warnings = compatResult.issues.filter((i) => i.type === 'warning').length;
+    const warnings = compatResult.issues.filter(
+      (i) => i.type === 'warning',
+    ).length;
     return {
       success: true,
       message: `Configuration compatible with ${toVersion}`,
@@ -532,9 +573,10 @@ export class UpgradeService {
         details: output.trim().split('\n').slice(-3).join(' '),
       };
     } catch (err: unknown) {
-      const output = err instanceof Error && 'stdout' in err
-        ? String((err as NodeJS.ErrnoException & { stdout?: Buffer }).stdout)
-        : String(err);
+      const output =
+        err instanceof Error && 'stdout' in err
+          ? String((err as NodeJS.ErrnoException & { stdout?: Buffer }).stdout)
+          : String(err);
 
       return {
         success: false,
@@ -554,7 +596,9 @@ export class UpgradeService {
 
     if (!healthResult.healthy) {
       const failures = healthResult.checks.filter((c) => c.status === 'fail');
-      const failureMessages = failures.map((f) => `${f.name}: ${f.message}`).join('; ');
+      const failureMessages = failures
+        .map((f) => `${f.name}: ${f.message}`)
+        .join('; ');
       return {
         success: false,
         message: `Health check failed with ${failures.length} failure(s)`,
@@ -580,7 +624,9 @@ export class UpgradeService {
   ): Promise<{ success: boolean; message: string }> {
     try {
       const stageNames = stages.filter((s) => s.success).map((s) => s.stage);
-      const backupStage = stages.find((s) => s.stage === UpgradeStage.BACKUP && s.success);
+      const backupStage = stages.find(
+        (s) => s.stage === UpgradeStage.BACKUP && s.success,
+      );
       // backupStage.message contains "Backup created: {backupPath}" - extract the path
       const backupIdMatch = backupStage?.message?.match(/Backup created: (.+)/);
       const backupId = backupIdMatch ? backupIdMatch[1] : null;
@@ -590,8 +636,10 @@ export class UpgradeService {
         data: {
           status: 'COMPLETED',
           completedAt: new Date(),
-          stepsCompleted: stageNames,
           backupId,
+          details: {
+            stepsCompleted: stageNames,
+          },
         },
       });
 
@@ -621,7 +669,8 @@ export class UpgradeService {
     try {
       this.logger.log('Attempting rollback due to upgrade failure...');
 
-      const rollbackResult = await this.rollbackService.executeRollback(upgradeId);
+      const rollbackResult =
+        await this.rollbackService.executeRollback(upgradeId);
 
       if (rollbackResult.success) {
         return {
@@ -661,16 +710,20 @@ export class UpgradeService {
   ): Promise<void> {
     try {
       const failedStages = stages.filter((s) => !s.success).map((s) => s.stage);
-      const completedStages = stages.filter((s) => s.success).map((s) => s.stage);
+      const completedStages = stages
+        .filter((s) => s.success)
+        .map((s) => s.stage);
 
       await this.prisma.upgradeAuditLog.update({
         where: { id: upgradeId },
         data: {
           status: 'FAILED',
           completedAt: new Date(),
-          errorMessage: reason,
-          stepsCompleted: completedStages,
-          stepsFailed: failedStages,
+          details: {
+            errorMessage: reason,
+            stepsCompleted: completedStages,
+            stepsFailed: failedStages,
+          },
         },
       });
     } catch (err) {
@@ -693,7 +746,9 @@ export class UpgradeService {
       upgradeId,
       toVersion,
       stages,
-      rollbackTriggered: stages.some((s) => s.stage === UpgradeStage.ROLLBACK && s.success),
+      rollbackTriggered: stages.some(
+        (s) => s.stage === UpgradeStage.ROLLBACK && s.success,
+      ),
       duration: Date.now() - startTime,
       error: errorMessage,
     };
@@ -705,10 +760,13 @@ export class UpgradeService {
   async getCurrentVersion(): Promise<string> {
     try {
       // Try to read version from package.json
-      const output = execSync('node -p "require("./package.json").version" 2>&1', {
-        encoding: 'utf-8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
+      const output = execSync(
+        'node -p "require("./package.json").version" 2>&1',
+        {
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        },
+      );
       return output.trim();
     } catch {
       return 'unknown';

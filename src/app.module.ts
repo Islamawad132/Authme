@@ -60,7 +60,6 @@ import { MigrationModule } from './migration/migration.module.js';
 import { MagicLinkModule } from './magic-link/magic-link.module.js';
 import { CorsModule } from './cors/cors.module.js';
 import { ServiceAccountsModule } from './service-accounts/service-accounts.module.js';
-import { MagicLinkModule } from './magic-link/magic-link.module.js';
 import { RegistrationModule } from './registration/registration.module.js';
 import { ScimModule } from './scim/scim.module.js';
 import { AdminApiKeyGuard } from './common/guards/admin-api-key.guard.js';
@@ -71,10 +70,12 @@ import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     LoggerModule.forRoot(createLoggerConfig()),
-    ThrottlerModule.forRoot([{
-      ttl: parseInt(process.env['THROTTLE_TTL'] ?? '60000', 10),
-      limit: parseInt(process.env['THROTTLE_LIMIT'] ?? '100', 10),
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: parseInt(process.env['THROTTLE_TTL'] ?? '60000', 10),
+        limit: parseInt(process.env['THROTTLE_LIMIT'] ?? '100', 10),
+      },
+    ]),
     ScheduleModule.forRoot(),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, 'admin-ui'),
@@ -133,7 +134,6 @@ import { MetricsInterceptor } from './metrics/metrics.interceptor.js';
     MagicLinkModule,
     CorsModule,
     ServiceAccountsModule,
-    MagicLinkModule,
     RegistrationModule,
     ScimModule,
   ],

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from '../prisma/prisma.module.js';
 import { ThemeService } from './theme.service.js';
 import { ThemePreviewService } from './theme-preview.service.js';
 import { ThemeTemplateService } from './theme-template.service.js';
@@ -10,6 +11,7 @@ import { I18nService } from './i18n.service.js';
 import { ThemeController } from './theme.controller.js';
 
 @Module({
+  imports: [PrismaModule],
   controllers: [ThemeController],
   providers: [
     ThemeService,

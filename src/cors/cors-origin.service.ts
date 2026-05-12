@@ -101,12 +101,16 @@ export class CorsOriginService {
         try {
           const { origin } = new URL(baseUrl);
           origins.add(origin);
-        } catch { /* invalid BASE_URL — skip */ }
+        } catch {
+          /* invalid BASE_URL — skip */
+        }
       }
-      // Also allow localhost origins for development
-      const port = process.env['PORT'] ?? '3000';
-      origins.add(`http://localhost:${port}`);
-      origins.add(`http://127.0.0.1:${port}`);
+      // Also allow localhost origins for development (never in production)
+      if (process.env['NODE_ENV'] !== 'production') {
+        const port = process.env['PORT'] ?? '3000';
+        origins.add(`http://localhost:${port}`);
+        origins.add(`http://127.0.0.1:${port}`);
+      }
 
       for (const client of clients) {
         for (const o of client.webOrigins) {

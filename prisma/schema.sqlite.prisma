@@ -87,9 +87,10 @@ model Realm {
   mfaRequired Boolean @default(false) @map("mfa_required")
 
   // WebAuthn / FIDO2
-  webAuthnEnabled Boolean @default(false) @map("webauthn_enabled")
-  webAuthnRpName  String? @map("webauthn_rp_name")
-  webAuthnRpId    String? @map("webauthn_rp_id")
+  webAuthnEnabled               Boolean @default(false) @map("webauthn_enabled")
+  webAuthnRpName                String? @map("webauthn_rp_name")
+  webAuthnRpId                  String? @map("webauthn_rp_id")
+  webAuthnUserVerificationRequired Boolean @default(false) @map("webauthn_user_verification_required")
 
   // Offline tokens
   offlineTokenLifespan Int @default(2592000) @map("offline_token_lifespan")
@@ -163,6 +164,7 @@ model Realm {
   loginRiskAssessments  LoginRiskAssessment[]
   userLoginProfiles     UserLoginProfile[]
   organizations         Organization[]
+  consentCategories     ConsentCategory[]
   serviceAccounts       ServiceAccount[]
   registrationFields     RegistrationField[]
 
@@ -203,6 +205,7 @@ model User {
   loginFailures       LoginFailure[]
   userCredentials     UserCredential[]
   recoveryCodes       RecoveryCode[]
+  usedTotpCodes       UsedTotpCode[]
   webAuthnCredentials WebAuthnCredential[]
   attributes          UserAttribute[]
   userConsentHistories UserConsentHistory[]
@@ -437,7 +440,7 @@ model ConsentCategory {
   realm               Realm   @relation(fields: [realmId], references: [id], onDelete: Cascade)
   name                String  // Internal identifier
   displayName         String  @map("display_name")
-  description         String? @db.Text
+  description String?
   key                 String  @map("key")
   required            Boolean @default(false)
   configurableByUser  Boolean @default(true) @map("configurable_by_user")
@@ -503,7 +506,7 @@ model UserConsentHistory {
 
 model PendingDeletion {
   id                  String    @id @default(uuid())
-  userId              String    @map("user_id")
+  userId              String    @unique @map("user_id")
   user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   requestedAt         DateTime  @default(now()) @map("requested_at")
   scheduledAt         DateTime  @map("scheduled_at")
@@ -654,6 +657,21 @@ model RecoveryCode {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("recovery_codes")
+}
+
+model UsedTotpCode {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  codeHash  String   @map("code_hash")
+  expiresAt DateTime @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("used_totp_codes")
 }
 
 // ─── WEBAUTHN / FIDO2 ────────────────────────────────────
@@ -1324,11 +1342,30 @@ model RevokedToken {
   @@map("revoked_tokens")
 }
 
+// ─── RATE LIMIT ENTRIES (cluster-safe fallback) ────────────────
+
+model RateLimitEntry {
+  id        String   @id @default(uuid())
+  key       String   @unique @map("key")
+  minuteCount      Int      @default(0) @map("minute_count")
+  minuteWindowStart DateTime @default(now()) @map("minute_window_start")
+  hourCount        Int      @default(0) @map("hour_count")
+  hourWindowStart   DateTime @default(now()) @map("hour_window_start")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([key])
+  @@index([minuteWindowStart])
+  @@index([hourWindowStart])
+  @@map("rate_limit_entries")
+}
+
 // ─── SERVICE ACCOUNTS ─────────────────────────────────────
 
 model ServiceAccount {
   id          String   @id @default(uuid())
   realmId     String   @map("realm_id")
+  realm       Realm    @relation(fields: [realmId], references: [id], onDelete: Cascade)
   name        String
   description String?
   enabled     Boolean  @default(true)

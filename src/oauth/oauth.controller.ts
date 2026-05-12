@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  Req,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { Realm } from '@prisma/client';
@@ -35,8 +28,15 @@ export class OAuthController {
 
   @Get('auth')
   @ApiOperation({ summary: 'Authorization endpoint (code flow)' })
-  @ApiResponse({ status: 302, description: 'Redirect to login page or redirect_uri with authorization code' })
-  @ApiResponse({ status: 400, description: 'Invalid request — missing or invalid OAuth parameters' })
+  @ApiResponse({
+    status: 302,
+    description:
+      'Redirect to login page or redirect_uri with authorization code',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid request — missing or invalid OAuth parameters',
+  })
   async authorize(
     @CurrentRealm() realm: Realm,
     @Query() query: Record<string, string>,
@@ -44,32 +44,58 @@ export class OAuthController {
     @Res() res: Response,
   ) {
     // Validate OAuth params (client_id, redirect_uri, etc.) early
-    const client = await this.oauthService.validateAuthRequest(realm, query as unknown as AuthorizeParams);
+    const client = await this.oauthService.validateAuthRequest(
+      realm,
+      query as unknown as AuthorizeParams,
+    );
 
     // Check for existing SSO session cookie
-    const sessionCookie = (req.cookies as Record<string, string>)?.['AUTHME_SESSION'];
+    const sessionCookie = (req.cookies as Record<string, string>)?.[
+      'AUTHME_SESSION'
+    ];
     if (sessionCookie) {
-      const user = await this.loginService.validateLoginSession(realm, sessionCookie);
+      const user = await this.loginService.validateLoginSession(
+        realm,
+        sessionCookie,
+      );
       if (user) {
+        const prompt = query['prompt'];
+
+        if (prompt === 'none') {
+          return this.handlePromptNone(res, client.redirectUris[0]!, query['state']);
+        }
+
+        if (prompt === 'login') {
+          return this.handlePromptLogin(res, realm.name, query);
+        }
+
         // ── Step-up ACR check ────────────────────────────────────────────────
         //
         // Determine the highest required ACR from two sources:
         //   1. The `acr_values` query parameter (client request)
         //   2. The client's `requiredAcr` configuration (server-enforced policy)
         const requestedAcr = query['acr_values']
-          ? query['acr_values'].split(' ')[0]   // take the highest-preference value
+          ? query['acr_values'].split(' ')[0] // take the highest-preference value
           : null;
         const clientRequiredAcr = client.requiredAcr ?? null;
 
         // Prefer the stronger of the two requirements
-        const requiredAcr = this.resolveRequiredAcr(requestedAcr, clientRequiredAcr);
+        const requiredAcr = this.resolveRequiredAcr(
+          requestedAcr,
+          clientRequiredAcr,
+        );
 
         if (requiredAcr) {
           // Look up the login session ID so we can check step-up records
           const loginSession = await this.getLoginSessionByToken(sessionCookie);
           if (loginSession) {
-            const sessionAcr = await this.stepUpService.getSessionAcr(loginSession.id);
-            const stepUpNeeded = !this.stepUpService.satisfiesAcr(sessionAcr, requiredAcr);
+            const sessionAcr = await this.stepUpService.getSessionAcr(
+              loginSession.id,
+            );
+            const stepUpNeeded = !this.stepUpService.satisfiesAcr(
+              sessionAcr,
+              requiredAcr,
+            );
 
             if (stepUpNeeded) {
               // Redirect to step-up challenge, passing the original OAuth params
@@ -96,8 +122,14 @@ export class OAuthController {
 
         // Check if client requires consent
         if (client.requireConsent) {
-          const scopes = (query['scope'] ?? 'openid').split(' ').filter(Boolean);
-          const hasConsent = await this.consentService.hasConsent(user.id, client.id, scopes);
+          const scopes = (query['scope'] ?? 'openid')
+            .split(' ')
+            .filter(Boolean);
+          const hasConsent = await this.consentService.hasConsent(
+            user.id,
+            client.id,
+            scopes,
+          );
 
           if (!hasConsent) {
             const reqId = await this.consentService.storeConsentRequest({
@@ -108,12 +140,19 @@ export class OAuthController {
               scopes,
               oauthParams: query,
             });
-            return res.redirect(302, `/realms/${realm.name}/consent?req=${reqId}`);
+            return res.redirect(
+              302,
+              `/realms/${realm.name}/consent?req=${reqId}`,
+            );
           }
         }
 
         // SSO: user already logged in and consent is granted, issue code directly
-        const result = await this.oauthService.authorizeWithUser(realm, user, query as unknown as AuthorizeParams);
+        const result = await this.oauthService.authorizeWithUser(
+          realm,
+          user,
+          query as unknown as AuthorizeParams,
+        );
         return res.redirect(302, result.redirectUrl);
       }
     }
@@ -164,5 +203,52 @@ export class OAuthController {
   private async getLoginSessionByToken(sessionToken: string) {
     const tokenHash = this.crypto.sha256(sessionToken);
     return this.prisma.loginSession.findUnique({ where: { tokenHash } });
+  }
+
+  private redirectWithError(
+    res: Response,
+    redirectUri: string,
+    error: string,
+    errorDescription: string,
+    state?: string,
+  ): void {
+    const url = new URL(redirectUri);
+    url.searchParams.set('error', error);
+    url.searchParams.set('error_description', errorDescription);
+    if (state) {
+      url.searchParams.set('state', state);
+    }
+    res.redirect(302, url.toString());
+  }
+
+  private handlePromptNone(res: Response, redirectUri: string, state?: string): void {
+    this.redirectWithError(
+      res,
+      redirectUri,
+      'login_required',
+      'User is not authenticated',
+      state,
+    );
+  }
+
+  private handlePromptLogin(res: Response, realm: string, query: Record<string, string>): void {
+    const loginParams = new URLSearchParams();
+    const allowlist = new Set([
+      'client_id',
+      'redirect_uri',
+      'response_type',
+      'scope',
+      'state',
+      'nonce',
+      'code_challenge',
+      'code_challenge_method',
+      'prompt',
+      'acr_values',
+      'login_hint',
+    ]);
+    for (const [key, value] of Object.entries(query)) {
+      if (value && allowlist.has(key)) loginParams.set(key, value);
+    }
+    res.redirect(302, `/realms/${realm}/login?${loginParams.toString()}`);
   }
 }

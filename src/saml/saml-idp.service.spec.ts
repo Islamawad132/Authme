@@ -2,11 +2,32 @@ import { BadRequestException } from '@nestjs/common';
 import { generateKeyPairSync } from 'crypto';
 import { deflateSync } from 'zlib';
 import type { Realm, SamlServiceProvider, User } from '@prisma/client';
+import { SignedXml } from 'xml-crypto';
 import { SamlIdpService } from './saml-idp.service.js';
 import {
   createMockPrismaService,
   type MockPrismaService,
 } from '../prisma/prisma.mock.js';
+
+function signXml(xml: string, privateKeyPem: string, refId: string): string {
+  const sig = new SignedXml({
+    privateKey: privateKeyPem,
+    signatureAlgorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
+    canonicalizationAlgorithm: 'http://www.w3.org/2001/10/xml-exc-c14n#',
+  });
+  sig.addReference({
+    xpath: `//*[@ID='${refId}']`,
+    digestAlgorithm: 'http://www.w3.org/2001/04/xmlenc#sha256',
+    transforms: [
+      'http://www.w3.org/2000/09/xmldsig#enveloped-signature',
+      'http://www.w3.org/2001/10/xml-exc-c14n#',
+    ],
+  });
+  sig.computeSignature(xml, {
+    location: { reference: `//*[@ID='${refId}']`, action: 'append' },
+  });
+  return sig.getSignedXml();
+}
 
 describe('SamlIdpService', () => {
   let service: SamlIdpService;
@@ -76,7 +97,7 @@ describe('SamlIdpService', () => {
     validRedirectUris: [],
     createdAt: new Date(),
     updatedAt: new Date(),
-  } as SamlServiceProvider;
+  };
 
   const mockSigningKey = {
     id: 'key-1',
@@ -157,6 +178,61 @@ describe('SamlIdpService', () => {
     it('should throw BadRequestException for invalid base64/garbage input', async () => {
       await expect(
         service.validateAuthnRequest('!!!not-valid-base64!!!'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject unsigned AuthnRequest when SP has certificate', async () => {
+      const xml = makeAuthnRequest(
+        'https://sp.example.com',
+        '_sigtest1',
+        'https://sp.example.com/acs',
+      );
+      const encoded = Buffer.from(xml, 'utf-8').toString('base64');
+
+      await expect(
+        service.validateSignature(encoded, publicKey),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should reject AuthnRequest with wrong signature when SP has certificate', async () => {
+      const { generateKeyPairSync } = require('crypto');
+      const wrongKey = generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      });
+      const wrongPublicKey = wrongKey.publicKey;
+
+      const xml = makeAuthnRequest(
+        'https://sp.example.com',
+        '_sigtest2',
+        'https://sp.example.com/acs',
+      );
+      const signed = signXml(xml, privateKey, '_sigtest2');
+      const encoded = Buffer.from(signed, 'utf-8').toString('base64');
+
+      await expect(
+        service.validateSignature(encoded, wrongPublicKey),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should accept AuthnRequest with valid signature when SP has certificate', async () => {
+      const xml = makeAuthnRequest(
+        'https://sp.example.com',
+        '_sigtest3',
+        'https://sp.example.com/acs',
+      );
+      const signed = signXml(xml, privateKey, '_sigtest3');
+      const encoded = Buffer.from(signed, 'utf-8').toString('base64');
+
+      await expect(
+        service.validateSignature(encoded, publicKey),
+      ).resolves.toBeUndefined();
+    });
+
+    it('should throw BadRequestException for invalid base64 in validateSignature', async () => {
+      await expect(
+        service.validateSignature('!!!not-valid-base64!!!', publicKey),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -248,11 +324,7 @@ describe('SamlIdpService', () => {
       });
 
       const sp = { ...mockSp, signAssertions: true, signResponses: false };
-      const result = await service.createSamlResponse(
-        mockRealm,
-        sp as SamlServiceProvider,
-        mockUser,
-      );
+      const result = await service.createSamlResponse(mockRealm, sp, mockUser);
 
       const xml = Buffer.from(result, 'base64').toString('utf-8');
       expect(xml).toContain('Signature');
@@ -267,11 +339,7 @@ describe('SamlIdpService', () => {
       });
 
       const sp = { ...mockSp, signAssertions: false, signResponses: true };
-      const result = await service.createSamlResponse(
-        mockRealm,
-        sp as SamlServiceProvider,
-        mockUser,
-      );
+      const result = await service.createSamlResponse(mockRealm, sp, mockUser);
 
       const xml = Buffer.from(result, 'base64').toString('utf-8');
       expect(xml).toContain('Signature');
@@ -287,14 +355,9 @@ describe('SamlIdpService', () => {
 
       const sp = {
         ...mockSp,
-        nameIdFormat:
-          'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
+        nameIdFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
       };
-      const result = await service.createSamlResponse(
-        mockRealm,
-        sp as SamlServiceProvider,
-        mockUser,
-      );
+      const result = await service.createSamlResponse(mockRealm, sp, mockUser);
 
       const xml = Buffer.from(result, 'base64').toString('utf-8');
       expect(xml).toContain(`>${mockUser.email}</saml:NameID>`);
@@ -309,14 +372,9 @@ describe('SamlIdpService', () => {
 
       const sp = {
         ...mockSp,
-        nameIdFormat:
-          'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent',
+        nameIdFormat: 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent',
       };
-      const result = await service.createSamlResponse(
-        mockRealm,
-        sp as SamlServiceProvider,
-        mockUser,
-      );
+      const result = await service.createSamlResponse(mockRealm, sp, mockUser);
 
       const xml = Buffer.from(result, 'base64').toString('utf-8');
       expect(xml).toContain(`>${mockUser.id}</saml:NameID>`);
@@ -396,8 +454,7 @@ describe('SamlIdpService', () => {
         acsUrl: 'https://sp.example.com/acs',
         sloUrl: null,
         certificate: null,
-        nameIdFormat:
-          'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
+        nameIdFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
         signAssertions: false,
         signResponses: false,
         validRedirectUris: [],
@@ -511,9 +568,7 @@ describe('SamlIdpService', () => {
     it('should throw BadRequestException when SP is not found', async () => {
       prisma.samlServiceProvider.findFirst.mockResolvedValue(null);
 
-      await expect(
-        service.deleteSp(mockRealm, 'nonexistent'),
-      ).rejects.toThrow(
+      await expect(service.deleteSp(mockRealm, 'nonexistent')).rejects.toThrow(
         new BadRequestException('SAML service provider not found'),
       );
     });

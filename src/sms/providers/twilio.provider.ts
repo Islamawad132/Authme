@@ -1,13 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as twilio from 'twilio';
-import type { Client } from 'twilio';
+import twilio from 'twilio';
 import { SmsProvider } from './sms-provider.interface.js';
+
+type TwilioClient = ReturnType<typeof twilio>;
 
 @Injectable()
 export class TwilioSmsProvider implements SmsProvider {
   readonly name = 'twilio';
   private readonly logger = new Logger(TwilioSmsProvider.name);
-  private client: Client | null = null;
+  private client: TwilioClient | null = null;
   private fromNumber: string | null = null;
 
   constructor() {
@@ -23,7 +24,9 @@ export class TwilioSmsProvider implements SmsProvider {
       this.client = twilio(accountSid, authToken);
       this.logger.log('Twilio SMS provider initialized');
     } else {
-      this.logger.warn('Twilio credentials not configured - set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN');
+      this.logger.warn(
+        'Twilio credentials not configured - set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN',
+      );
     }
   }
 
@@ -33,7 +36,9 @@ export class TwilioSmsProvider implements SmsProvider {
     }
 
     if (!this.fromNumber) {
-      throw new Error('Twilio phone number not configured - set TWILIO_PHONE_NUMBER');
+      throw new Error(
+        'Twilio phone number not configured - set TWILIO_PHONE_NUMBER',
+      );
     }
 
     try {
@@ -45,7 +50,8 @@ export class TwilioSmsProvider implements SmsProvider {
 
       this.logger.log(`SMS sent to ${to}`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to send SMS to ${to}: ${errorMessage}`);
       throw new Error(`Twilio SMS failed: ${errorMessage}`);
     }

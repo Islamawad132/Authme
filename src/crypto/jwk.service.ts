@@ -50,10 +50,7 @@ export class JwkService {
       .sign(privateKey);
   }
 
-  async verifyJwt(
-    token: string,
-    publicKeyPem: string,
-  ): Promise<JWTPayload> {
+  async verifyJwt(token: string, publicKeyPem: string): Promise<JWTPayload> {
     const publicKey = await importSPKI(publicKeyPem, 'RS256');
     const { payload } = await jwtVerify(token, publicKey);
     return payload;
@@ -76,6 +73,16 @@ export class JwkService {
    */
   computeAtHash(accessToken: string): string {
     const hash = createHash('sha256').update(accessToken).digest();
+    const leftHalf = hash.subarray(0, hash.length / 2);
+    return Buffer.from(leftHalf).toString('base64url');
+  }
+
+  /**
+   * Compute c_hash per OIDC Core section 3.3.2.11:
+   * SHA-256 hash of the authorization code, take left half, base64url encode.
+   */
+  computeChash(code: string): string {
+    const hash = createHash('sha256').update(code).digest();
     const leftHalf = hash.subarray(0, hash.length / 2);
     return Buffer.from(leftHalf).toString('base64url');
   }

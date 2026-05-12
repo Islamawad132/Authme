@@ -9,7 +9,10 @@ import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { ACR_VALUES_SUPPORTED } from '../step-up/step-up.service.js';
-import { RateLimitGuard, RateLimitByIp } from '../rate-limit/rate-limit.guard.js';
+import {
+  RateLimitGuard,
+  RateLimitByIp,
+} from '../rate-limit/rate-limit.guard.js';
 
 @ApiTags('OIDC Discovery')
 @Controller('realms/:realmName')
@@ -26,7 +29,10 @@ export class WellKnownController {
 
   @Get('.well-known/openid-configuration')
   @ApiOperation({ summary: 'OpenID Connect discovery document' })
-  @ApiResponse({ status: 200, description: 'OpenID Connect discovery document' })
+  @ApiResponse({
+    status: 200,
+    description: 'OpenID Connect discovery document',
+  })
   @ApiResponse({ status: 404, description: 'Realm not found' })
   discovery(@CurrentRealm() realm: Realm) {
     const baseUrl = process.env['BASE_URL'] ?? 'http://localhost:3000';
@@ -53,10 +59,18 @@ export class WellKnownController {
       ],
       subject_types_supported: ['public'],
       id_token_signing_alg_values_supported: ['RS256'],
-      scopes_supported: ['openid', 'profile', 'email', 'roles', 'offline_access'],
+      scopes_supported: [
+        'openid',
+        'profile',
+        'email',
+        'roles',
+        'offline_access',
+      ],
       token_endpoint_auth_methods_supported: [
         'client_secret_post',
         'client_secret_basic',
+        'private_key_jwt',
+        'none',
       ],
       claims_supported: [
         'sub',
@@ -82,6 +96,7 @@ export class WellKnownController {
       code_challenge_methods_supported: ['S256'],
       backchannel_logout_supported: true,
       backchannel_logout_session_supported: true,
+      backchannel_logout_uri: `${protocolUrl}/logout/backchannel`,
       // Step-up authentication (OIDC Core §3.1.2.1 acr_values_supported)
       acr_values_supported: ACR_VALUES_SUPPORTED,
       // Step-up endpoints
@@ -90,7 +105,9 @@ export class WellKnownController {
       // WebAuthn / FIDO2 support
       webauthn_registration_endpoint: `${realmUrl}/webauthn/register/options`,
       webauthn_authentication_endpoint: `${realmUrl}/webauthn/authenticate/options`,
-      ...(realm.webAuthnEnabled ? { passkey_endpoint: `${realmUrl}/webauthn` } : {}),
+      ...(realm.webAuthnEnabled
+        ? { passkey_endpoint: `${realmUrl}/webauthn` }
+        : {}),
     };
   }
 
@@ -99,7 +116,9 @@ export class WellKnownController {
   @ApiResponse({ status: 200, description: 'JSON Web Key Set' })
   @ApiResponse({ status: 404, description: 'Realm not found' })
   async certs(@CurrentRealm() realm: Realm) {
-    const cached = await this.cache.getCachedJWKS<{ keys: unknown[] }>(realm.id);
+    const cached = await this.cache.getCachedJWKS<{ keys: unknown[] }>(
+      realm.id,
+    );
     if (cached) return cached;
 
     const keys = await this.prisma.realmSigningKey.findMany({

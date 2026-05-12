@@ -36,7 +36,7 @@ export function hasCredentials(): boolean {
 // Axios instance
 // ---------------------------------------------------------------------------
 const apiClient = axios.create({
-  baseURL: '/admin',
+  baseURL: import.meta.env.VITE_API_BASE || '/admin',
 });
 
 apiClient.interceptors.request.use((config) => {

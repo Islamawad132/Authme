@@ -23,7 +23,10 @@ jest.mock('child_process', () => ({
 
 import { UpgradeService, UpgradeStage } from './upgrade.service.js';
 import { PreUpgradeValidatorService } from './pre-upgrade-validator.service.js';
-import { DatabaseBackupService, BackupResult } from './database-backup.service.js';
+import {
+  DatabaseBackupService,
+  BackupResult,
+} from './database-backup.service.js';
 import { ConfigCompatibilityService } from './config-compatibility.service.js';
 import { RollbackService } from './rollback.service.js';
 import { UpgradeHealthService } from './upgrade-health.service.js';
@@ -219,7 +222,7 @@ describe('UpgradeService', () => {
             data: expect.objectContaining({
               toVersion: '2.1.0',
               status: 'IN_PROGRESS',
-              metadata: expect.objectContaining({ dryRun: true }),
+              dryRun: true,
             }),
           }),
         );
@@ -231,7 +234,11 @@ describe('UpgradeService', () => {
         mockPreUpgradeValidator.validate.mockResolvedValue({
           canProceed: false,
           checks: [
-            { name: 'disk_space', status: 'fail', message: 'Insufficient disk space' },
+            {
+              name: 'disk_space',
+              status: 'fail',
+              message: 'Insufficient disk space',
+            },
           ],
           summary: { passed: 5, warnings: 0, failures: 1 },
         });
@@ -438,7 +445,9 @@ describe('UpgradeService', () => {
         await upgradeService.upgrade('2.1.0');
 
         // Verify backup was created with correct label
-        expect(mockDatabaseBackupService.createBackup).toHaveBeenCalledWith('pre-upgrade-2.1.0');
+        expect(mockDatabaseBackupService.createBackup).toHaveBeenCalledWith(
+          'pre-upgrade-2.1.0',
+        );
       });
 
       it('should abort upgrade if backup creation fails', async () => {
@@ -509,7 +518,10 @@ describe('UpgradeService', () => {
           }),
         );
         // Migration should not be attempted
-        expect(execSync).not.toHaveBeenCalled();
+        expect(execSync).not.toHaveBeenCalledWith(
+          expect.stringContaining('prisma migrate deploy'),
+          expect.any(Object),
+        );
       });
     });
 
@@ -625,7 +637,11 @@ describe('UpgradeService', () => {
           healthy: false,
           version: '2.1.0',
           checks: [
-            { name: 'database_connection', status: 'fail', message: 'Cannot connect' },
+            {
+              name: 'database_connection',
+              status: 'fail',
+              message: 'Cannot connect',
+            },
           ],
           summary: { passed: 6, warnings: 0, failures: 1 },
         });

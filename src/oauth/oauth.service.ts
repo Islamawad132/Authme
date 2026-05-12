@@ -22,6 +22,14 @@ export interface AuthorizeParams {
   nonce?: string;
   /** Space-separated list of requested ACR values (highest preference first). */
   acr_values?: string;
+  /**
+   * OIDC prompt parameter.
+   * - none: return error if user is not authenticated
+   * - login: force re-authentication
+   * - consent: show consent screen
+   * - select_account: show account selection
+   */
+  prompt?: string;
 }
 
 @Injectable()
@@ -69,14 +77,19 @@ export class OAuthService {
       );
     }
 
-    if (params.code_challenge_method && params.code_challenge_method !== 'S256') {
-      throw new BadRequestException('Only S256 code_challenge_method is supported');
+    if (
+      params.code_challenge_method &&
+      params.code_challenge_method !== 'S256'
+    ) {
+      throw new BadRequestException(
+        'Only S256 code_challenge_method is supported',
+      );
     }
 
-    // PKCE is required for public clients (OAuth 2.1 / RFC 7636)
-    if (client.clientType === 'PUBLIC' && !params.code_challenge) {
+    // PKCE is required for all client types (OAuth 2.1 / RFC 7636)
+    if (!params.code_challenge) {
       throw new BadRequestException(
-        'PKCE (code_challenge) is required for public clients',
+        'PKCE (code_challenge) is required for all client types',
       );
     }
 
@@ -101,9 +114,10 @@ export class OAuthService {
       realm.id,
       requestedScopes,
     );
-    const effectiveScope = effectiveScopes.length > 0
-      ? this.scopesService.toString(effectiveScopes)
-      : params.scope;
+    const effectiveScope =
+      effectiveScopes.length > 0
+        ? this.scopesService.toString(effectiveScopes)
+        : params.scope;
 
     const code = randomBytes(32).toString('hex');
 

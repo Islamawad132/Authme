@@ -1,4 +1,21 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "admin-ui", "packages", "prisma", "**/*spec.ts", "prisma.config.ts"]
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "test",
+    "dist",
+    "admin-ui",
+    "packages",
+    "plugins",
+    "providers",
+    "benchmarks",
+    "docs",
+    "terraform-provider-authme",
+    "themes",
+    "scripts",
+    "prisma",
+    "**/*spec.ts",
+    "prisma.config.ts"
+  ]
 }
