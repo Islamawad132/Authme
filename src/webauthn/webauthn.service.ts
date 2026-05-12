@@ -96,7 +96,7 @@ export class WebAuthnService {
       })),
       authenticatorSelection: {
         residentKey: 'preferred',
-        userVerification: 'preferred',
+        userVerification: realm.webAuthnUserVerificationRequired ? 'required' : 'preferred',
       },
     });
 
@@ -141,7 +141,7 @@ export class WebAuthnService {
         expectedChallenge,
         expectedOrigin: this.getOrigin(rpId),
         expectedRPID: rpId,
-        requireUserVerification: false,
+        requireUserVerification: realm.webAuthnUserVerificationRequired,
       });
     } catch (err: any) {
       this.logger.warn(
@@ -223,7 +223,7 @@ export class WebAuthnService {
     const options = await generateAuthenticationOptions({
       rpID: rpId,
       allowCredentials,
-      userVerification: 'preferred',
+      userVerification: realm.webAuthnUserVerificationRequired ? 'required' : 'preferred',
     });
 
     // Store challenge — keyed by realm for usernameless flow, or by user for user-specific
@@ -296,7 +296,7 @@ export class WebAuthnService {
           counter: Number(credential.counter),
           transports: credential.transports as AuthenticatorTransportFuture[],
         },
-        requireUserVerification: false,
+        requireUserVerification: realm.webAuthnUserVerificationRequired,
       });
     } catch (err: any) {
       this.logger.warn(
