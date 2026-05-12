@@ -136,9 +136,10 @@ model Realm {
   mfaRequired Boolean @default(false) @map("mfa_required")
 
   // WebAuthn / FIDO2
-  webAuthnEnabled Boolean @default(false) @map("webauthn_enabled")
-  webAuthnRpName  String? @map("webauthn_rp_name")
-  webAuthnRpId    String? @map("webauthn_rp_id")
+  webAuthnEnabled               Boolean @default(false) @map("webauthn_enabled")
+  webAuthnRpName                String? @map("webauthn_rp_name")
+  webAuthnRpId                  String? @map("webauthn_rp_id")
+  webAuthnUserVerificationRequired Boolean @default(false) @map("webauthn_user_verification_required")
 
   // SMS provider configuration
   smsProvider       String  @default("none") @map("sms_provider")
