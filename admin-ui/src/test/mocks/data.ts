@@ -1,8 +1,9 @@
-import type { Realm, User, Client, Role } from '../../types';
+import type { Realm, User, Client, Role, NhiIdentity } from '../../types';
 import type { LoginEvent, AdminEvent } from '../../api/events';
 import type { RealmStats } from '../../api/stats';
 import type { AuthFlow } from '../../api/authFlows';
 import type { UpgradeAuditEntry, PreUpgradeValidationResult, UpgradeHealthResult, RollbackCapability } from '../../api/upgrade';
+import type { NhiIdentityType, NhiLifecycleStatus } from '../../api/nhi';
 
 export function makeRealm(overrides: Partial<Realm> = {}): Realm {
   return {
@@ -216,6 +217,30 @@ export function makeRollbackCapability(overrides: Partial<RollbackCapability> = 
       completedAt: new Date('2024-01-01T10:05:00.000Z'),
     },
     reason: undefined,
+    ...overrides,
+  };
+}
+
+export function makeNhiIdentity(overrides: Partial<NhiIdentity> = {}): NhiIdentity {
+  return {
+    id: 'nhi-1',
+    realmId: 'realm-1',
+    name: 'test-identity',
+    description: null,
+    identityType: 'IOT_DEVICE' as NhiIdentityType,
+    lifecycleStatus: 'ACTIVE' as NhiLifecycleStatus,
+    enabled: true,
+    permissionScopes: [],
+    tags: [],
+    agentPurpose: null,
+    certificateFingerprint: null,
+    certificateSubject: null,
+    certificateNotBefore: null,
+    certificateNotAfter: null,
+    suspendedAt: null,
+    decommissionedAt: null,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
     ...overrides,
   };
 }
