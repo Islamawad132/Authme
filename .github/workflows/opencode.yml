@@ -32,7 +32,7 @@ jobs:
             HEAD=$(gh pr view ${{ github.event.issue.number }} -R ${{ github.repository }} --json headRefName -q '.headRefName')
             echo "ref=$HEAD" >> $GITHUB_OUTPUT
           else
-            echo "ref=main" >> $GITHUB_OUTPUT
+            echo "ref=dev" >> $GITHUB_OUTPUT
           fi
 
       - name: Checkout
@@ -297,9 +297,9 @@ jobs:
           gh pr update-branch "$PR" -R "$REPO" 2>&1 || echo "(branch up-to-date)"
 
           if gh pr merge "$PR" -R "$REPO" --squash --delete-branch --admin; then
-            echo "::notice::Auto-merged PR #$PR to main"
+            echo "::notice::Auto-merged PR #$PR to dev"
             if [ -n "$ISSUE" ]; then
-              gh issue comment "$ISSUE" -R "$REPO" --body "Auto-merged PR #$PR to main. main is now up-to-date with this issue's changes."
+              gh issue comment "$ISSUE" -R "$REPO" --body "Auto-merged PR #$PR to dev. dev is now up-to-date with this issue's changes."
               gh issue close "$ISSUE" -R "$REPO" --reason completed
               echo "::notice::Closed issue #$ISSUE"
             fi
