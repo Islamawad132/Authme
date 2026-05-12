@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { makeRealm, makeUser, makeClient, makeLoginEvent, makeAdminEvent, makeStats, makeAuthFlow, makeUpgradeAuditEntry, makePreUpgradeValidationResult, makeUpgradeHealthResult, makeRollbackCapability } from './data';
+import { makeRealm, makeUser, makeClient, makeLoginEvent, makeAdminEvent, makeStats, makeAuthFlow, makeUpgradeAuditEntry, makePreUpgradeValidationResult, makeUpgradeHealthResult, makeRollbackCapability, makeNhiIdentity } from './data';
 
 const BASE = '/admin';
 
@@ -107,6 +107,28 @@ export const handlers = [
 
   http.delete(`${BASE}/realms/:name/clients/:id`, () => {
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  // Non-Human Identities
+  http.get(`${BASE}/realms/:name/nhi`, () => {
+    return HttpResponse.json([
+      makeNhiIdentity({
+        id: 'nhi-1',
+        name: 'sensor-gateway-01',
+        identityType: 'IOT_DEVICE',
+        lifecycleStatus: 'ACTIVE',
+        enabled: true,
+        certificateFingerprint: 'AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99',
+      }),
+      makeNhiIdentity({
+        id: 'nhi-2',
+        name: 'ai-assistant-01',
+        identityType: 'AI_AGENT',
+        lifecycleStatus: 'PROVISIONING',
+        enabled: true,
+        certificateFingerprint: '11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00',
+      }),
+    ]);
   }),
 
   // Stats

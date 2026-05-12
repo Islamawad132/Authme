@@ -85,7 +85,7 @@ export default function NhiListPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {identities && identities.length > 0 ? (
+            {Array.isArray(identities) && identities.length > 0 ? (
               identities.map((identity) => (
                 <tr
                   key={identity.id}
