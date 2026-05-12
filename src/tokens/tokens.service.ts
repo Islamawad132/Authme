@@ -411,4 +411,42 @@ if (!user) {
 
     return resolveUserClaims(user, allowedClaims, customAttrClaims);
   }
+
+  async handleBackchannelLogout(realm: Realm, logoutToken: string) {
+    const signingKey = await this.prisma.realmSigningKey.findFirst({
+      where: { realmId: realm.id, active: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!signingKey) {
+      throw new UnauthorizedException('No signing key');
+    }
+
+    const payload = await this.jwkService.verifyJwt(logoutToken, signingKey.publicKey);
+    const p = payload as Record<string, unknown>;
+
+    const events = p['events'] as Record<string, unknown> | undefined;
+    if (!events || !events['http://schemas.openid.net/event/backchannel-logout']) {
+      throw new BadRequestException('Invalid logout token: missing backchannel-logout event');
+    }
+
+    const sub = p['sub'] as string | undefined;
+    const sid = p['sid'] as string | undefined;
+
+    if (!sub && !sid) {
+      throw new BadRequestException('Invalid logout token: missing sub or sid');
+    }
+
+    if (sid) {
+      await this.endSession(realm, sid, sub, undefined);
+    } else if (sub) {
+      const sessions = await this.prisma.session.findMany({
+        where: { userId: sub },
+        select: { id: true },
+      });
+      await Promise.all(
+        sessions.map((session) => this.endSession(realm, session.id, sub, undefined)),
+      );
+    }
+  }
 }
