@@ -13,6 +13,10 @@ import type { Realm } from '@prisma/client';
 import { RealmGuard } from '../common/guards/realm.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { Public } from '../common/decorators/public.decorator.js';
+import {
+  RateLimitGuard,
+  RateLimitByIp,
+} from '../rate-limit/rate-limit.guard.js';
 import { LoginService } from '../login/login.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
@@ -144,6 +148,8 @@ export class AccountController {
   }
 
   @Post('password')
+  @UseGuards(RateLimitGuard)
+  @RateLimitByIp()
   async changePassword(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
@@ -274,6 +280,8 @@ export class AccountController {
   }
 
   @Post('totp-setup')
+  @UseGuards(RateLimitGuard)
+  @RateLimitByIp()
   async handleTotpSetup(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
@@ -317,6 +325,8 @@ export class AccountController {
   }
 
   @Post('totp-disable')
+  @UseGuards(RateLimitGuard)
+  @RateLimitByIp()
   async handleTotpDisable(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
@@ -416,6 +426,8 @@ export class AccountController {
   }
 
   @Post('delete-account')
+  @UseGuards(RateLimitGuard)
+  @RateLimitByIp()
   async requestDeleteAccount(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
@@ -465,6 +477,8 @@ export class AccountController {
   }
 
   @Post('cancel-delete-account')
+  @UseGuards(RateLimitGuard)
+  @RateLimitByIp()
   async cancelDeleteAccount(
     @CurrentRealm() realm: Realm,
     @Body() body: Record<string, string>,
