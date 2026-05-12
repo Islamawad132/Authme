@@ -161,6 +161,8 @@ export class AuthService {
       const mfaToken = await this.mfaService.createMfaChallenge(
         user.id,
         realm.id,
+        undefined,
+        client_id,
       );
       throw new HttpException(
         {
@@ -258,6 +260,16 @@ export class AuthService {
     if (challenge.realmId !== realm.id) {
       this.logger.warn(
         `MFA cross-realm token use attempt: challenge realm ${challenge.realmId} used against realm ${realm.id}`,
+      );
+      throw new UnauthorizedException(
+        'Invalid or expired MFA token, or too many failed attempts',
+      );
+    }
+
+    // Ensure the challenge was issued for this client (prevents cross-client token reuse)
+    if (challenge.clientId && challenge.clientId !== client_id) {
+      this.logger.warn(
+        `MFA cross-client token use attempt: challenge client ${challenge.clientId} used against client ${client_id}`,
       );
       throw new UnauthorizedException(
         'Invalid or expired MFA token, or too many failed attempts',
