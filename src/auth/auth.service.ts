@@ -133,7 +133,7 @@ export class AuthService {
     const mfaRequired = await this.mfaService.isMfaRequired(realm, user.id);
     const mfaEnabled = await this.mfaService.isMfaEnabled(user.id);
 
-    if (mfaEnabled) {
+    if (mfaRequired && mfaEnabled) {
       const mfaToken = await this.mfaService.createMfaChallenge(user.id, realm.id);
       throw new HttpException(
         {
