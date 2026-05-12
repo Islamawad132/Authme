@@ -83,14 +83,13 @@ export class AuthController {
         req.headers['user-agent'],
       );
     } catch (err) {
-      // RFC 8628 §3.5 requires device-code polling errors to be returned as
-      // { error: '<code>' } at HTTP 400, not as NestJS's default error shape.
       if (err instanceof BadRequestException) {
-        const msg = err.message;
-        if (msg === 'authorization_pending' || msg === 'slow_down') {
-          res.status(400).json({ error: msg });
-          return;
-        }
+        const msg =
+          typeof err.getResponse() === 'string'
+            ? err.getResponse()
+            : (err.getResponse() as { message?: string }).message ?? 'invalid_request';
+        res.status(400).json({ error: msg });
+        return;
       }
       throw err;
     }
