@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getUsers } from '../../api/users';
+import { getErrorMessage } from '../../utils/getErrorMessage';
 
 const PAGE_SIZE = 20;
 
@@ -33,7 +34,7 @@ export default function UserListPage() {
   if (error) {
     return (
       <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
-        Failed to load users.
+        {getErrorMessage(error, 'Failed to load users.')}
       </div>
     );
   }
