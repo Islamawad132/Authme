@@ -497,7 +497,7 @@ export class ContinuousVerificationController {
         osType: body.osType,
         osVersion: body.osVersion,
         osBuild: body.osBuild,
-        securityPatchLevel: body.securityPatchLevel ? new Date(body.securityPatchLevel) : null,
+        securityPatchLevel: body.securityPatchLevel ?? null,
         lastUpdateDate: body.lastUpdateDate ? new Date(body.lastUpdateDate) : null,
         diskEncrypted: body.diskEncrypted,
         encryptionType: body.encryptionType,
@@ -579,22 +579,18 @@ export class ContinuousVerificationController {
 
     // Record each sample
     for (const sample of body.samples) {
-      await this.behavioralBiometrics.recordSample(
-        body.sessionId,
+      await this.behavioralBiometrics.recordSample({
+        sessionId: body.sessionId,
         userId,
-        realm.id,
-        sample.interactionType as 'typing' | 'pointer' | 'scroll' | 'keystroke',
-        {
-          burstLength: sample.burstLength,
-          latency: sample.latency,
-          velocity: sample.velocity,
-          variance: sample.variance,
-          scrollVelocity: sample.scrollVelocity,
-          eventCount: sample.eventCount,
-          hasErrors: sample.hasErrors,
-        },
-        sample.collectedAt ? new Date(sample.collectedAt) : new Date(),
-      );
+        realmId: realm.id,
+        interactionType: sample.interactionType as 'typing' | 'pointer' | 'scroll' | 'keystroke',
+        timestamp: sample.collectedAt ? new Date(sample.collectedAt) : new Date(),
+        duration: sample.latency ?? undefined,
+        burstLength: sample.burstLength ?? undefined,
+        velocity: sample.velocity ?? undefined,
+        acceleration: sample.variance ?? undefined,
+        errorCount: sample.hasErrors ? 1 : undefined,
+      });
     }
 
     return {
@@ -656,13 +652,12 @@ export class ContinuousVerificationController {
     });
 
     // Record via network context service
-    if (body.ipAddress) {
-      await this.networkContextService.captureNetworkContext(
-        body.ipAddress,
-        'SDK_REPORT',
+    if (body.ipAddress && session?.userId) {
+      await this.networkContext.captureNetworkContext(
         body.sessionId,
         realm.id,
-        session?.userId,
+        session.userId,
+        body.ipAddress,
       );
     }
 

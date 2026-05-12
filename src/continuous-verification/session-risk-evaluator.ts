@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, type Realm } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ContinuousRiskAssessmentService } from './continuous-risk.service.js';
 import { DevicePostureService } from './device-posture.service.js';
@@ -78,9 +78,9 @@ export class SessionRiskEvaluator {
 
     // Gather all signal data
     const [devicePosture, networkContext, biometricData, travelCheck] = await Promise.all([
-      this.gatherDevicePostureData(job.sessionId, job.deviceFingerprint),
-      this.gatherNetworkContextData(job.ipAddress),
-      this.gatherBiometricData(job.sessionId, job.userId),
+      this.gatherDevicePostureData(job.sessionId, job.realmId, job.userId, job.deviceFingerprint ?? null),
+      this.gatherNetworkContextData(job.sessionId, job.realmId, job.userId, job.ipAddress),
+      this.gatherBiometricData(job.sessionId, job.userId, job.realmId),
       this.performImpossibleTravelCheck(job.userId, job.ipAddress, now),
     ]);
 
@@ -295,6 +295,8 @@ export class SessionRiskEvaluator {
 
   private async gatherDevicePostureData(
     sessionId: string,
+    realmId: string,
+    userId: string,
     deviceFingerprint: string | null,
   ) {
     const latestRecord = await this.prisma.devicePostureRecord.findFirst({
@@ -303,7 +305,7 @@ export class SessionRiskEvaluator {
     });
 
     const isTrusted = deviceFingerprint
-      ? await this.devicePostureService.isDeviceTrusted(deviceFingerprint)
+      ? await this.devicePostureService.isDeviceTrusted(realmId, userId, deviceFingerprint)
       : false;
 
     return {
@@ -315,7 +317,12 @@ export class SessionRiskEvaluator {
     };
   }
 
-  private async gatherNetworkContextData(ipAddress: string | null | undefined) {
+  private async gatherNetworkContextData(
+    sessionId: string,
+    realmId: string,
+    userId: string,
+    ipAddress: string | null | undefined,
+  ) {
     if (!ipAddress) {
       return {
         isRisky: false,
@@ -324,16 +331,18 @@ export class SessionRiskEvaluator {
     }
 
     const context = await this.networkContextService.captureNetworkContext(
+      sessionId,
+      realmId,
+      userId,
       ipAddress,
-      'EVALUATION',
     );
 
     const isRisky =
-      context.vpnDetected ||
-      context.proxyDetected ||
-      context.torExitNode ||
-      context.asnReputation === 'BLOCKED' ||
-      context.asnReputation === 'SUSPICIOUS';
+      context.isVpn ||
+      context.isProxy ||
+      context.isTor ||
+      context.ipReputation === 'BAD' ||
+      context.ipReputation === 'SUSPICIOUS';
 
     return {
       isRisky,
@@ -341,13 +350,13 @@ export class SessionRiskEvaluator {
     };
   }
 
-  private async gatherBiometricData(sessionId: string, userId: string) {
-    const summary = await this.biometricsService.getBehavioralSummary(sessionId);
+  private async gatherBiometricData(sessionId: string, userId: string, realmId: string) {
+    const summary = await this.biometricsService.getBehavioralSummary(sessionId, userId, realmId);
 
-    const isAnomalous =
-      summary.currentProfile.sampleCount >= 5 &&
-      summary.riskEvaluation.triggered &&
-      summary.riskEvaluation.score >= 30;
+    const isAnomalous = summary !== null &&
+      summary.sampleCount >= 5 &&
+      summary.riskSignal.triggered &&
+      summary.riskSignal.score >= 30;
 
     return {
       isAnomalous,
@@ -506,7 +515,7 @@ export class SessionRiskEvaluator {
     signals: ContinuousRiskSignal[],
     riskScore: number,
   ) {
-    const policies = await this.policyService.findAllPolicies(realmId, clientId ?? undefined);
+    const policies = await this.policyService.findAllPolicies({ id: realmId } as Realm);
 
     let scoreContribution = 0;
     const triggeredPolicies: string[] = [];

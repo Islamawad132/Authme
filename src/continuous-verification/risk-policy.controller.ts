@@ -14,7 +14,7 @@ import {
 import { ApiTags, ApiOperation, ApiSecurity, ApiResponse } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { RiskPolicyService } from './risk-policy.service.js';
-import {
+import type {
   CreateContinuousRiskPolicyDto,
   UpdateContinuousRiskPolicyDto,
 } from './risk-policy.service.js';

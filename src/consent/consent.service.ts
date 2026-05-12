@@ -135,7 +135,7 @@ export class ConsentService {
           userAgent: context?.userAgent ?? null,
           metadata: context?.metadata
             ? (context.metadata as unknown as Prisma.InputJsonValue)
-            : null,
+            : Prisma.JsonNull,
         },
       });
     } catch (err) {

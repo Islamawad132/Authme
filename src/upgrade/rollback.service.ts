@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { DatabaseBackupService } from './database-backup.service';
 
 export interface RollbackResult {
@@ -88,7 +88,7 @@ export class RollbackService {
           fromVersion: lastSuccessful.fromVersion,
           toVersion: lastSuccessful.toVersion,
           backupId: lastSuccessful.backupId ?? undefined,
-          completedAt: lastSuccessful.completedAt,
+          completedAt: lastSuccessful.completedAt!,
         },
       };
     } catch (err) {
@@ -239,17 +239,20 @@ export class RollbackService {
         take: limit,
       });
 
-      return entries.map((entry) => ({
-        id: entry.id,
-        fromVersion: entry.fromVersion,
-        toVersion: entry.toVersion,
-        status: entry.status,
-        startedAt: entry.startedAt,
-        completedAt: entry.completedAt,
-        backupId: entry.backupId,
-        errorMessage: entry.errorMessage,
-        checksPassed: entry.checksPassed as Record<string, unknown> | null,
-      }));
+      return entries.map((entry) => {
+        const details = (entry.details ?? {}) as Record<string, unknown>;
+        return {
+          id: entry.id,
+          fromVersion: entry.fromVersion,
+          toVersion: entry.toVersion,
+          status: entry.status,
+          startedAt: entry.startedAt,
+          completedAt: entry.completedAt,
+          backupId: entry.backupId,
+          errorMessage: (details.errorMessage as string | null) ?? null,
+          checksPassed: (details.checksPassed as Record<string, unknown> | null) ?? null,
+        };
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       this.logger.error(`Failed to retrieve upgrade history: ${errorMessage}`);
@@ -274,6 +277,7 @@ export class RollbackService {
         return null;
       }
 
+      const details = (entry.details ?? {}) as Record<string, unknown>;
       return {
         id: entry.id,
         fromVersion: entry.fromVersion,
@@ -282,8 +286,8 @@ export class RollbackService {
         startedAt: entry.startedAt,
         completedAt: entry.completedAt,
         backupId: entry.backupId,
-        errorMessage: entry.errorMessage,
-        checksPassed: entry.checksPassed as Record<string, unknown> | null,
+        errorMessage: (details.errorMessage as string | null) ?? null,
+        checksPassed: (details.checksPassed as Record<string, unknown> | null) ?? null,
       };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -323,8 +327,11 @@ export class RollbackService {
         completedAt: now,
         initiatedBy: 'ROLLBACK_SERVICE',
         backupId: backupPath ?? null,
-        rollbackFromVersion: originalUpgrade.toVersion,
-        errorMessage: error ?? null,
+        rollbackTriggered: true,
+        details: {
+          rollbackFromVersion: originalUpgrade.toVersion,
+          errorMessage: error ?? null,
+        } as Prisma.InputJsonValue,
       },
     });
   }

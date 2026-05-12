@@ -1,7 +1,8 @@
-import { Injectable, type OnModuleInit, Logger } from '@nestjs/common';
-import type { Realm } from '@prisma/client';
+import { Injectable, NotFoundException, type OnModuleInit, Logger } from '@nestjs/common';
+import type { Prisma, Realm } from '@prisma/client';
 import { join } from 'path';
 import { readdir, readFile } from 'fs/promises';
+import { PrismaService } from '../prisma/prisma.service.js';
 import type {
   ThemeColors,
   ThemeDefinition,
@@ -23,6 +24,8 @@ export class ThemeService implements OnModuleInit {
   private readonly logger = new Logger(ThemeService.name);
   private themes = new Map<string, ThemeDefinition>();
   private readonly themesDir = join(process.cwd(), 'themes');
+
+  constructor(private readonly prisma: PrismaService) {}
 
   private readonly defaultColors: ThemeColors = {
     primaryColor: '#2563eb',
@@ -189,5 +192,103 @@ export class ThemeService implements OnModuleInit {
       default:
         return realm.themeName ?? 'authme';
     }
+  }
+
+  // ── DB-backed theme CRUD ───────────────────────────────────────────────────
+
+  async createTheme(
+    realmId: string,
+    dto: { name: string; displayName?: string; description?: string; themeType?: string;
+           styles?: Record<string, unknown>; components?: unknown[]; assets?: Record<string, unknown>;
+           settings?: Record<string, unknown> },
+  ) {
+    return this.prisma.theme.create({
+      data: {
+        realmId,
+        name: dto.name,
+        displayName: dto.displayName,
+        description: dto.description,
+        themeType: dto.themeType ?? 'login',
+        styles: (dto.styles ?? {}) as Prisma.InputJsonValue,
+        components: (dto.components ?? []) as unknown as Prisma.InputJsonValue,
+        assets: (dto.assets ?? {}) as Prisma.InputJsonValue,
+        settings: (dto.settings ?? {}) as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  async findAllByRealm(realmId: string) {
+    return this.prisma.theme.findMany({
+      where: { realmId },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  async findById(themeId: string) {
+    return this.prisma.theme.findUnique({ where: { id: themeId } });
+  }
+
+  async updateTheme(
+    themeId: string,
+    dto: { displayName?: string; description?: string; themeType?: string;
+           styles?: Record<string, unknown>; components?: unknown[]; assets?: Record<string, unknown>;
+           settings?: Record<string, unknown> },
+  ) {
+    const theme = await this.prisma.theme.findUnique({ where: { id: themeId } });
+    if (!theme) {
+      throw new NotFoundException(`Theme with ID '${themeId}' not found`);
+    }
+    const data: Prisma.ThemeUpdateInput = {
+      version: theme.version + 1,
+    };
+    if (dto.displayName !== undefined) data.displayName = dto.displayName;
+    if (dto.description !== undefined) data.description = dto.description;
+    if (dto.themeType !== undefined) data.themeType = dto.themeType;
+    if (dto.styles !== undefined) data.styles = dto.styles as Prisma.InputJsonValue;
+    if (dto.components !== undefined) data.components = dto.components as unknown as Prisma.InputJsonValue;
+    if (dto.assets !== undefined) data.assets = dto.assets as Prisma.InputJsonValue;
+    if (dto.settings !== undefined) data.settings = dto.settings as Prisma.InputJsonValue;
+    return this.prisma.theme.update({ where: { id: themeId }, data });
+  }
+
+  async deleteTheme(themeId: string) {
+    return this.prisma.theme.delete({ where: { id: themeId } });
+  }
+
+  async publishTheme(themeId: string) {
+    return this.prisma.theme.update({
+      where: { id: themeId },
+      data: { published: true, publishedAt: new Date() },
+    });
+  }
+
+  async getVersionHistory(themeId: string) {
+    return this.prisma.themeVersion.findMany({
+      where: { themeId },
+      orderBy: { version: 'desc' },
+    });
+  }
+
+  async restoreVersion(themeId: string, version: number) {
+    const themeVersion = await this.prisma.themeVersion.findUnique({
+      where: { themeId_version: { themeId, version } },
+    });
+    if (!themeVersion) {
+      throw new NotFoundException(`Version ${version} not found for theme '${themeId}'`);
+    }
+    const currentTheme = await this.prisma.theme.findUnique({ where: { id: themeId } });
+    if (!currentTheme) {
+      throw new NotFoundException(`Theme with ID '${themeId}' not found`);
+    }
+    return this.prisma.theme.update({
+      where: { id: themeId },
+      data: {
+        styles: themeVersion.styles as Prisma.InputJsonValue,
+        components: themeVersion.components as unknown as Prisma.InputJsonValue,
+        assets: themeVersion.assets as Prisma.InputJsonValue,
+        settings: themeVersion.settings as Prisma.InputJsonValue,
+        version: currentTheme.version + 1,
+      },
+    });
   }
 }

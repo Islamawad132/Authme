@@ -107,7 +107,7 @@ export class SessionTerminationService {
             user: {
               select: {
                 username: true,
-                email: true | null,
+                email: true,
               },
             },
           },

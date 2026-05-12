@@ -783,6 +783,7 @@ export class SmsOtpService {
       sent: logs.filter(l => l.status === 'SENT').length,
       delivered: logs.filter(l => l.status === 'DELIVERED').length,
       failed: logs.filter(l => l.status === 'FAILED').length,
+      successRate: 0,
     };
 
     // Calculate success rate (SENT + DELIVERED / total)

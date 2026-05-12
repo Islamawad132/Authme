@@ -4,6 +4,7 @@ import { evaluateNetworkContext } from './continuous-risk-signals.js';
 import type { NetworkContextData, ContinuousRiskSignal } from './continuous-risk-signals.js';
 
 export interface NetworkContextRecord {
+  id: string;
   ipAddress: string;
   geoCountry: string | null;
   geoCity: string | null;
@@ -100,8 +101,9 @@ export class NetworkContextService {
 
     // Check for geolocation change against most recent previous record
     const previousRecord = await this.getLastNetworkContext(sessionId);
-    if (previousRecord && previousRecord.id !== record.id) {
-      const changed = this.detectGeoChange(record, previousRecord);
+    const mappedRecord = this.mapPrismaRecord(record);
+    if (previousRecord && previousRecord.id !== mappedRecord.id) {
+      const changed = this.detectGeoChange(mappedRecord, previousRecord);
       if (changed) {
         await this.prisma.networkContextRecord.update({
           where: { id: record.id },
@@ -120,13 +122,62 @@ export class NetworkContextService {
           },
         });
         // Re-fetch to return updated record
-        return (await this.prisma.networkContextRecord.findUniqueOrThrow({
+        const updated = await this.prisma.networkContextRecord.findUniqueOrThrow({
           where: { id: record.id },
-        })) as unknown as NetworkContextRecord;
+        });
+        return this.mapPrismaRecord(updated);
       }
     }
 
-    return record as unknown as NetworkContextRecord;
+    return mappedRecord;
+  }
+
+  /**
+   * Maps a Prisma NetworkContextRecord model to the public NetworkContextRecord interface,
+   * renaming `ipReputationScore` to `ipReputation`.
+   */
+  private mapPrismaRecord(record: {
+    id: string;
+    ipAddress: string;
+    geoCountry: string | null;
+    geoCity: string | null;
+    geoLatitude: number | null;
+    geoLongitude: number | null;
+    asn: string | null;
+    isp: string | null;
+    networkType: string | null;
+    ispCategory: string | null;
+    isVpn: boolean;
+    isProxy: boolean;
+    isTor: boolean;
+    connectionType: string | null;
+    ipReputationScore: string;
+    geoVelocity: string | null;
+    isDatacenter: boolean;
+    geoChanged: boolean;
+    capturedAt: Date;
+  }): NetworkContextRecord {
+    return {
+      id: record.id,
+      ipAddress: record.ipAddress,
+      geoCountry: record.geoCountry,
+      geoCity: record.geoCity,
+      geoLatitude: record.geoLatitude,
+      geoLongitude: record.geoLongitude,
+      asn: record.asn,
+      isp: record.isp,
+      networkType: record.networkType,
+      ispCategory: record.ispCategory,
+      isVpn: record.isVpn,
+      isProxy: record.isProxy,
+      isTor: record.isTor,
+      connectionType: record.connectionType,
+      ipReputation: record.ipReputationScore,
+      geoVelocity: record.geoVelocity,
+      isDatacenter: record.isDatacenter,
+      geoChanged: record.geoChanged,
+      capturedAt: record.capturedAt,
+    };
   }
 
   /**

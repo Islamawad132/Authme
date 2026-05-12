@@ -70,19 +70,12 @@ export class BehavioralBiometricsService {
     await this.prisma.behavioralSample.create({
       data: {
         sessionId: input.sessionId,
-        realmId: input.realmId,
         userId: input.userId,
         interactionType: input.interactionType,
         collectedAt: input.timestamp,
-        duration: input.duration ?? null,
         burstLength: input.burstLength ?? null,
         velocity: input.velocity ?? null,
         acceleration: input.acceleration ?? null,
-        idleTime: input.idleTime ?? null,
-        errorCount: input.errorCount ?? null,
-        accuracy: input.accuracy ?? null,
-        cursorPositionDelta: input.cursorPositionDelta ?? null,
-        scrollAmount: input.scrollAmount ?? null,
       },
     });
 
@@ -100,19 +93,12 @@ export class BehavioralBiometricsService {
     const created = await this.prisma.behavioralSample.createMany({
       data: inputs.map((input) => ({
         sessionId: input.sessionId,
-        realmId: input.realmId,
         userId: input.userId,
         interactionType: input.interactionType,
         collectedAt: input.timestamp,
-        duration: input.duration ?? undefined,
         burstLength: input.burstLength ?? undefined,
         velocity: input.velocity ?? undefined,
         acceleration: input.acceleration ?? undefined,
-        idleTime: input.idleTime ?? undefined,
-        errorCount: input.errorCount ?? undefined,
-        accuracy: input.accuracy ?? undefined,
-        cursorPositionDelta: input.cursorPositionDelta ?? undefined,
-        scrollAmount: input.scrollAmount ?? undefined,
       })),
     });
 
@@ -304,9 +290,7 @@ export class BehavioralBiometricsService {
       sessionId: string;
       interactionType: string;
       collectedAt: Date;
-      duration: number | null;
       velocity: number | null;
-      accuracy: number | null;
     }[];
     total: number;
   }> {
@@ -321,9 +305,7 @@ export class BehavioralBiometricsService {
         sessionId: true,
         interactionType: true,
         collectedAt: true,
-        duration: true,
         velocity: true,
-        accuracy: true,
       },
     });
 
@@ -368,6 +350,7 @@ export class BehavioralBiometricsService {
     idleTime?: number | null;
     errorCount?: number | null;
     accuracy?: number | null;
+    collectedAt: Date;
   }[]): BehavioralBiometricData {
     if (samples.length === 0) {
       return {

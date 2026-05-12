@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { execSync } from 'child_process';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { PreUpgradeValidatorService } from './pre-upgrade-validator.service.js';
 import { DatabaseBackupService, BackupResult } from './database-backup.service.js';
 import { ConfigCompatibilityService } from './config-compatibility.service.js';
@@ -439,10 +439,11 @@ export class UpgradeService {
           status: 'IN_PROGRESS',
           startedAt: new Date(),
           initiatedBy,
-          metadata: {
+          dryRun,
+          details: {
             dryRun,
             initiatedBy,
-          },
+          } as Prisma.InputJsonValue,
         },
       });
 
@@ -590,8 +591,10 @@ export class UpgradeService {
         data: {
           status: 'COMPLETED',
           completedAt: new Date(),
-          stepsCompleted: stageNames,
           backupId,
+          details: {
+            stepsCompleted: stageNames,
+          } as Prisma.InputJsonValue,
         },
       });
 
@@ -668,9 +671,11 @@ export class UpgradeService {
         data: {
           status: 'FAILED',
           completedAt: new Date(),
-          errorMessage: reason,
-          stepsCompleted: completedStages,
-          stepsFailed: failedStages,
+          details: {
+            errorMessage: reason,
+            stepsCompleted: completedStages,
+            stepsFailed: failedStages,
+          } as Prisma.InputJsonValue,
         },
       });
     } catch (err) {

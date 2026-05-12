@@ -314,6 +314,7 @@ export class AccountDeletionService {
       where: {
         user: { realmId },
       },
+      _count: { _all: true },
     });
 
     const stats = {
@@ -326,8 +327,9 @@ export class AccountDeletionService {
 
     for (const count of counts) {
       if (count.status in stats) {
-        (stats as Record<string, number>)[count.status] = count.count;
-        stats.total += count.count;
+        const c = count._count._all;
+        (stats as Record<string, number>)[count.status] = c;
+        stats.total += c;
       }
     }
 

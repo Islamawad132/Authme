@@ -121,15 +121,24 @@ export class RegistrationService {
       },
     });
 
-    // Store custom attributes if provided
+    // Store custom attributes if provided (resolve attribute name → CustomAttribute.id)
     if (dto.attributes && Object.keys(dto.attributes).length > 0) {
-      await this.prisma.userAttribute.createMany({
-        data: Object.entries(dto.attributes).map(([name, value]) => ({
-          userId: user.id,
-          name,
-          value,
-        })),
+      const attributeNames = Object.keys(dto.attributes);
+      const customAttributes = await this.prisma.customAttribute.findMany({
+        where: { realmId: realm.id, name: { in: attributeNames } },
+        select: { id: true, name: true },
       });
+      const attributeIdByName = new Map(customAttributes.map((a) => [a.name, a.id]));
+      const rows = Object.entries(dto.attributes)
+        .map(([name, value]) => {
+          const attributeId = attributeIdByName.get(name);
+          if (!attributeId) return null;
+          return { userId: user.id, attributeId, value };
+        })
+        .filter((r): r is { userId: string; attributeId: string; value: string } => r !== null);
+      if (rows.length > 0) {
+        await this.prisma.userAttribute.createMany({ data: rows });
+      }
     }
 
     // Record password history
@@ -339,11 +348,12 @@ export class RegistrationService {
       users.map(async (user) => {
         const attributes = await this.prisma.userAttribute.findMany({
           where: { userId: user.id },
+          include: { attribute: { select: { name: true } } },
         });
         return {
           ...user,
           attributes: attributes.reduce((acc, attr) => {
-            acc[attr.name] = attr.value;
+            acc[attr.attribute.name] = attr.value;
             return acc;
           }, {} as Record<string, string>),
         };

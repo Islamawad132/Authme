@@ -405,12 +405,12 @@ export class DevicePostureService {
       osBuild: record.osBuild ?? null,
       patchLevel: record.securityPatchLevel ?? null,
       encryptedDisk: record.diskEncrypted ?? false,
-      screenLockEnabled: record.screenLockEnabled,
+      screenLockEnabled: record.screenLockEnabled ?? false,
       antivirusActive: record.antivirusEnabled ?? false,
       firewallActive: record.firewallEnabled ?? false,
-      jailbreakRoot: record.jailbroken,
+      jailbreakRoot: record.jailbroken ?? false,
       customFirmware: false,
-      MDMEnrolled: record.managedDevice,
+      MDMEnrolled: record.managedDevice ?? false,
       lastSecurityScan: patchDate ?? null,
       complianceStatus:
         (record.complianceStatus as 'COMPLIANT' | 'NON_COMPLIANT' | 'UNKNOWN') ??

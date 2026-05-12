@@ -1,7 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { join } from 'path';
-import { mkdir, writeFile, unlink } from 'fs/promises';
-import { exists } from 'fs';
+import { mkdir, writeFile, unlink, access } from 'fs/promises';
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -42,7 +50,7 @@ export class ThemeUploadService {
    */
   private async ensureUploadDir(realmId: string): Promise<string> {
     const dir = join(this.uploadsDir, realmId);
-    if (!(await exists(dir))) {
+    if (!(await pathExists(dir))) {
       await mkdir(dir, { recursive: true });
     }
     return dir;
@@ -175,7 +183,7 @@ export class ThemeUploadService {
     const filePath = join(this.uploadsDir, realm.id, filename);
 
     try {
-      if (await exists(filePath)) {
+      if (await pathExists(filePath)) {
         await unlink(filePath);
         this.logger.log(`Asset deleted: ${filename} for realm ${realmName}`);
         return true;
@@ -216,6 +224,6 @@ export class ThemeUploadService {
     }
 
     const filePath = join(this.uploadsDir, realm.id, filename);
-    return exists(filePath);
+    return pathExists(filePath);
   }
 }

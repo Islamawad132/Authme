@@ -204,25 +204,21 @@ export class ConfigCompatibilityService {
     try {
       // Check realm configuration for removed feature references
       const realms = await this.prisma.realm.findMany({
-        where: {
-          attributes: {
-            not: null,
-          },
-        },
         select: {
           id: true,
           name: true,
-          attributes: true,
+          theme: true,
         },
       });
 
       for (const realm of realms) {
-        if (realm.attributes) {
+        if (realm.theme) {
+          const themeBlob = JSON.stringify(realm.theme);
           for (const feature of schema.removedFeatures) {
-            if (realm.attributes.includes(feature)) {
+            if (themeBlob.includes(feature)) {
               issues.push({
                 type: 'error',
-                path: `realm.${realm.name}.attributes`,
+                path: `realm.${realm.name}.theme`,
                 message: `Configuration references removed feature: ${feature}`,
                 currentValue: feature,
               });

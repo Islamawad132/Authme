@@ -1,13 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as twilio from 'twilio';
-import type { Client } from 'twilio';
+import twilio from 'twilio';
 import { SmsProvider } from './sms-provider.interface.js';
+
+type TwilioClient = ReturnType<typeof twilio>;
 
 @Injectable()
 export class TwilioSmsProvider implements SmsProvider {
   readonly name = 'twilio';
   private readonly logger = new Logger(TwilioSmsProvider.name);
-  private client: Client | null = null;
+  private client: TwilioClient | null = null;
   private fromNumber: string | null = null;
 
   constructor() {

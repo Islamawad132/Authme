@@ -31,7 +31,7 @@ export class AwsSnsProvider implements SmsProvider {
     }
   }
 
-  private getSigningKey(date: string, region: string, service: string): string {
+  private getSigningKey(date: string, region: string, service: string): Buffer {
     const kDate = this.hmacSha256('AWS4' + this.secretAccessKey!, date, 'utf8');
     const kRegion = this.hmacSha256(kDate, region, 'utf8');
     const kService = this.hmacSha256(kRegion, service, 'utf8');
@@ -39,7 +39,7 @@ export class AwsSnsProvider implements SmsProvider {
     return kSigning;
   }
 
-  private hmacSha256(key: string, data: string, encoding: 'utf8' | 'hex'): Buffer {
+  private hmacSha256(key: string | Buffer, data: string, encoding: 'utf8' | 'hex'): Buffer {
     const crypto = require('crypto') as typeof import('crypto');
     return crypto.createHmac('sha256', key).update(data, encoding).digest();
   }

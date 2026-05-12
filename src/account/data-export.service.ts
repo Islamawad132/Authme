@@ -113,7 +113,7 @@ export class DataExportService {
         consents: { include: { client: true } },
         federatedIdentities: { include: { identityProvider: true } },
         sessions: true,
-        userAttributes: { include: { attribute: true } },
+        attributes: { include: { attribute: true } },
         userCredentials: true,
         recoveryCodes: { where: { used: false } },
         webAuthnCredentials: true,
@@ -206,7 +206,7 @@ export class DataExportService {
         error: e.error,
         timestamp: e.createdAt.toISOString(),
       })),
-      customAttributes: user.userAttributes.map(ua => ({
+      customAttributes: user.attributes.map(ua => ({
         name: ua.attribute.name,
         displayName: ua.attribute.displayName,
         value: ua.value,
