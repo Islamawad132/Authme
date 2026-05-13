@@ -1748,6 +1748,11 @@ model NhiUsageStats {
   lastActiveAt  DateTime? @map("last_active_at")
   successCount  Int       @default(0) @map("success_count")
   errorCount    Int       @default(0) @map("error_count")
+  lastSuccessfulAt DateTime? @map("last_successful_at")
+  lastFailedAt      DateTime? @map("last_failed_at")
+  oldestCredentialAgeDays Int? @map("oldest_credential_age_days")
+  newestCredentialAgeDays Int? @map("newest_credential_age_days")
+  credentialsExpiringSoon Int @default(0) @map("credentials_expiring_soon")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
