@@ -74,6 +74,7 @@ export class ThemeEmailService {
 
   private helpersRegistered = false;
 
+  /* eslint-disable @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access -- Handlebars helper types are inherently any */
   private registerHelpers(): void {
     if (this.helpersRegistered) return;
     Handlebars.registerHelper('msg', function (key: string, options: any) {
@@ -96,4 +97,5 @@ export class ThemeEmailService {
     );
     this.helpersRegistered = true;
   }
+  /* eslint-enable @typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-unsafe-member-access */
 }

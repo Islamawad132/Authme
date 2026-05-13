@@ -79,7 +79,7 @@ export class ThemePreviewService {
 
   private buildCssVars(params: {
     colors: Record<string, string>;
-    typography: Record<string, unknown>;
+    typography: Record<string, string>;
     spacing: Record<string, string>;
     borders: Record<string, string>;
     shadows: Record<string, string>;

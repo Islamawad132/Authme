@@ -82,9 +82,10 @@ export class BackchannelLogoutService {
             `Backchannel logout to ${client.clientId} returned ${response.status}`,
           );
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         this.logger.warn(
-          `Backchannel logout to ${client.clientId} failed: ${err.message}`,
+          `Backchannel logout to ${client.clientId} failed: ${message}`,
         );
       }
     });

@@ -12,7 +12,7 @@ export class ThemeMessageService implements OnModuleInit {
 
   constructor(private readonly themeService: ThemeService) {}
 
-  async onModuleInit() {
+  onModuleInit() {
     // Pre-load messages for all known themes on startup
     const themes = this.themeService.getAvailableThemes();
     const types: ThemeType[] = ['login', 'account', 'email'];
