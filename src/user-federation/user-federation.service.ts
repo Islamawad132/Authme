@@ -213,6 +213,7 @@ export class UserFederationService {
     return { authenticated: false };
   }
 
+  /* eslint-disable @typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment -- LDAP federation config from DB */
   private createLdapClient(federation: any): LdapClientWrapper {
     return new LdapClientWrapper(
       {
