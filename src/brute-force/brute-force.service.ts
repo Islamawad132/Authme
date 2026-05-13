@@ -5,6 +5,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EmailService } from '../email/email.service.js';
 import type { Realm, User } from '@prisma/client';
@@ -44,48 +45,53 @@ export class BruteForceService {
     const lockoutDuration = realm.lockoutDuration;
     const permanentLockoutAfter = realm.permanentLockoutAfter;
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.loginFailure.create({
-        data: { realmId: realm.id, userId, ipAddress: ipAddress ?? null },
-      });
-
-      const windowStart = new Date(Date.now() - resetTime * 1000);
-      const failureCount = await tx.loginFailure.count({
-        where: {
-          realmId: realm.id,
-          userId,
-          failedAt: { gte: windowStart },
-        },
-      });
-
-      if (failureCount < maxFailures) return;
-
-      if (permanentLockoutAfter > 0) {
-        const totalFailures = await tx.loginFailure.count({
-          where: { realmId: realm.id, userId },
+    await this.prisma.$transaction(
+      async (tx) => {
+        await tx.loginFailure.create({
+          data: { realmId: realm.id, userId, ipAddress: ipAddress ?? null },
         });
-        const lockoutCount = Math.floor(totalFailures / maxFailures);
 
-        if (lockoutCount >= permanentLockoutAfter) {
-          await tx.user.update({
-            where: { id: userId },
-            data: { lockedUntil: new Date('2099-12-31T23:59:59Z') },
+        const windowStart = new Date(Date.now() - resetTime * 1000);
+        const failureCount = await tx.loginFailure.count({
+          where: {
+            realmId: realm.id,
+            userId,
+            failedAt: { gte: windowStart },
+          },
+        });
+
+        if (failureCount < maxFailures) return;
+
+        if (permanentLockoutAfter > 0) {
+          const totalFailures = await tx.loginFailure.count({
+            where: { realmId: realm.id, userId },
           });
-          this.logger.warn(
-            `User ${userId} in realm ${realm.id} permanently locked after ${lockoutCount} lockout cycles`,
-          );
-          await this.sendLockoutNotification(realm, userId, true);
-          return;
-        }
-      }
+          const lockoutCount = Math.floor(totalFailures / maxFailures);
 
-      const lockedUntil = new Date(Date.now() + lockoutDuration * 1000);
-      await tx.user.update({
-        where: { id: userId },
-        data: { lockedUntil },
-      });
-      await this.sendLockoutNotification(realm, userId, false);
-    });
+          if (lockoutCount >= permanentLockoutAfter) {
+            await tx.user.update({
+              where: { id: userId },
+              data: { lockedUntil: new Date('2099-12-31T23:59:59Z') },
+            });
+            this.logger.warn(
+              `User ${userId} in realm ${realm.id} permanently locked after ${lockoutCount} lockout cycles`,
+            );
+            await this.sendLockoutNotification(realm, userId, true);
+            return;
+          }
+        }
+
+        const lockedUntil = new Date(Date.now() + lockoutDuration * 1000);
+        await tx.user.update({
+          where: { id: userId },
+          data: { lockedUntil },
+        });
+        await this.sendLockoutNotification(realm, userId, false);
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
+    );
   }
 
   async resetFailures(realmId: string, userId: string): Promise<void> {
