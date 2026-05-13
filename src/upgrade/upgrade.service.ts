@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { execSync } from 'child_process';
-import { PrismaClient, Prisma } from '@prisma/client';
 import { PreUpgradeValidatorService } from './pre-upgrade-validator.service.js';
 import {
   DatabaseBackupService,
@@ -310,7 +309,9 @@ export class UpgradeService {
     // Stage 7: Completion
     const completionResult = await this.executeStage(
       UpgradeStage.COMPLETION,
-      () => this.completeUpgrade(upgradeId, toVersion, stages, initiatedBy),
+      async () => {
+        return this.completeUpgrade(upgradeId, toVersion, stages, initiatedBy);
+      },
     );
     stages.push(completionResult);
 
@@ -555,7 +556,7 @@ export class UpgradeService {
   /**
    * Run Prisma database migrations.
    */
-  private async runDatabaseMigration(
+  private runDatabaseMigration(
     toVersion: string,
   ): Promise<{ success: boolean; message: string; details?: string }> {
     try {
@@ -621,12 +622,12 @@ export class UpgradeService {
     stages: UpgradeStageResult[],
     initiatedBy: string,
   ): Promise<{ success: boolean; message: string }> {
+    void initiatedBy;
     try {
       const stageNames = stages.filter((s) => s.success).map((s) => s.stage);
       const backupStage = stages.find(
         (s) => s.stage === UpgradeStage.BACKUP && s.success,
       );
-      // backupStage.message contains "Backup created: {backupPath}" - extract the path
       const backupIdMatch = backupStage?.message?.match(/Backup created: (.+)/);
       const backupId = backupIdMatch ? backupIdMatch[1] : null;
 
@@ -636,6 +637,7 @@ export class UpgradeService {
           status: 'COMPLETED',
           completedAt: new Date(),
           backupId,
+
           details: {
             stepsCompleted: stageNames,
           },
@@ -655,14 +657,13 @@ export class UpgradeService {
     }
   }
 
-  /**
-   * Attempt to rollback the upgrade using the backup.
-   */
   private async attemptRollback(
     upgradeId: string,
     toVersion: string,
     backupResult: BackupResult,
   ): Promise<UpgradeStageResult> {
+    void toVersion;
+    void backupResult;
     const stageStartTime = Date.now();
 
     try {
@@ -756,7 +757,7 @@ export class UpgradeService {
   /**
    * Get the current AuthMe version.
    */
-  async getCurrentVersion(): Promise<string> {
+  getCurrentVersion(): Promise<string> {
     try {
       // Try to read version from package.json
       const output = execSync(
