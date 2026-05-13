@@ -21,7 +21,7 @@ export class WizardRequiredGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const response = context.switchToHttp().getResponse<Response>();
+    const _response = context.switchToHttp().getResponse<Response>();
 
     // Allow access to wizard endpoints
     if (request.path.startsWith('/setup-wizard')) {

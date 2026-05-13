@@ -8,7 +8,7 @@
  */
 
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import type { ParsedScimFilter } from './types/scim.types.js';
+import type { ParsedScimFilter as _ParsedScimFilter } from './types/scim.types.js';
 
 export interface FilterParseResult {
   attribute: string;

@@ -3,7 +3,7 @@ import {
   IsEmail,
   IsOptional,
   MinLength,
-  Matches,
+  Matches as _Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 

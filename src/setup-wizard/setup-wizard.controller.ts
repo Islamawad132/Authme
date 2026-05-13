@@ -6,7 +6,6 @@ import {
   BadRequestException,
   HttpCode,
   HttpStatus,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,

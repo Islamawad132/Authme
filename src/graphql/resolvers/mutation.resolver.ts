@@ -1,4 +1,4 @@
-import { Resolver, Mutation, Args, Int } from '@nestjs/graphql';
+import { Resolver, Mutation, Args } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { User } from '../types/user.type.js';
 import { Client } from '../types/client.type.js';
