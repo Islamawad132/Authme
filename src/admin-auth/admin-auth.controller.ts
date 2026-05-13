@@ -19,7 +19,7 @@ import {
 import type { Request, Response } from 'express';
 import { Public } from '../common/decorators/public.decorator.js';
 import { AdminAuthService } from './admin-auth.service.js';
-import { RateLimitGuard, RateLimitByIp } from '../rate-limit/rate-limit.guard.js';
+import { RateLimitGuard } from '../rate-limit/rate-limit.guard.js';
 import { resolveClientIp } from '../common/utils/proxy-ip.util.js';
 import { AdminLoginDto } from './dto/login.dto.js';
 
@@ -64,7 +64,7 @@ export class AdminAuthController {
   async logout(@Req() req: Request) {
     const authHeader = req.headers['authorization'];
     if (authHeader?.startsWith('Bearer ')) {
-      this.adminAuthService.revokeToken(authHeader.slice(7));
+      await this.adminAuthService.revokeToken(authHeader.slice(7));
     }
     return { message: 'Logged out' };
   }
