@@ -125,7 +125,8 @@ export class UsersService {
     // Send verification email if user has email and SMTP is configured
     if (user.email) {
       this.sendVerificationEmail(realm, user.id, user.email).catch((err) => {
-        this.logger.warn(`Failed to send verification email: ${err.message}`);
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`Failed to send verification email: ${message}`);
       });
     }
 
