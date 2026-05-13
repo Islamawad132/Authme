@@ -151,7 +151,7 @@ describe('LivePreview', () => {
       />,
     );
     const iframe = screen.getByTitle('Theme Preview') as HTMLIFrameElement;
-    expect(iframe.sandbox).toBe('allow-scripts');
+    expect(iframe.getAttribute('sandbox')).toBe('allow-scripts');
   });
 
   it('displays preview label', () => {

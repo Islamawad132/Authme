@@ -234,7 +234,6 @@ describe('ThemeCanvas', () => {
     const buttonNode = screen.getByTestId('theme-canvas-component-button-1');
     const inputNode = screen.getByTestId('theme-canvas-component-input-1');
 
-    // Simulate dragging button-1 to the position of input-1
     fireEvent.dragStart(buttonNode, {
       dataTransfer: {
         setData: vi.fn(),
@@ -248,12 +247,14 @@ describe('ThemeCanvas', () => {
       },
     });
 
-    fireEvent.drop(inputNode, {
-      dataTransfer: {},
-    });
+    const dataTransferMock = {
+      getData: vi.fn().mockReturnValue('button'),
+    };
+
+    fireEvent.dragEnter(inputNode, { dataTransfer: dataTransferMock });
+    fireEvent.drop(inputNode, { dataTransfer: dataTransferMock });
 
     const newComponents: ThemeComponent[] = onChange.mock.calls[0][0];
-    // After reordering, input should come first
     expect(newComponents[0].id).toBe('input-1');
   });
 });

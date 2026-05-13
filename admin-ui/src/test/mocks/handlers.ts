@@ -224,4 +224,36 @@ export const handlers = [
   http.get(`${BASE}/upgrade/rollback/capability`, () => {
     return HttpResponse.json(makeRollbackCapability());
   }),
+
+  // Theme versions
+  http.get(`${BASE}/realms/:name/themes/:themeId/versions`, () => {
+    return HttpResponse.json([
+      {
+        id: 'v2',
+        themeId: 'test-theme-id',
+        version: 2,
+        changes: 'Second version',
+        checksum: 'abc123',
+        styles: {},
+        components: [],
+        assets: {},
+        settings: {},
+        createdAt: new Date().toISOString(),
+        createdBy: 'admin',
+      },
+      {
+        id: 'v1',
+        themeId: 'test-theme-id',
+        version: 1,
+        changes: 'Initial version',
+        checksum: 'def456',
+        styles: {},
+        components: [],
+        assets: {},
+        settings: {},
+        createdAt: new Date(Date.now() - 3600000).toISOString(),
+        createdBy: 'admin',
+      },
+    ]);
+  }),
 ];

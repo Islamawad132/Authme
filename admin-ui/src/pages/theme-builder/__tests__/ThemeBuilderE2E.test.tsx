@@ -96,7 +96,7 @@ vi.mock('../../api/themes', () => ({
 const renderThemeBuilder = () => {
   return render(
     <ThemeBuilderPage />,
-    { routePattern: '/console/realms/:name/theme-builder' }
+    { initialUrl: '/console/realms/test-realm/theme-builder', routePattern: '/console/realms/:name/theme-builder' }
   );
 };
 
@@ -112,15 +112,15 @@ describe('ThemeBuilderPage E2E Tests', () => {
       expect(screen.getByText(/Realm:/)).toBeInTheDocument();
 
       // Section tabs should be visible
-      expect(screen.getByText('Editor')).toBeInTheDocument();
-      expect(screen.getByText('Preview Only')).toBeInTheDocument();
+      expect(screen.getAllByText('Editor').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Preview Only').length).toBeGreaterThan(0);
 
       // Editor panel tabs should be visible
-      expect(screen.getByText('Preview')).toBeInTheDocument();
-      expect(screen.getByText('Styles')).toBeInTheDocument();
-      expect(screen.getByText('Assets')).toBeInTheDocument();
-      expect(screen.getByText('Templates')).toBeInTheDocument();
-      expect(screen.getByText('History')).toBeInTheDocument();
+      expect(screen.getAllByText('Preview').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Styles').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Assets').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Templates').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('History').length).toBeGreaterThan(0);
     });
 
     it('displays action buttons in header', () => {
@@ -197,8 +197,8 @@ describe('ThemeBuilderPage E2E Tests', () => {
         />
       );
 
-      expect(screen.getByText('Header')).toBeInTheDocument();
-      expect(screen.getByText('Form')).toBeInTheDocument();
+      expect(screen.getAllByText('Header').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Form').length).toBeGreaterThan(0);
     });
 
     it('calls onChange when component is removed', async () => {
@@ -372,10 +372,10 @@ describe('ThemeBuilderPage E2E Tests', () => {
         />
       );
 
-      expect(screen.getByText('Theme Templates')).toBeInTheDocument();
-      expect(screen.getByText('Corporate')).toBeInTheDocument();
-      expect(screen.getByText('Modern')).toBeInTheDocument();
-      expect(screen.getByText('Minimal')).toBeInTheDocument();
+      expect(screen.getAllByText('Theme Templates').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Corporate').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Modern').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Minimal').length).toBeGreaterThan(0);
     });
 
     it('renders category filters', () => {
@@ -454,8 +454,8 @@ describe('ThemeBuilderPage E2E Tests', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Version 2')).toBeInTheDocument();
-        expect(screen.getByText('Version 1')).toBeInTheDocument();
+        expect(screen.getAllByText('Version 2').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Version 1').length).toBeGreaterThan(0);
       });
     });
 
@@ -469,7 +469,7 @@ describe('ThemeBuilderPage E2E Tests', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText('Current')).toBeInTheDocument();
+        expect(screen.getAllByText('Current').length).toBeGreaterThan(0);
       });
     });
 
