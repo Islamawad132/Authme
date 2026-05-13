@@ -238,7 +238,7 @@ export class BrokerService {
       );
     }
 
-    const data = (await response.json()) as Record<string, unknown>;
+    const data = (await response.json()) as Record<string, string | undefined>;
 
     const subject = String(data['sub'] ?? data['id'] ?? '');
     const givenName = String(data['given_name'] ?? data['first_name'] ?? '');
@@ -249,9 +249,14 @@ export class BrokerService {
 
     return {
       sub: subject,
-      email: data['email'] as string | undefined,
-      emailVerified: data['email_verified'] as boolean | undefined,
-      name: data['name'] as string | undefined,
+      email: data['email'],
+      emailVerified:
+        data['email_verified'] === 'true'
+          ? true
+          : data['email_verified'] === 'false'
+            ? false
+            : undefined,
+      name: data['name'],
       givenName: givenName,
       familyName: familyName,
       preferredUsername: preferredUsername,

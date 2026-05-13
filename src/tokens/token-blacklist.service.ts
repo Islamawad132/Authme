@@ -23,7 +23,9 @@ export class TokenBlacklistService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     // Periodically clean up expired tokens from DB and memory fallback
-    this.cleanupInterval = setInterval(() => this.cleanup(), 60_000);
+    this.cleanupInterval = setInterval(() => {
+      void this.cleanup();
+    }, 60_000);
 
     // On startup, load persisted revoked tokens into Redis (if Redis is up)
     await this.rehydrateFromDatabase();
