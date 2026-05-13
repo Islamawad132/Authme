@@ -22,11 +22,12 @@ import { CreateServiceAccountDto } from './dto/create-service-account.dto.js';
 import { UpdateServiceAccountDto } from './dto/update-service-account.dto.js';
 import { CreateApiKeyDto } from './dto/create-api-key.dto.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
+import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 
 @ApiTags('Service Accounts')
 @Controller('admin/realms/:realmName/service-accounts')
-@UseGuards(RealmGuard)
+@UseGuards(RealmGuard, AdminApiKeyGuard)
 @ApiSecurity('admin-api-key')
 export class ServiceAccountsController {
   constructor(

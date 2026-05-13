@@ -19,6 +19,7 @@ import type { Request } from 'express';
 import type { Realm } from '@prisma/client';
 import { BruteForceService } from './brute-force.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
+import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { StepUpService, ACR_MFA } from '../step-up/step-up.service.js';
 import { LoginService } from '../login/login.service.js';
@@ -27,7 +28,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 
 @ApiTags('Brute Force Protection')
 @Controller('admin/realms/:realmName/brute-force')
-@UseGuards(RealmGuard)
+@UseGuards(RealmGuard, AdminApiKeyGuard)
 @ApiSecurity('admin-api-key')
 export class BruteForceController {
   constructor(
