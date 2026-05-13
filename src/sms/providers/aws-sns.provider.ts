@@ -44,11 +44,13 @@ export class AwsSnsProvider implements SmsProvider {
     data: string,
     encoding: 'utf8' | 'hex',
   ): Buffer {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const crypto = require('crypto') as typeof import('crypto');
     return crypto.createHmac('sha256', key).update(data, encoding).digest();
   }
 
   private sha256(data: string): string {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const crypto = require('crypto') as typeof import('crypto');
     return crypto.createHash('sha256').update(data, 'utf8').digest('hex');
   }
@@ -109,6 +111,7 @@ export class AwsSnsProvider implements SmsProvider {
     ].join('\n');
 
     const signingKey = this.getSignatureKey(dateStamp, this.region!, 'sns');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const crypto = require('crypto') as typeof import('crypto');
     const signature = crypto
       .createHmac('sha256', signingKey)
@@ -145,6 +148,7 @@ export class AwsSnsProvider implements SmsProvider {
 
       const body = params.toString();
 
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const payloadHash = require('crypto')
         .createHash('sha256')
         .update(body, 'utf8')
@@ -181,6 +185,7 @@ export class AwsSnsProvider implements SmsProvider {
       ].join('\n');
 
       const signingKey = this.getSignatureKey(dateStamp, this.region, 'sns');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const crypto = require('crypto') as typeof import('crypto');
       const signature = crypto
         .createHmac('sha256', signingKey)

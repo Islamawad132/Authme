@@ -11,10 +11,10 @@ import {
   Delete,
   Body,
   Param,
-  Query,
+  Query as _Query,
   UseGuards,
   Logger,
-  NotFoundException,
+  NotFoundException as _NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,

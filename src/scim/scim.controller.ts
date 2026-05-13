@@ -28,7 +28,7 @@ import {
   ApiOperation,
   ApiSecurity,
   ApiResponse,
-  ApiExcludeEndpoint,
+  ApiExcludeEndpoint as _ApiExcludeEndpoint,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { ScimAuthGuard } from './guards/scim-auth.guard.js';

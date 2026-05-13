@@ -6,7 +6,7 @@ import { RedisService } from '../redis/redis.service.js';
 import { SmsService } from './sms.service.js';
 
 /** TTL in seconds for a rate limit counter entry. */
-const RATE_LIMIT_TTL_SECONDS = 900; // 15 minutes default
+const _RATE_LIMIT_TTL_SECONDS = 900; // 15 minutes default
 
 /** Default OTP length when not configured. */
 const DEFAULT_OTP_LENGTH = 6;
@@ -328,7 +328,7 @@ export class SmsOtpService {
    * Runs every 15 minutes.
    */
   @Interval(900_000) // every 15 minutes
-  async cleanupOtpLockoutStore(): Promise<void> {
+  cleanupOtpLockoutStore(): Promise<void> {
     const now = Date.now();
 
     for (const [key, entry] of this.otpLockoutStore.entries()) {
@@ -407,7 +407,7 @@ export class SmsOtpService {
     });
 
     // Store OTP attempt in database
-    const otpAttempt = await this.prisma.otpAttempt.create({
+    await this.prisma.otpAttempt.create({
       data: {
         realmId,
         userId,
@@ -674,7 +674,7 @@ export class SmsOtpService {
    * Runs every 15 minutes.
    */
   @Interval(900_000) // every 15 minutes
-  async cleanupRateLimitStore(): Promise<void> {
+  cleanupRateLimitStore(): Promise<void> {
     const now = Date.now();
     const windowMs = 16 * 60 * 1000; // 16 minutes (slightly longer than max window)
 

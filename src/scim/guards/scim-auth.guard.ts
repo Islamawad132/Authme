@@ -28,6 +28,7 @@ export class ScimAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
+    void response;
 
     // Extract realm from path: /scim/v2/{realmName}/...
     const pathParts = request.path.split('/');

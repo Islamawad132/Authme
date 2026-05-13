@@ -8,7 +8,7 @@ import {
   NotFoundException,
   ConflictException,
   Logger,
-  BadRequestException,
+  BadRequestException as _BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CryptoService } from '../crypto/crypto.service.js';
@@ -17,10 +17,10 @@ import { ScimFilterParserService } from './filter-parser.service.js';
 import type {
   ScimUser,
   ScimListResponse,
-  ScimMeta,
+  ScimMeta as _ScimMeta,
   ScimPatchOperation,
 } from './types/scim.types.js';
-import { DEFAULT_USER_ATTRIBUTE_MAPPING } from './schemas/scim.schemas.js';
+import { DEFAULT_USER_ATTRIBUTE_MAPPING as _DEFAULT_USER_ATTRIBUTE_MAPPING } from './schemas/scim.schemas.js';
 
 @Injectable()
 export class ScimUsersService {
