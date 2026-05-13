@@ -19,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 import type { Realm } from '@prisma/client';
 import { RealmGuard } from '../common/guards/realm.guard.js';
+import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 import { SamlIdpService } from './saml-idp.service.js';
 import { CreateSamlSpDto } from './dto/create-saml-sp.dto.js';
@@ -26,7 +27,7 @@ import { UpdateSamlSpDto } from './dto/update-saml-sp.dto.js';
 
 @ApiTags('SAML Service Providers')
 @Controller('admin/realms/:realmName/saml-service-providers')
-@UseGuards(RealmGuard)
+@UseGuards(RealmGuard, AdminApiKeyGuard)
 @ApiSecurity('admin-api-key')
 export class SamlSpAdminController {
   constructor(private readonly samlIdpService: SamlIdpService) {}

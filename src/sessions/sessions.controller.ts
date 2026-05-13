@@ -17,11 +17,12 @@ import {
 import type { Realm } from '@prisma/client';
 import { SessionsService } from './sessions.service.js';
 import { RealmGuard } from '../common/guards/realm.guard.js';
+import { AdminApiKeyGuard } from '../common/guards/admin-api-key.guard.js';
 import { CurrentRealm } from '../common/decorators/current-realm.decorator.js';
 
 @ApiTags('Sessions')
 @Controller('admin/realms/:realmName')
-@UseGuards(RealmGuard)
+@UseGuards(RealmGuard, AdminApiKeyGuard)
 @ApiSecurity('admin-api-key')
 export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
