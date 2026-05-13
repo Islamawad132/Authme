@@ -110,6 +110,51 @@ export class BruteForceService {
     });
   }
 
+  async recordWebAuthnFailure(
+    realm: Realm,
+    userId: string,
+    ipAddress?: string | null,
+  ): Promise<void> {
+    if (!realm.bruteForceEnabled) return;
+
+    await this.prisma.webAuthnFailureTracking.create({
+      data: { realmId: realm.id, userId, ipAddress: ipAddress ?? null },
+    });
+
+    const maxFailures = Math.max(realm.maxLoginFailures, 1);
+    const resetTime = Math.max(realm.failureResetTime, 1);
+    const windowStart = new Date(Date.now() - resetTime * 1000);
+
+    const failureCount = await this.prisma.webAuthnFailureTracking.count({
+      where: {
+        realmId: realm.id,
+        userId,
+        failedAt: { gte: windowStart },
+      },
+    });
+
+    this.logger.debug(
+      `WebAuthn brute force: user=${userId} failures=${failureCount}/${maxFailures} window=${resetTime}s`,
+    );
+
+    if (failureCount >= maxFailures) {
+      const lockedUntil = new Date(Date.now() + realm.lockoutDuration * 1000);
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { lockedUntil },
+      });
+      this.logger.warn(
+        `User ${userId} in realm ${realm.id} locked due to WebAuthn brute-force attempts`,
+      );
+    }
+  }
+
+  async resetWebAuthnFailures(realmId: string, userId: string): Promise<void> {
+    await this.prisma.webAuthnFailureTracking.deleteMany({
+      where: { realmId, userId },
+    });
+  }
+
   async recordTotpFailure(
     realm: Realm,
     userId: string,
@@ -295,6 +340,14 @@ export class BruteForceService {
       });
     if (totpCount > 0) {
       this.logger.debug(`Cleaned up ${totpCount} old TOTP failure records`);
+    }
+
+    const { count: webauthnCount } =
+      await this.prisma.webAuthnFailureTracking.deleteMany({
+        where: { failedAt: { lt: cutoff } },
+      });
+    if (webauthnCount > 0) {
+      this.logger.debug(`Cleaned up ${webauthnCount} old WebAuthn failure records`);
     }
   }
 }

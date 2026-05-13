@@ -222,8 +222,9 @@ model Realm {
   userFederations             UserFederation[]
   samlServiceProviders        SamlServiceProvider[]
   webhooks                    Webhook[]
-  webAuthnCredentials         WebAuthnCredential[]
-  smsDeliveryLogs             SmsDeliveryLog[]
+  webAuthnFailureTracking    WebAuthnFailureTracking[]
+  webAuthnCredentials       WebAuthnCredential[]
+  smsDeliveryLogs            SmsDeliveryLog[]
   otpAttempts                 OtpAttempt[]
   auditLogStreams             AuditLogStream[]
   impersonationSessions       ImpersonationSession[]
@@ -288,6 +289,7 @@ model User {
   recoveryCodes              RecoveryCode[]
   usedTotpCodes              UsedTotpCode[]
   totpFailureTracking        TotpFailureTracking[]
+  webAuthnFailureTracking    WebAuthnFailureTracking[]
   webAuthnCredentials        WebAuthnCredential[]
   attributes                 UserAttribute[]
   loginRiskAssessments       LoginRiskAssessment[]
@@ -719,6 +721,23 @@ model TotpFailureTracking {
   @@index([userId, failedAt])
   @@index([ipAddress, failedAt])
   @@map("totp_failure_tracking")
+}
+
+// ─── WEBAUTHN FAILURE TRACKING (brute-force protection) ───────
+
+model WebAuthnFailureTracking {
+  id        String   @id @default(uuid())
+  realmId   String   @map("realm_id")
+  userId    String   @map("user_id")
+  ipAddress String?  @map("ip_address")
+  failedAt  DateTime @default(now()) @map("failed_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  realm Realm @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([realmId, userId, failedAt])
+  @@index([ipAddress, failedAt])
+  @@map("webauthn_failure_tracking")
 }
 
 // ─── WEBAUTHN / FIDO2 ────────────────────────────────────
