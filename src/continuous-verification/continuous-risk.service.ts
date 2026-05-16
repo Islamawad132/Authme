@@ -149,7 +149,7 @@ export class ContinuousRiskAssessmentService {
 
     // ── Evaluate policies ─────────────────────────────────────────────────────
 
-    const policyResults = await this.evaluatePolicies(
+    const policyResults = this.evaluatePolicies(
       context,
       signals,
       riskScore,

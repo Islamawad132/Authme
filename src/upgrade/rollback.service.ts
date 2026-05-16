@@ -170,7 +170,7 @@ export class RollbackService {
 
       // Execute the restore
       this.logger.log(`Restoring database from backup: ${backup.filename}`);
-      const restoreResult = await this.databaseBackupService.restoreBackup(
+      const restoreResult = this.databaseBackupService.restoreBackup(
         backup.path,
       );
 

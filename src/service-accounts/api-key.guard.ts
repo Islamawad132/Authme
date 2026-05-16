@@ -120,7 +120,7 @@ export class ApiKeyGuard implements CanActivate {
 
     // Check monthly quota if configured
     if (apiKey.maxRequestsPerMonth != null && apiKey.maxRequestsPerMonth > 0) {
-      const quotaResult = await this.serviceAccountsService.checkQuotas(apiKey);
+      const quotaResult = this.serviceAccountsService.checkQuotas(apiKey);
 
       if (quotaResult?.exceeded) {
         response.setHeader(

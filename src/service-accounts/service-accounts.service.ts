@@ -276,13 +276,13 @@ export class ServiceAccountsService {
    * Check if an API key has exceeded its usage quotas.
    * Returns null if within limits, or an object with quota exceeded details.
    */
-  async checkQuotas(apiKey: {
+  checkQuotas(apiKey: {
     id: string;
     maxRequestsPerDay: number | null;
     maxRequestsPerMonth: number | null;
     rateLimitPerMinute: number | null;
     requestCount: number;
-  }): Promise<{ exceeded: boolean; reason?: string } | null> {
+  }): { exceeded: boolean; reason?: string } | null {
     // Check monthly quota if configured
     if (
       apiKey.maxRequestsPerMonth != null &&

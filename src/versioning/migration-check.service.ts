@@ -19,8 +19,8 @@ export interface MigrationStatus {
 export class MigrationCheckService implements OnModuleInit {
   private readonly logger = new Logger(MigrationCheckService.name);
 
-  async onModuleInit(): Promise<void> {
-    const status = await this.getStatus();
+  onModuleInit(): void {
+    const status = this.getStatus();
 
     if (status.pendingCount > 0) {
       this.logger.warn(

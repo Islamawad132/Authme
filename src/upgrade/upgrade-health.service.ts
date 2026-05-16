@@ -69,7 +69,7 @@ export class UpgradeHealthService {
     else failures++;
 
     // 3. Migrations verification
-    const migrationsCheck = await this.checkMigrationsApplied();
+    const migrationsCheck = this.checkMigrationsApplied();
     checks.push(migrationsCheck);
     if (migrationsCheck.status === 'pass') passed++;
     else if (migrationsCheck.status === 'warn') warnings++;

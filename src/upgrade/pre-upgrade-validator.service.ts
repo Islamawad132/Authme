@@ -62,14 +62,14 @@ export class PreUpgradeValidatorService {
     else failures++;
 
     // 2. Pending migrations check
-    const migrationCheck = await this.checkPendingMigrations();
+    const migrationCheck = this.checkPendingMigrations();
     checks.push(migrationCheck);
     if (migrationCheck.status === 'pass') passed++;
     else if (migrationCheck.status === 'warn') warnings++;
     else failures++;
 
     // 3. Disk space check
-    const diskCheck = await this.checkDiskSpace();
+    const diskCheck = this.checkDiskSpace();
     checks.push(diskCheck);
     if (diskCheck.status === 'pass') passed++;
     else if (diskCheck.status === 'warn') warnings++;

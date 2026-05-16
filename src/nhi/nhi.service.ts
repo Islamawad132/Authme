@@ -748,14 +748,14 @@ export class NhiService {
    * This method creates a new key pair (RSA or ECDSA) and generates a
    * self-signed X.509 certificate for device authentication.
    */
-  async generateDeviceCertificate(
+  generateDeviceCertificate(
     realm: Realm,
     dto: GenerateCertificateDto,
-  ): Promise<{
+  ): {
     certificatePem: string;
     privateKeyPem: string;
     info: CertificateInfoDto;
-  }> {
+  } {
     const keyAlgorithm = dto.keyAlgorithm ?? CertificateKeyAlgorithm.ECDSA_P256;
     const validityDays = dto.validityDays ?? 365;
 
@@ -1367,10 +1367,7 @@ export class NhiService {
             validityDays: validityDays,
           };
 
-          const certResult = await this.generateDeviceCertificate(
-            realm,
-            certDto,
-          );
+          const certResult = this.generateDeviceCertificate(realm, certDto);
           result.certificatePem = certResult.certificatePem;
           result.privateKeyPem = certResult.privateKeyPem;
           result.certificateInfo = {

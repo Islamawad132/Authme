@@ -71,7 +71,7 @@ export class MtlsGuard implements CanActivate {
   /**
    * Check if the request can proceed based on mTLS validation.
    */
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<NhiCertificateRequest>();
     const response = context.switchToHttp().getResponse<Response>();
 
@@ -102,7 +102,7 @@ export class MtlsGuard implements CanActivate {
     }
 
     // Validate mTLS certificate
-    const validationResult = await this.validateMtlsCertificate(request);
+    const validationResult = this.validateMtlsCertificate(request);
 
     if (!validationResult.valid) {
       throw new UnauthorizedException(
@@ -132,9 +132,7 @@ export class MtlsGuard implements CanActivate {
   /**
    * Validate the mTLS certificate from request headers.
    */
-  private async validateMtlsCertificate(
-    request: NhiCertificateRequest,
-  ): Promise<{
+  private validateMtlsCertificate(request: NhiCertificateRequest): {
     valid: boolean;
     error?: string;
     certificateInfo?: {
@@ -144,7 +142,7 @@ export class MtlsGuard implements CanActivate {
       valid: boolean;
     };
     nhiIdentityId?: string;
-  }> {
+  } {
     // Extract certificate from headers
     const certHeader = request.headers['x-client-certificate'] as string;
     const fingerprintHeader = request.headers[
@@ -232,7 +230,7 @@ export class NhiCertificateGuard implements CanActivate {
 
   constructor(private readonly reflector: Reflector) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<NhiCertificateRequest>();
     const response = context.switchToHttp().getResponse<Response>();
 

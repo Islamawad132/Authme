@@ -130,7 +130,7 @@ export class NhiRotationScheduler {
       });
 
       for (const cred of candidates) {
-        if (await this.isDueForRotation(realm, cred, policy)) {
+        if (this.isDueForRotation(realm, cred, policy)) {
           due.push({
             credentialId: cred.id,
             nhiIdentityId: cred.nhiIdentityId,
@@ -149,11 +149,11 @@ export class NhiRotationScheduler {
   /**
    * Check whether a credential is due for rotation based on its policy.
    */
-  private async isDueForRotation(
+  private isDueForRotation(
     _realm: Realm,
     credential: { createdAt: Date; rotationRequired: boolean },
     policy: { rotationIntervalDays: number; rotationBeforeDays: number },
-  ): Promise<boolean> {
+  ): boolean {
     // Explicit flag takes precedence
     if (credential.rotationRequired) return true;
 

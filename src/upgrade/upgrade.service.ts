@@ -164,8 +164,8 @@ export class UpgradeService {
     if (!dryRun) {
       const backupStageResult = await this.executeStage(
         UpgradeStage.BACKUP,
-        async () => {
-          backupResult = await this.databaseBackupService.createBackup(
+        () => {
+          backupResult = this.databaseBackupService.createBackup(
             `pre-upgrade-${toVersion}`,
           );
           if (!backupResult.success) {
@@ -415,7 +415,9 @@ export class UpgradeService {
    */
   private async executeStage(
     stage: UpgradeStage,
-    fn: () => Promise<{ success: boolean; message: string; details?: string }>,
+    fn: () =>
+      | Promise<{ success: boolean; message: string; details?: string }>
+      | { success: boolean; message: string; details?: string },
   ): Promise<UpgradeStageResult> {
     const stageStartTime = Date.now();
     this.logger.log(`[${stage}] Starting stage`);
@@ -460,7 +462,7 @@ export class UpgradeService {
     dryRun: boolean,
   ): Promise<{ success: boolean; message: string }> {
     try {
-      const currentVersion = await this.getCurrentVersion();
+      const currentVersion = this.getCurrentVersion();
 
       await this.prisma.upgradeAuditLog.create({
         data: {
@@ -556,9 +558,11 @@ export class UpgradeService {
   /**
    * Run Prisma database migrations.
    */
-  private async runDatabaseMigration(
-    toVersion: string,
-  ): Promise<{ success: boolean; message: string; details?: string }> {
+  private runDatabaseMigration(toVersion: string): {
+    success: boolean;
+    message: string;
+    details?: string;
+  } {
     try {
       this.logger.log(`Running database migrations for ${toVersion}...`);
 
@@ -757,7 +761,7 @@ export class UpgradeService {
   /**
    * Get the current AuthMe version.
    */
-  async getCurrentVersion(): Promise<string> {
+  getCurrentVersion(): string {
     try {
       // Try to read version from package.json
       const output = execSync(

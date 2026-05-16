@@ -304,8 +304,7 @@ export class UpgradeController {
   async checkConfigCompatibility(
     @Query('version') version?: string,
   ): Promise<ConfigCompatibilityResult> {
-    const targetVersion =
-      version ?? (await this.upgradeService.getCurrentVersion());
+    const targetVersion = version ?? this.upgradeService.getCurrentVersion();
     return this.configCompatibility.checkCompatibility(targetVersion);
   }
 }
