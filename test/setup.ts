@@ -27,6 +27,8 @@ import * as argon2 from 'argon2';
 export const TEST_ADMIN_API_KEY = 'test-admin-key';
 
 export interface SeededRealm {
+  /** Convenience alias for realm.name — used by tests that access otherRealm.name directly. */
+  name: string;
   realm: {
     id: string;
     name: string;
@@ -211,6 +213,7 @@ export async function createTestApp(): Promise<TestContext> {
     });
 
     return {
+      name: realm.name,
       realm: { id: realm.id, name: realm.name },
       signingKey: {
         id: realm.signingKeys[0].id,
